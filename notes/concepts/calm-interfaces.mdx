@@ -1,0 +1,65 @@
+---
+title: Notes on Calm Interfaces
+description: A small set of observations about what makes an interface feel quiet.
+tags: [design, typography, ux]
+created: 2026-05-17
+updated: 2026-05-18
+---
+
+Most interfaces try to grab attention. A few don't. The ones that
+don't tend to share a small set of habits.
+
+## What "calm" usually means
+
+- Backgrounds are tinted, not pure white.
+- Body text is not pure black either.
+- A single, desaturated accent, used sparingly.
+- One sans-serif, set at a comfortable size with generous leading.
+- Code blocks share the page's mood instead of fighting it.
+
+<Callout kind="note" title="A rule of thumb">
+  If you remove the accent color entirely and the page still reads
+  beautifully, the typography is doing its job.
+</Callout>
+
+## Spacing does the work
+
+Rhythm matters more than density. A short paragraph followed by a
+generous gap reads as *intentional*. A short paragraph followed by a
+tight gap reads as *cramped*.
+
+The reading column wants to sit somewhere between **620** and **760**
+pixels. Wider columns force the eye to track too far between lines;
+narrower ones break the rhythm of long sentences.
+
+## Restraint with accents
+
+```css
+:root {
+  --accent: oklch(50% 0.1 265);
+}
+a {
+  color: var(--accent);
+}
+```
+
+That's the entire accent system on most calm sites. One token. One
+use. No gradients, no second hue, no "primary / secondary / tertiary"
+hierarchy.
+
+<Callout kind="warn" title="When to break the rule">
+  Errors and destructive actions are the exception. They should be
+  loud enough to interrupt. Everything else should be quiet.
+</Callout>
+
+## Math still belongs
+
+Equations look at home in a quiet layout when they're set in the same
+neutral palette as the prose:
+
+$$
+\text{calm}(p) = \frac{\text{intention}(p)}{\text{decoration}(p)}
+$$
+
+When `decoration` approaches zero, the interface starts to feel like a
+notebook. That's usually the goal.

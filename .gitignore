@@ -1,0 +1,22 @@
+# dependencies
+site/node_modules/
+site/.astro/
+site/dist/
+site/.vercel/
+site/.netlify/
+
+# logs
+*.log
+npm-debug.log*
+bun-debug.log*
+
+# editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# env
+.env
+.env.local
+.env.*.local

@@ -1,0 +1,21 @@
+# Cloudflare Pages configuration for the static-exported site.
+#
+# Deploy with:
+#   bun run build           # produces out/
+#   bun run deploy          # wraps: wrangler pages deploy out
+#
+# This file is also where you wire up the R2 bucket if you want a Worker
+# (separate from this site) to read/write to it. The site itself reads
+# R2 images over plain HTTPS, so no binding is strictly required.
+
+name = "knowledge"
+compatibility_date = "2025-05-01"
+pages_build_output_dir = "out"
+
+# Optional: bind an R2 bucket for a sibling worker that uploads images.
+# Uncomment and set the bucket name once the bucket is created.
+#
+# [[r2_buckets]]
+# binding = "MEDIA"
+# bucket_name = "knowledge-media"
+# preview_bucket_name = "knowledge-media-preview"

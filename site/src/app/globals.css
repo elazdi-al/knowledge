@@ -1,0 +1,481 @@
+@import "tailwindcss";
+
+/*
+ * Palette adapted from emilkowal.ski's open-source stylesheet.
+ * The gray-100..gray-1200 scale is reproduced verbatim for light and
+ * dark mode, with a single warm yellow brand color and a neutral
+ * page-fill tone.
+ */
+
+@theme {
+  --color-gray-100: #fdfdfc;
+  --color-gray-200: #f9f9f8;
+  --color-gray-300: #f1f0ef;
+  --color-gray-400: #e9e9e7;
+  --color-gray-500: #e2e1de;
+  --color-gray-600: #dad9d6;
+  --color-gray-700: #cfceca;
+  --color-gray-800: #bcbbb5;
+  --color-gray-900: #8d8d86;
+  --color-gray-1000: #82827c;
+  --color-gray-1100: #63635e;
+  --color-gray-1200: #21201c;
+
+  --color-bg-fill: #f8f8f8;
+  --color-brand: #fad657;
+
+  --color-bg: var(--color-gray-100);
+  --color-text: var(--color-gray-1200);
+  --color-muted: var(--color-gray-1100);
+  --color-faint: var(--color-gray-1000);
+  --color-border: var(--color-gray-400);
+  --color-border-strong: var(--color-gray-600);
+  --color-hover: var(--color-gray-300);
+  --color-surface: var(--color-gray-100);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular,
+    Menlo, monospace;
+  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+
+  --container-prose: 644px;
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-gray-100: #111110;
+      --color-gray-200: #191918;
+      --color-gray-300: #222221;
+      --color-gray-400: #2a2a28;
+      --color-gray-500: #31312e;
+      --color-gray-600: #3b3a37;
+      --color-gray-700: #494844;
+      --color-gray-800: #62605b;
+      --color-gray-900: #6f6d66;
+      --color-gray-1000: #7c7b74;
+      --color-gray-1100: #b5b3ad;
+      --color-gray-1200: #eeeeec;
+
+      --color-bg-fill: #252525;
+
+      --color-bg: var(--color-gray-100);
+      --color-text: var(--color-gray-1200);
+      --color-muted: var(--color-gray-1100);
+      --color-faint: var(--color-gray-1000);
+      --color-border: var(--color-gray-400);
+      --color-border-strong: var(--color-gray-600);
+      --color-hover: var(--color-gray-300);
+      --color-surface: var(--color-gray-200);
+    }
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv01", "ss03";
+    font-variation-settings: "opsz" auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    line-height: 1.5;
+  }
+
+  ::selection {
+    background: var(--color-gray-300);
+    color: var(--color-text);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gray-900);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+}
+
+/* Prose (note body) */
+@layer components {
+  .prose {
+    color: var(--color-gray-1100);
+    font-size: 0.9375rem;
+    line-height: 1.65;
+  }
+
+  .prose > * + * {
+    margin-top: 1.1em;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4 {
+    color: var(--color-text);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.3;
+  }
+
+  .prose h2 {
+    font-size: 1rem;
+    margin-top: 2em;
+    margin-bottom: 0.4em;
+  }
+
+  .prose h3 {
+    font-size: 0.95rem;
+    margin-top: 1.6em;
+    margin-bottom: 0.3em;
+  }
+
+  .prose h4 {
+    font-size: 0.9rem;
+    margin-top: 1.4em;
+    margin-bottom: 0.2em;
+    color: var(--color-muted);
+  }
+
+  .prose p {
+    text-wrap: pretty;
+  }
+
+  .prose strong {
+    color: var(--color-text);
+    font-weight: 500;
+  }
+
+  .prose em {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.08em;
+    line-height: 1;
+    color: var(--color-text);
+  }
+
+  .prose a {
+    color: var(--color-text);
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-decoration-color: var(--color-gray-700);
+    text-underline-offset: 0.2em;
+    transition: text-decoration-color 150ms ease;
+  }
+
+  .prose a:hover {
+    text-decoration-color: var(--color-text);
+  }
+
+  .prose code:not(pre code) {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--color-gray-300);
+    color: var(--color-text);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+  }
+
+  .prose ul,
+  .prose ol {
+    padding-left: 1.4em;
+  }
+
+  .prose ul li,
+  .prose ol li {
+    margin-top: 0.35em;
+  }
+
+  .prose ul li::marker {
+    color: var(--color-gray-900);
+  }
+
+  .prose ol li::marker {
+    color: var(--color-gray-1000);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .prose blockquote {
+    padding-left: 1.1em;
+    border-left: 2px solid var(--color-gray-500);
+    color: var(--color-muted);
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.05em;
+  }
+
+  .prose hr {
+    border: 0;
+    height: 1px;
+    background: var(--color-gray-400);
+    margin-block: 2.2em;
+  }
+
+  .prose pre {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    background: #ffffff;
+    border-top: 1px solid var(--color-gray-400);
+    border-bottom: 1px solid var(--color-gray-400);
+    border-radius: 12px;
+    padding: 1.5rem;
+    overflow: auto;
+  }
+
+  @media (min-width: 640px) {
+    .prose pre {
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+  }
+
+  @media (min-width: 768px) {
+    .prose pre {
+      border: none;
+      padding: 1rem;
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .prose pre {
+      background: #11110e;
+    }
+  }
+
+  .prose pre code {
+    display: grid;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    min-width: max-content;
+  }
+
+  .prose pre [data-line] span {
+    color: var(--shiki-light);
+    font-style: var(--shiki-light-font-style);
+    font-weight: var(--shiki-light-font-weight);
+    text-decoration: var(--shiki-light-text-decoration);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .prose pre [data-line] span {
+      color: var(--shiki-dark);
+      font-style: var(--shiki-dark-font-style);
+      font-weight: var(--shiki-dark-font-weight);
+      text-decoration: var(--shiki-dark-text-decoration);
+    }
+  }
+
+  .prose figure[data-rehype-pretty-code-figure] {
+    margin-block: 1.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .prose figure[data-rehype-pretty-code-figure] {
+      margin-top: 1.75rem;
+      margin-bottom: 2rem;
+    }
+  }
+
+  .prose [data-rehype-pretty-code-title] {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    padding: 0.75rem 1.5rem;
+    background: #ffffff;
+    border-top: 1px solid var(--color-gray-400);
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
+  }
+
+  @media (min-width: 768px) {
+    .prose [data-rehype-pretty-code-title] {
+      padding: 0.5rem 1rem;
+      border: none;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .prose [data-rehype-pretty-code-title] {
+      background: #11110e;
+    }
+  }
+
+  .prose [data-rehype-pretty-code-title] + pre {
+    margin-top: 0;
+    border-top: 0;
+    border-radius: 0 0 12px 12px;
+  }
+
+  @media (min-width: 768px) {
+    .prose [data-rehype-pretty-code-title] + pre {
+      border-radius: 0 0 12px 12px;
+    }
+  }
+
+  .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+    margin-block: 1.6em;
+  }
+
+  .prose thead th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-gray-500);
+    padding: 0.5em 0.7em;
+  }
+
+  .prose tbody td {
+    padding: 0.5em 0.7em;
+    border-bottom: 1px solid var(--color-gray-400);
+    vertical-align: top;
+  }
+
+  .prose tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .prose .katex-display {
+    margin-block: 1.4em;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-block: 0.2em;
+  }
+
+  .prose img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+  }
+}
+
+/* Writing list row */
+@layer components {
+  .row-link {
+    display: block;
+    margin-inline: -0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    transition: background-color 150ms ease;
+  }
+
+  .row-link:hover {
+    background: var(--color-gray-300);
+  }
+
+  .row-link__title {
+    color: var(--color-text);
+    font-weight: 500;
+    letter-spacing: -0.011em;
+  }
+
+  .row-link__desc {
+    color: var(--color-muted);
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.04em;
+  }
+
+  .section-label {
+    color: var(--color-faint);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    margin-bottom: 0.55rem;
+  }
+}
+
+/* Inline demo frame */
+@layer components {
+  .demo-frame {
+    margin-block: 1.6em;
+    border: 1px solid var(--color-gray-400);
+    background: var(--color-bg-fill);
+    border-radius: 10px;
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    overflow: hidden;
+  }
+
+  .demo-frame__caption {
+    color: var(--color-faint);
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+  }
+}
+
+/* Callout */
+@layer components {
+  .callout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 0.85rem;
+    border: 1px solid var(--color-gray-400);
+    background: var(--color-bg-fill);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    margin-block: 1.4em;
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .callout__icon {
+    color: var(--color-muted);
+    font-weight: 500;
+    margin-top: 0.05rem;
+  }
+
+  .callout__title {
+    color: var(--color-text);
+    font-weight: 500;
+    margin-bottom: 0.15rem;
+  }
+}
+
+/* Vaul */
+@layer components {
+  [data-vaul-drawer] {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border-color: var(--color-gray-400);
+  }
+
+  [data-vaul-overlay] {
+    background: rgba(0, 0, 0, 0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
