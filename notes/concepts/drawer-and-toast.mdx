@@ -1,0 +1,48 @@
+---
+title: A Drawer, a Toast
+description: Inline demo of two small UI primitives, mounted directly in the note body.
+tags: [design, ui, components]
+created: 2026-05-18
+updated: 2026-05-18
+---
+
+A note doesn't have to be all words. When the thing you want to talk
+about is a piece of interaction, the cleanest demonstration is the
+interaction itself, embedded in the paragraph that mentions it.
+
+## A drawer
+
+Tap the button. The panel slides up from the bottom of the viewport,
+the rest of the page dims, and you can drag the handle down to dismiss
+or tap outside. Closing it fires a toast: small, transient, in the
+bottom corner.
+
+<DemoFrame caption="vaul + sonner">
+  <DrawerDemo />
+</DemoFrame>
+
+What's interesting about a drawer isn't the slide animation. It's the
+two affordances that come with it for free: **drag to dismiss** and
+**dim the background**. Both reinforce a single idea: *this is
+temporary*. The page below is still the real surface; the drawer is
+borrowed time.
+
+## When a drawer beats a modal
+
+| pattern  | feels like        | best for                            |
+| -------- | ----------------- | ----------------------------------- |
+| modal    | a hard stop       | confirmations, destructive choices  |
+| drawer   | a side-glance     | quick edits, brief reads, settings  |
+| popover  | a footnote        | secondary info, small actions       |
+| sheet    | a context switch  | flows that briefly need full focus  |
+
+A drawer is for things you want to **glance at**, not commit to. The
+toast that follows it is the same idea inverted: a result you want to
+**acknowledge** without acting on.
+
+## A note about libraries
+
+The two components above are off-the-shelf. Vaul for the drawer,
+Sonner for the toasts. Neither tries to invent a new pattern. They
+just do the boring parts (focus traps, gesture handling, queue
+management) so the rest of the page can stay quiet.
