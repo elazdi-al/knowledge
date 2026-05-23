@@ -7,7 +7,10 @@ import {
   useSandpack,
   useSandpackNavigation,
 } from "@codesandbox/sandpack-react";
+import { Toolbar } from "@base-ui/react/toolbar";
 import { useEffect, useState } from "react";
+import { Tooltip, TooltipProvider } from "./Tooltip";
+import { cn } from "@/lib/cn";
 
 type FileMap = Record<
   string,
@@ -122,29 +125,27 @@ function RefreshIcon() {
   );
 }
 
-function HeaderButton({
-  onClick,
-  label,
-  children,
-}: {
-  onClick: () => void;
+interface ToolButtonProps {
   label: string;
+  onClick: () => void;
   children: React.ReactNode;
-}) {
+}
+
+function ToolButton({ label, onClick, children }: ToolButtonProps) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      className="group flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--cp-gray-1100)] hover:bg-[color:var(--cp-gray-300)] hover:text-[color:var(--cp-gray-1200)]"
-    >
-      {children}
-    </button>
+    <Tooltip label={label}>
+      <Toolbar.Button
+        onClick={onClick}
+        aria-label={label}
+        className="group flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-[color:var(--cp-gray-1100)] outline-none transition-colors hover:bg-[color:var(--cp-gray-300)] hover:text-[color:var(--cp-gray-1200)] focus-visible:bg-[color:var(--cp-gray-300)]"
+      >
+        {children}
+      </Toolbar.Button>
+    </Tooltip>
   );
 }
 
-function PlaygroundHeader({
+function PlaygroundToolbar({
   title,
   onFullscreen,
   onToggleLineNumbers,
@@ -161,20 +162,20 @@ function PlaygroundHeader({
       <span className="font-medium text-[color:var(--cp-gray-1200)]">
         {title}
       </span>
-      <div className="flex">
-        <HeaderButton onClick={reset} label="Reset code">
+      <Toolbar.Root className="flex items-center">
+        <ToolButton label="Reset code" onClick={reset}>
           <SkipBackIcon />
-        </HeaderButton>
-        <HeaderButton onClick={onToggleLineNumbers} label="Toggle line numbers">
+        </ToolButton>
+        <ToolButton label="Toggle line numbers" onClick={onToggleLineNumbers}>
           <LineNumbersIcon />
-        </HeaderButton>
-        <HeaderButton onClick={onFullscreen} label="Toggle fullscreen">
+        </ToolButton>
+        <ToolButton label="Toggle fullscreen" onClick={onFullscreen}>
           <FullscreenIcon />
-        </HeaderButton>
-        <HeaderButton onClick={refresh} label="Refresh preview">
+        </ToolButton>
+        <ToolButton label="Refresh preview" onClick={refresh}>
           <RefreshIcon />
-        </HeaderButton>
-      </div>
+        </ToolButton>
+      </Toolbar.Root>
     </header>
   );
 }
@@ -203,96 +204,98 @@ export function CodePlayground({
   }, [fullscreen]);
 
   return (
-    <div className="code-playground lg:-mx-32 xl:-mx-56">
-      <div
-        className={
-          fullscreen
-            ? "mobile-full-width col-span-3 !col-start-1 mx-auto !mt-0 w-full max-w-7xl"
-            : "mobile-full-width col-span-3 !col-start-1 mx-auto my-7 w-full max-w-7xl"
-        }
-      >
-        <SandpackProvider
-          template={template}
-          files={files}
-          theme={theme}
-          options={{
-            visibleFiles: Object.keys(files),
-            activeFile:
-              Object.keys(files).find(
-                (file) => file.endsWith(".js") || file.endsWith(".tsx"),
-              ) ?? Object.keys(files)[0],
-            externalResources: [
-              "https://cdn.tailwindcss.com",
-              "https://animations.dev/sandpack-style.css",
-            ],
-          }}
-          customSetup={{
-            dependencies: {
-              "framer-motion": "11.0.24",
-              "react-use-measure": "latest",
-              clsx: "latest",
-              "usehooks-ts": "latest",
-            },
-          }}
-          style={{ height: "100%", display: "block" }}
+    <TooltipProvider delay={150}>
+      <div className="code-playground lg:-mx-32 xl:-mx-56">
+        <div
+          className={cn(
+            "mobile-full-width col-span-3 !col-start-1 mx-auto w-full max-w-7xl",
+            fullscreen ? "!mt-0" : "my-7",
+          )}
         >
-          <div
-            className={
-              fullscreen
-                ? "code-playground__shell fixed inset-0 z-[100] flex flex-col gap-px overflow-hidden rounded-none bg-[color:var(--cp-gray-400)] text-[13px]"
-                : "code-playground__shell flex flex-col gap-px overflow-hidden rounded-none bg-[color:var(--cp-gray-400)] text-[13px] sm:rounded-xl"
-            }
-            style={{
-              ["--sp-font-mono" as string]: "var(--font-mono)",
+          <SandpackProvider
+            template={template}
+            files={files}
+            theme={theme}
+            options={{
+              visibleFiles: Object.keys(files),
+              activeFile:
+                Object.keys(files).find(
+                  (file) => file.endsWith(".js") || file.endsWith(".tsx"),
+                ) ?? Object.keys(files)[0],
+              externalResources: [
+                "https://cdn.tailwindcss.com",
+                "https://animations.dev/sandpack-style.css",
+              ],
             }}
+            customSetup={{
+              dependencies: {
+                "framer-motion": "11.0.24",
+                "react-use-measure": "latest",
+                clsx: "latest",
+                "usehooks-ts": "latest",
+              },
+            }}
+            style={{ height: "100%", display: "block" }}
           >
-            <PlaygroundHeader
-              title={title}
-              onFullscreen={() => setFullscreen((v) => !v)}
-              onToggleLineNumbers={() => setShowLineNumbers((v) => !v)}
-            />
-            <div className="relative flex h-fit w-full flex-col lg:h-auto lg:flex-row">
-              <div className="code-playground__panel">
-                <SandpackCodeEditor
-                  showTabs
-                  showLineNumbers={showLineNumbers}
-                  showInlineErrors
-                  className="!h-full !w-full"
-                  style={{
-                    maxHeight: fullscreen ? "calc(100vh - 48px)" : "50vh",
-                  }}
-                />
-              </div>
-              {showPreview ? (
-                <>
-                  <button
-                    type="button"
-                    aria-label="Resize preview"
-                    className="flex h-full w-3 flex-shrink-0 cursor-col-resize justify-center bg-white transition-colors hover:bg-[color:var(--cp-gray-200)]"
-                  >
-                    <span className="block h-full w-px bg-[color:var(--cp-gray-400)]" />
-                  </button>
-                  <div className="code-playground__panel code-playground__preview-panel relative select-none">
-                    <div className="relative h-full min-h-[280px] w-full md:min-h-0">
-                      <SandpackPreview
-                        showOpenInCodeSandbox={false}
-                        showRefreshButton={false}
-                        showRestartButton={false}
-                        className="!h-full !w-full"
-                        style={{
-                          height: fullscreen ? "calc(100vh - 48px)" : "100%",
-                          minHeight: 280,
-                          maxHeight: fullscreen ? undefined : "80vh",
-                        }}
-                      />
+            <div
+              role={fullscreen ? "dialog" : undefined}
+              aria-modal={fullscreen ? "true" : undefined}
+              aria-label={fullscreen ? `${title} (fullscreen)` : undefined}
+              className={cn(
+                "code-playground__shell flex flex-col gap-px overflow-hidden bg-[color:var(--cp-gray-400)] text-[13px]",
+                fullscreen
+                  ? "fixed inset-0 z-[100] rounded-none"
+                  : "rounded-none sm:rounded-xl",
+              )}
+              style={{ ["--sp-font-mono" as string]: "var(--font-mono)" }}
+            >
+              <PlaygroundToolbar
+                title={title}
+                onFullscreen={() => setFullscreen((v) => !v)}
+                onToggleLineNumbers={() => setShowLineNumbers((v) => !v)}
+              />
+              <div className="relative flex h-fit w-full flex-col lg:h-auto lg:flex-row">
+                <div className="code-playground__panel">
+                  <SandpackCodeEditor
+                    showTabs
+                    showLineNumbers={showLineNumbers}
+                    showInlineErrors
+                    className="!h-full !w-full"
+                    style={{
+                      maxHeight: fullscreen ? "calc(100vh - 48px)" : "50vh",
+                    }}
+                  />
+                </div>
+                {showPreview ? (
+                  <>
+                    <div
+                      aria-hidden="true"
+                      className="flex h-full w-3 flex-shrink-0 justify-center bg-white"
+                    >
+                      <span className="block h-full w-px bg-[color:var(--cp-gray-400)]" />
                     </div>
-                  </div>
-                </>
-              ) : null}
+                    <div className="code-playground__panel code-playground__preview-panel relative select-none">
+                      <div className="relative h-full min-h-[280px] w-full md:min-h-0">
+                        <SandpackPreview
+                          showOpenInCodeSandbox={false}
+                          showRefreshButton={false}
+                          showRestartButton={false}
+                          className="!h-full !w-full"
+                          style={{
+                            height: fullscreen ? "calc(100vh - 48px)" : "100%",
+                            minHeight: 280,
+                            maxHeight: fullscreen ? undefined : "80vh",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+              </div>
             </div>
-          </div>
-        </SandpackProvider>
+          </SandpackProvider>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
