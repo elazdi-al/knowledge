@@ -13,33 +13,36 @@
     "preview": "wrangler pages dev out"
   },
   "dependencies": {
+    "@codesandbox/sandpack-react": "^2.20.0",
     "clsx": "^2.1.1",
     "gray-matter": "^4.0.3",
-    "katex": "^0.16.21",
-    "next": "^15.5.0",
+    "katex": "^0.16.47",
+    "next": "16.2.6",
     "next-mdx-remote": "^5.0.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
     "rehype-katex": "^7.0.1",
-    "rehype-pretty-code": "^0.14.1",
+    "rehype-pretty-code": "^0.14.3",
     "rehype-slug": "^6.0.0",
-    "remark-gfm": "^4.0.0",
+    "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "shiki": "^1.24.4",
-    "sonner": "^1.7.4",
-    "vaul": "^1.1.2",
-    "zod": "^3.24.1"
+    "shiki": "^1.29.2",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^22.19.19",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.0.3",
-    "eslint": "^9.18.0",
-    "eslint-config-next": "^15.5.0",
-    "postcss": "^8.5.1",
-    "tailwindcss": "^4.0.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "16.2.6",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
-    "wrangler": "^3.99.0"
+    "wrangler": "^4.93.0"
+  },
+  "overrides": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3"
   }
 }

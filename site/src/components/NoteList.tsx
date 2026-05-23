@@ -19,7 +19,7 @@ export function NoteList({ notes }: Props) {
         <Link
           key={note.slug}
           href={`/notes/${note.slug}`}
-          className="-mx-3 flex flex-col rounded-md px-3 no-underline hover:bg-[#F5F4F4] dark:hover:bg-gray-200 sm:py-3"
+          className="-mx-3 flex flex-col rounded-md px-3 no-underline hover:bg-[color:var(--color-hover)] sm:py-3"
         >
           <span>{note.frontmatter.title}</span>
           {note.frontmatter.description && (

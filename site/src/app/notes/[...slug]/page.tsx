@@ -45,7 +45,7 @@ export default async function NotePage({
           {note.frontmatter.title}
         </h1>
         {note.frontmatter.description && (
-          <p className="text-[color:var(--color-muted)] italic font-[var(--font-serif)] text-[1.1rem] leading-snug text-balance">
+          <p className="text-[color:var(--color-muted)] italic leading-snug text-balance">
             {note.frontmatter.description}
           </p>
         )}

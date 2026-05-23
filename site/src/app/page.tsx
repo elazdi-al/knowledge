@@ -5,9 +5,9 @@ export default async function HomePage() {
   const notes = await getAllNotes();
 
   return (
-    <div className="-mb-3 mt-16 sm:mt-32">
-      <span className="mb-5 block font-medium dark:text-white sm:mb-4">
-        Writing
+    <div>
+      <span className="-mx-3 mb-5 block px-3 font-medium sm:-mt-3 sm:mb-1 sm:py-3">
+        writing
       </span>
       <NoteList notes={notes} />
     </div>

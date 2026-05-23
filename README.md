@@ -108,10 +108,11 @@ Available out of the box:
 | `<Callout>`         | aside box; `kind="info" \| "note" \| "warn"`    |
 | `<R2Image>`         | image stored in R2; `src` is the object key   |
 | `<DemoFrame>`       | wrap an inline interactive demo               |
-| `<DrawerDemo>`      | example Vaul + Sonner inline demo             |
+| `<CodePlayground>`  | lazy-loaded Sandpack editor (one-off use)     |
 
-See `notes/concepts/calm-interfaces.mdx` and
-`notes/concepts/drawer-and-toast.mdx` for working examples.
+See `notes/concepts/calm-interfaces.mdx` for a working example.
+`CodePlayground` is dynamically imported, so the Sandpack bundle is
+only fetched on notes that actually embed it.
 
 ## Images via R2
 
@@ -165,14 +166,14 @@ site/src/
 │   └── cn.ts            ← classname utility
 ├── components/
 │   ├── Header.tsx
-│   ├── NoteList.tsx     ← row-hover writing list
+│   ├── NoteList.tsx        ← row-hover writing list
 │   ├── Callout.tsx
 │   ├── R2Image.tsx
 │   ├── DemoFrame.tsx
-│   ├── DrawerDemo.tsx   ← uses vaul + sonner
-│   ├── Toaster.tsx      ← sonner wrapper
-│   └── mdx.tsx          ← global MDX component map
-├── mdx-components.tsx
+│   ├── ThemeToggle.tsx     ← inline-script-driven light/dark
+│   ├── CodePlayground.tsx  ← thin lazy wrapper
+│   ├── CodePlaygroundImpl.tsx ← Sandpack, only loaded on demand
+│   └── mdx.tsx             ← global MDX component map
 └── app/
     ├── layout.tsx
     ├── page.tsx                       ← homepage
@@ -189,7 +190,6 @@ site/src/
 - Inter + Instrument Serif + JetBrains Mono (via `next/font`)
 - TypeScript (strict)
 - next-mdx-remote 5 + remark-math + rehype-katex + rehype-pretty-code (Shiki)
-- Vaul (drawer), Sonner (toasts)
 - Cloudflare Pages + R2
 
 ## Future extension points (kept clean on purpose)
