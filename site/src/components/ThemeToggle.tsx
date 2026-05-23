@@ -1,19 +1,30 @@
 "use client";
 
+import { Toggle } from "@base-ui/react/toggle";
+import { useEffect, useState } from "react";
+
 export function ThemeToggle() {
-  const toggle = () => {
-    const isDark = document.documentElement.classList.toggle("dark");
+  const [pressed, setPressed] = useState(false);
+
+  useEffect(() => {
+    setPressed(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  const handlePressedChange = (next: boolean) => {
+    setPressed(next);
+    document.documentElement.classList.toggle("dark", next);
     try {
-      localStorage.setItem("theme", isDark ? "dark" : "light");
+      localStorage.setItem("theme", next ? "dark" : "light");
     } catch {}
   };
+
   return (
-    <button
-      type="button"
-      onClick={toggle}
+    <Toggle
+      pressed={pressed}
+      onPressedChange={handlePressedChange}
       aria-label="Toggle theme"
       title="Toggle theme"
-      className="fixed bottom-6 right-6 z-50 h-6 w-6 rounded-full border-0 bg-black transition-opacity dark:bg-white"
+      className="fixed bottom-6 right-6 z-50 h-6 w-6 cursor-pointer rounded-full border-0 bg-[color:var(--color-text)] opacity-90 transition-opacity hover:opacity-100"
     />
   );
 }
