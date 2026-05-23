@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { r2 } from "@/lib/r2";
 import { cn } from "@/lib/cn";
 
@@ -32,12 +31,14 @@ export function R2Image({
   const url = r2(src);
   return (
     <figure className={cn("my-6 flex flex-col gap-2", className)}>
-      <Image
+      <img
         src={url}
         alt={alt}
         width={width}
         height={height}
-        priority={priority}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        fetchPriority={priority ? "high" : "auto"}
         className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-sunken)] w-full h-auto"
       />
       {caption && (
