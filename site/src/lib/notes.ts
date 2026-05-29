@@ -6,12 +6,15 @@ import { z } from "zod";
 /**
  * File-system note reader.
  *
- * Walks ../notes recursively and returns one entry per .md/.mdx file.
- * The path inside notes/ becomes the slug, so notes/concepts/foo.md →
- * slug "concepts/foo" → URL /notes/concepts/foo.
+ * Walks src/content/ (a symlink to ../notes/) recursively and returns
+ * one entry per .md/.mdx file. The path inside the directory becomes the
+ * slug, so concepts/foo.md → slug "concepts/foo" → URL /notes/concepts/foo.
+ *
+ * gray-matter parses the YAML block here so the index page and per-note
+ * metadata don't need to load the compiled MDX module.
  */
 
-const NOTES_DIR = path.resolve(process.cwd(), "..", "notes");
+const NOTES_DIR = path.resolve(process.cwd(), "src", "content");
 
 const FrontmatterSchema = z.object({
   title: z.string(),
