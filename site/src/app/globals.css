@@ -181,6 +181,21 @@
     text-decoration-color: var(--color-text);
   }
 
+  /* Self-link headings from rehype-autolink-headings: no underline by
+     default, reveal a faint one on hover so the affordance exists
+     without competing with the heading itself. */
+  .prose .heading-anchor {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .prose .heading-anchor:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--color-gray-700);
+    text-underline-offset: 0.2em;
+  }
+
   .prose code:not(pre code) {
     font-family: var(--font-mono);
     font-size: 0.85em;

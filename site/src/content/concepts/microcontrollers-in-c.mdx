@@ -1,0 +1,272 @@
+---
+title: Microcontrôleurs en C
+description: Registres, GPIO, polling, machines à états, PWM. Les patrons qui reviennent dans tout programme embarqué.
+tags: [embedded, c, msp430]
+created: 2026-05-27
+---
+
+Un microcontrôleur est un ordinateur sur une puce : CPU à quelques MHz, quelques Ko de flash, un peu de RAM, et des broches qui lisent ou imposent une tension.
+
+## Broches, ports, registres
+
+Les broches sont groupées en **ports** (`P1`, `P2`, ...). Chaque port expose quelques registres mémorisés ; écrire dans le registre pilote toutes ses broches d'un coup.
+
+| registre | rôle |
+| -------- | ---- |
+| `PxDIR` | direction : `0` entrée, `1` sortie |
+| `PxREN` | active la résistance de tirage |
+| `PxOUT` | niveau de sortie, ou sens du tirage |
+| `PxIN` | lit la tension actuelle |
+
+| `DIR` | `REN` | `OUT` | rôle |
+| ----: | ----: | ----: | ---- |
+| 0 | 0 | x | entrée flottante |
+| 0 | 1 | 1 | entrée + pull-up |
+| 0 | 1 | 0 | entrée + pull-down |
+| 1 | 0 | 0 | sortie à 0 |
+| 1 | 0 | 1 | sortie à 1 |
+
+Ne jamais appliquer plus que la tension d'alimentation sur une broche.
+
+## Opérations sur les bits
+
+Une broche est un bit d'un registre 8 bits. On la modifie sans toucher les voisins via un masque :
+
+```c
+uint8_t mask = (1 << 6);   // bit 6
+```
+
+| opération | C | effet |
+| --------- | - | ----- |
+| set | `R \|= mask` | bit à 1 |
+| clear | `R &= ~mask` | bit à 0 |
+| toggle | `R ^= mask` | bit inversé |
+| test | `R & mask` | non nul si à 1 |
+
+```c
+P1OUT |=  (1 << 0);   // P1.0 HAUT
+P1OUT &= ~(1 << 0);   // P1.0 BAS
+P1OUT ^=  (1 << 0);   // toggle
+
+if (P1IN & (1 << 3)) {
+  // P1.3 est HAUT
+}
+```
+
+`&`, `|`, `~` agissent bit par bit. `&&`, `||`, `!` collapsent vers vrai/faux : ce n'est pas la même chose.
+
+## Nommer les broches
+
+Empiler `P1OUT |= (1 << 0)` rend le code illisible. Enrober chaque broche dans un `#define` nommé par sa fonction :
+
+```c
+#define LED_INIT()   (P1DIR |=  (1 << 0))
+#define LED_ON()     (P1OUT |=  (1 << 0))
+#define LED_OFF()    (P1OUT &= ~(1 << 0))
+#define LED_TOGGLE() (P1OUT ^=  (1 << 0))
+
+// Bouton sur P2.2 avec pull-up : pressé tire la ligne BAS.
+#define BTN_INIT()   (P2DIR &= ~(1 << 2), P2REN |= (1 << 2), P2OUT |= (1 << 2))
+#define BTN_PRESSED  (!(P2IN & (1 << 2)))
+```
+
+Le reste se lit comme un texte :
+
+```c
+LED_INIT(); BTN_INIT();
+while (1) {
+  if (BTN_PRESSED) LED_ON();
+  else             LED_OFF();
+}
+```
+
+## Squelette MSP430
+
+```c
+#include <msp430.h>
+#include <stdint.h>
+
+int main(void) {
+  WDTCTL = WDTPW | WDTHOLD;   // arrêter le watchdog
+  LED_INIT();
+  while (1) {
+    LED_TOGGLE();
+    __delay_cycles(500000);   // ~500 ms à 1 MHz
+  }
+}
+```
+
+Le watchdog doit être arrêté ou nourri. `__delay_cycles` compte des cycles CPU ; à 1 MHz, un cycle vaut une microseconde.
+
+## Polling et fronts
+
+Pas d'interruption par défaut : le programme **polle**, lit chaque broche à chaque tour. Échantillonner au moins deux fois plus vite que l'événement à capter.
+
+Agir sur le **niveau** est faux :
+
+```c
+// FAUX : count monte tant que le bouton est maintenu
+if (BTN_PRESSED) count++;
+```
+
+L'unité juste est le **front** :
+
+```c
+uint8_t prev = 0;
+while (1) {
+  uint8_t now = BTN_PRESSED;
+  if (!prev && now) {
+    // front montant : pressé exactement une fois
+  }
+  prev = now;
+}
+```
+
+Front montant : passage de 0 à 1. Front descendant : 1 à 0.
+
+### Anti-rebond
+
+Les contacts mécaniques rebondissent quelques ms. Attendre, puis relire :
+
+```c
+if (!prev && now) {
+  __delay_cycles(20000);    // ~20 ms
+  if (BTN_PRESSED) {
+    // press confirmé
+  }
+}
+```
+
+### Plusieurs tâches en parallèle
+
+Sans RTOS, une règle : ne jamais bloquer. Échantillonner, décider, boucler. Aucun `while (en_attente)` dans la boucle principale.
+
+```c
+while (1) {
+  uint8_t v1 = IN1_ACTIVE;
+  uint8_t v2 = IN2_ACTIVE;
+  // logique v1 (non bloquante)
+  // logique v2 (non bloquante)
+  __delay_cycles(1000);     // tick de 1 ms
+}
+```
+
+## Machines à états
+
+**Combinatoire** : la sortie ne dépend que des entrées actuelles. **Séquentielle** : elle dépend aussi du passé, donc d'une mémoire. Tout ce qui s'écrit "fais A, attends X, puis fais B" est séquentiel.
+
+Recette :
+
+1. Nommer les états avec un `enum`.
+2. Garder l'état courant dans une variable.
+3. À chaque tour, `switch` sur l'état : faire le travail, puis tester les transitions.
+
+Perceuse avec bouton `Start` et deux fins de course :
+
+```c
+enum { ARRET, DESCENTE, MONTEE };
+uint8_t etat = ARRET;
+
+while (1) {
+  switch (etat) {
+    case ARRET:
+      AV_OFF(); RC_OFF();
+      if (START) etat = DESCENTE;
+      break;
+    case DESCENTE:
+      AV_ON();  RC_OFF();
+      if (BAS)  etat = MONTEE;
+      break;
+    case MONTEE:
+      AV_OFF(); RC_ON();
+      if (HAUT) etat = ARRET;
+      break;
+  }
+}
+```
+
+Deux propriétés rendent ce patron robuste : les sorties sont réaffirmées au début de chaque case (l'état physique suit l'état logique) ; les transitions sont explicites (une seule affectation à `etat` par branche).
+
+## PWM : analogique sur une broche binaire
+
+La broche ne sort que 0 V ou 3,3 V. Pour atténuer une LED ou tourner un moteur à mi-régime, on la bascule assez vite pour que l'œil ou l'inertie en fasse la moyenne. Période fixe, rapport cyclique variable :
+
+$$
+\text{duty} = \frac{T_{\text{HAUT}}}{T_{\text{periode}}}
+$$
+
+Pour les LED, ~100 Hz suffit.
+
+### Par délai (un canal)
+
+```c
+uint8_t duty = 25;             // pourcent
+while (1) {
+  LED_ON();  __delay_cycles(100UL * duty);
+  LED_OFF(); __delay_cycles(100UL * (100 - duty));
+}
+```
+
+Période = 10 000 cycles, indépendante du duty.
+
+### Par compteur (plusieurs canaux)
+
+Un compteur libre balaie 0 à 255 et reboucle. La broche passe HAUT à 0 et BAS quand le compteur atteint `duty` :
+
+```c
+uint8_t duty = 64, cpt = 0;
+while (1) {
+  if (cpt == 0)    LED_ON();
+  if (cpt == duty) LED_OFF();
+  cpt++;
+  __delay_cycles(40);          // 256 * 40 us ~ 10 ms, soit 100 Hz
+}
+```
+
+Extension à tout un port :
+
+```c
+uint8_t duty[8], cpt = 0;
+while (1) {
+  for (uint8_t i = 0; i < 8; i++) {
+    if (cpt == 0)       P1OUT |=  (1 << i);
+    if (cpt == duty[i]) P1OUT &= ~(1 << i);
+  }
+  cpt++;
+  __delay_cycles(40);
+}
+```
+
+### Animer le duty
+
+Mettre à jour `duty` une fois par période (`cpt == 0`) fait respirer la LED :
+
+```c
+uint16_t t = 0;
+if (cpt == 0) {
+  t++;
+  if      (t < 100) duty = t * 256 / 100;                 // montée 1 s
+  else if (t < 200) duty = 256 - (t - 100) * 256 / 100;   // descente 1 s
+  else            { duty = 0; if (t == 400) t = 0; }      // 2 s éteint
+}
+```
+
+Tout microcontrôleur sérieux a des timers matériels qui font le PWM sans CPU : on écrit période et duty dans un registre, la broche bascule seule. Les versions ci-dessus sont le modèle mental de ce que font ces timers.
+
+## Nombres
+
+- `n` bits codent 2ⁿ valeurs. 8 bits : `0..255`. 16 bits : `0..65 535`.
+- `uintN_t` non signé, `intN_t` signé (complément à deux).
+- Arithmétique modulo 2ⁿ : en `uint8_t`, `255 + 1 == 0`. Compter sur le débordement est un patron, pas un bug.
+- Un chiffre hex vaut 4 bits : `0xFF == 0b11111111 == 255`, `(1 << 6) == 0x40 == 64`. Préférer `(1 << n)` : l'intention (bit `n`) saute aux yeux.
+
+## Aide-mémoire
+
+- Arrêter le watchdog : `WDTCTL = WDTPW | WDTHOLD;`
+- Broche `n` en sortie : `PxDIR |= (1 << n);`
+- Broche `n` en entrée + pull-up : `PxDIR &= ~(1 << n); PxREN |= (1 << n); PxOUT |= (1 << n);`
+- Set, clear, toggle : `|=`, `&= ~`, `^=` avec `(1 << n)`
+- Lire broche `n` : `(PxIN & (1 << n))`, non nul = HAUT
+- ~1 ms à 1 MHz : `__delay_cycles(1000);`
+- Détection de front : `if (!prev && now) { ... } prev = now;`
+- Anti-rebond : ~20 ms après un front, relire pour confirmer

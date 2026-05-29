@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAllNotes, getNoteBySlug, formatDate } from "@/lib/notes";
-import { renderNote } from "@/lib/mdx";
 
 interface Params {
   slug: string[];
 }
+
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const notes = await getAllNotes();
@@ -26,6 +27,17 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * Two import contexts (.mdx and .md) because webpack/turbopack bind a
+ * dynamic-import expression to a single static suffix. Both extensions
+ * route through @mdx-js/loader, configured in next.config.ts.
+ */
+async function loadNote(slug: string, isMDX: boolean) {
+  return isMDX
+    ? await import(`@/content/${slug}.mdx`)
+    : await import(`@/content/${slug}.md`);
+}
+
 export default async function NotePage({
   params,
 }: {
@@ -35,7 +47,7 @@ export default async function NotePage({
   const note = await getNoteBySlug(slug.join("/"));
   if (!note) notFound();
 
-  const content = await renderNote(note);
+  const { default: Post } = await loadNote(note.slug, note.isMDX);
   const date = note.frontmatter.created;
 
   return (
@@ -59,7 +71,9 @@ export default async function NotePage({
         )}
       </header>
 
-      <div className="prose">{content}</div>
+      <div className="prose">
+        <Post />
+      </div>
     </article>
   );
 }
