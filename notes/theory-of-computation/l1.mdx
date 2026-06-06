@@ -1,0 +1,680 @@
+---
+title: "Theory of Computation: Lecture 1"
+description: "Deterministic finite automata, languages, formal descriptions, induction proofs, and regular language operations."
+tags: ["Theory of computation"]
+created: 2026-06-06
+updated: 2026-06-06
+---
+
+## Finite Automata
+
+**Finite automaton.** A finite automaton is a machine with finitely many states. It reads the input one symbol at a time and stores only its current state.
+
+- **Alphabet.** The finite set of symbols the machine may read.
+- **State.** One possible memory value of the machine. *A parity machine can use `EVEN` and `ODD`.*
+- **Transition.** A rule for moving from one state to another after reading one symbol. *Reading `M` can move `EVEN` to `ODD`.*
+- **Start state.** The state before reading any input. *Starting in `EVEN` means the machine treats the empty prefix as even.*
+- **Accepting state.** A state where the machine accepts if the input has ended. *If `EVEN` is accepting, then $\epsilon$ is accepted.*
+
+**Example. Even number of `M` symbols.**
+
+For strings over $\Sigma=\{M,W\}$, accept exactly the strings with an even number of `M` symbols. The machine only needs parity, not the full count.
+
+<Split cols="1.15fr 0.85fr" align="center">
+<Pane>
+
+<Automaton
+  caption="DFA for strings with an even number of M symbols."
+  start="EVEN"
+  accepting={["EVEN"]}
+  states={[{ id: "EVEN" }, { id: "ODD" }]}
+  transitions={[
+    { from: "EVEN", to: "ODD", label: "M" },
+    { from: "ODD", to: "EVEN", label: "M" },
+    { from: "EVEN", to: "EVEN", label: "W" },
+    { from: "ODD", to: "ODD", label: "W" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+| Current state | Read `M` | Read `W` |
+|---|---|---|
+| `EVEN` | `ODD` | `EVEN` |
+| `ODD` | `EVEN` | `ODD` |
+
+Reading `M` flips parity. Reading `W` preserves parity.
+
+*`MWMMMW` is accepted because it has four `M` symbols. `MWMWMW` is rejected because it has three.*
+
+</Pane>
+</Split>
+
+## Deterministic Finite Automata
+
+**Deterministic finite automaton (DFA).** A DFA is a finite automaton where each state-symbol pair has exactly one next state.
+
+- **Unique next state.** There is no choice about the next move. *From `EVEN` on `M`, the parity DFA must go to `ODD`.*
+- **Complete transition rule.** Every state defines one transition for every alphabet symbol. *If the alphabet is $\{M,W\}$, every state has an `M` transition and a `W` transition.*
+- **Fixed memory.** The number of states is fixed before the input is read. *The parity DFA has two states no matter how long the string is.*
+
+**Formal DFA.** A DFA is written as a 5-tuple:
+
+$$
+M=(Q,\Sigma,\delta,q_0,F)
+$$
+
+| Symbol | Role |
+|---|---|
+| $Q$ | states |
+| $\Sigma$ | alphabet |
+| $\delta:Q\times\Sigma\to Q$ | transition function |
+| $q_0\in Q$ | start state |
+| $F\subseteq Q$ | accepting states |
+
+The notation $\delta(q,\sigma)$ means the next state from $q$ after one symbol $\sigma$. The notation $\delta(q,s)$ means the state reached after the whole string $s$.
+
+The accepting set may be empty. If $F=\varnothing$, the DFA accepts no strings.
+
+## Acceptance and Languages
+
+**Acceptance.** A DFA accepts a string when its run ends in an accepting state.
+
+- **Run.** The sequence of states visited while reading the input.
+- **Empty string.** If the input is $\epsilon$, no transition is taken, so the run starts and ends at the start state.
+
+<Split cols="0.95fr 1.05fr" align="center">
+<Pane>
+
+<Automaton
+  caption="The parity DFA used as a state-tracing machine."
+  start="EVEN"
+  accepting={["EVEN"]}
+  states={[{ id: "EVEN" }, { id: "ODD" }]}
+  transitions={[
+    { from: "EVEN", to: "ODD", label: "M" },
+    { from: "ODD", to: "EVEN", label: "M" },
+    { from: "EVEN", to: "EVEN", label: "W" },
+    { from: "ODD", to: "ODD", label: "W" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+| Input read | start | `M` | `W` | `W` | `M` | `W` | `M` | `M` |
+|---|---|---|---|---|---|---|---|---|
+| State | `E` | `O` | `O` | `O` | `E` | `E` | `O` | `E` |
+
+The final state is `E`, so `MWWMWMM` is accepted.
+
+| Input read | start | `W` | `M` | `M` | `W` | `W` | `M` |
+|---|---|---|---|---|---|---|---|
+| State | `E` | `E` | `O` | `E` | `E` | `E` | `O` |
+
+The final state is `O`, so `WMMWWM` is rejected.
+
+</Pane>
+</Split>
+
+**Language of a machine.** The language of a DFA $M$, written $L(M)$, is the set of all strings accepted by $M$.
+
+$$
+L(M)=\{w\in\Sigma^* \mid \delta(q_0,w)\in F\}
+$$
+
+**Recognize.** A DFA recognizes a language $A$ if $L(M)=A$.
+
+## State Meanings
+
+**State meaning.** A state meaning is the property true about the input read so far whenever the machine is in that state.
+
+- **Method.** Test short strings, then name exactly what each state remembers.
+- **Accepting condition.** Once the state meanings are known, the accepting states give the language.
+- **Precision.** Give every state a meaning, not only the accepting states.
+
+**Example 1. Strings ending in `1`.**
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
+
+<Automaton
+  caption="A DFA for strings ending in 1."
+  start="q1"
+  accepting={["q2"]}
+  states={[{ id: "q1", label: "q_1" }, { id: "q2", label: "q_2" }]}
+  transitions={[
+    { from: "q1", to: "q1", label: "0" },
+    { from: "q1", to: "q2", label: "1" },
+    { from: "q2", to: "q1", label: "0" },
+    { from: "q2", to: "q2", label: "1" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+**State $q_1$.** No symbol has been read, or the last symbol read was `0`.
+
+**State $q_2$.** The last symbol read was `1`.
+
+Only $q_2$ is accepting, so:
+
+$$
+L=\{w \mid w \text{ ends in }1\}
+$$
+
+*Accepted: $1$, $01$, $101$. Rejected: $\epsilon$, $0$, $100$.*
+
+</Pane>
+</Split>
+
+**Example 2. Same transitions, different accepting state.**
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
+
+<Automaton
+  caption="The same transitions, but q1 is accepting."
+  start="q1"
+  accepting={["q1"]}
+  states={[{ id: "q1", label: "q_1" }, { id: "q2", label: "q_2" }]}
+  transitions={[
+    { from: "q1", to: "q1", label: "0" },
+    { from: "q1", to: "q2", label: "1" },
+    { from: "q2", to: "q1", label: "0" },
+    { from: "q2", to: "q2", label: "1" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+The state meanings are unchanged. Now $q_1$ is accepting, so:
+
+$$
+L=\{\epsilon\}\cup\{w \mid w \text{ ends in }0\}
+$$
+
+Changing $F$ can change the language even when the transitions stay the same.
+
+*Accepted: $\epsilon$, $0$, $110$. Rejected: $1$, $01$, $101$.*
+
+</Pane>
+</Split>
+
+**Example 3. At least one `1`, then even zeros after the last `1`.**
+
+<Split cols="1.1fr 0.9fr" align="center">
+<Pane>
+
+<Automaton
+  caption="A DFA that tracks whether a 1 has appeared and the parity of later zeros."
+  start="q1"
+  accepting={["q2"]}
+  states={[
+    { id: "q1", label: "q_1" },
+    { id: "q2", label: "q_2" },
+    { id: "q3", label: "q_3" },
+  ]}
+  transitions={[
+    { from: "q1", to: "q1", label: "0" },
+    { from: "q1", to: "q2", label: "1" },
+    { from: "q2", to: "q2", label: "1" },
+    { from: "q2", to: "q3", label: "0" },
+    { from: "q3", to: "q2", label: "0,1" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+**State $q_1$.** No `1` has been seen.
+
+**State $q_2$.** At least one `1` has been seen, and the number of `0` symbols after the last `1` is even.
+
+**State $q_3$.** At least one `1` has been seen, and the number of `0` symbols after the last `1` is odd.
+
+Only $q_2$ is accepting.
+
+</Pane>
+</Split>
+
+Therefore:
+
+$$
+L=\{w \mid w \text{ contains at least one }1\text{ and has an even number of }0\text{s after the last }1\}
+$$
+
+*Accepted: $1$, $101$, $100$, $00100$. Rejected: $\epsilon$, $0$, $10$, $0010$.*
+
+## Formal Description
+
+**Formal description.** A formal description instantiates the tuple $M=(Q,\Sigma,\delta,q_0,F)$ with concrete sets and a complete transition table.
+
+For the three-state DFA:
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+$$
+Q=\{q_1,q_2,q_3\}
+$$
+
+$$
+\Sigma=\{0,1\}
+$$
+
+$$
+q_0=q_1
+$$
+
+$$
+F=\{q_2\}
+$$
+
+</Pane>
+<Pane>
+
+| State | `0` | `1` |
+|---|---|---|
+| $q_1$ | $q_1$ | $q_2$ |
+| $q_2$ | $q_3$ | $q_2$ |
+| $q_3$ | $q_2$ | $q_2$ |
+
+</Pane>
+</Split>
+
+Thus:
+
+$$
+L(M)=\{w \mid w \text{ contains at least one }1\text{ and has an even number of }0\text{s after the last }1\}
+$$
+
+## Correctness Proofs
+
+**Correctness proof.** A correctness proof shows that a DFA accepts exactly the intended language.
+
+- **Soundness.** Every accepted string belongs to the intended language.
+- **Completeness.** Every string in the intended language is accepted.
+- **State-based proof.** For a DFA, both directions are usually proved by describing the state reached after every possible input.
+
+**Induction on strings.** Induction on strings proves a statement about all strings by proving it for $\epsilon$, then proving it remains true after appending one symbol.
+
+- **Base case.** Prove the claim for $w=\epsilon$.
+- **Induction hypothesis.** Assume the claim holds for an arbitrary string $x$.
+- **Inductive step.** Prove the claim for $x\sigma$, where $\sigma\in\Sigma$.
+
+Here $x\sigma$ means the string $x$ followed by the symbol $\sigma$.
+
+**Example. Even number of `a` symbols.**
+
+Let $\Sigma=\{a,b\}$ and
+
+$$
+L=\{w\mid count(w,a)\text{ is even}\}.
+$$
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
+
+<Automaton
+  caption="A DFA for strings with an even number of a symbols."
+  start="q0"
+  accepting={["q0"]}
+  states={[{ id: "q0", label: "q_0" }, { id: "q1", label: "q_1" }]}
+  transitions={[
+    { from: "q0", to: "q1", label: "a" },
+    { from: "q1", to: "q0", label: "a" },
+    { from: "q0", to: "q0", label: "b" },
+    { from: "q1", to: "q1", label: "b" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+The only accepting state is $q_0$, so the correctness claim is:
+
+$$
+\delta(q_0,w)=q_0 \text{ iff } count(w,a)\text{ is even}.
+$$
+
+$q_0$ means the number of `a` symbols seen so far is even. $q_1$ means it is odd.
+
+</Pane>
+</Split>
+
+The base case is $w=\epsilon$. No symbol is read, so $\delta(q_0,\epsilon)=q_0$. Also $count(\epsilon,a)=0$, which is even.
+
+For the inductive step, assume the claim holds for $x$. Since the DFA has only $q_0$ and $q_1$, reaching $q_1$ means $count(x,a)$ is odd. Appending one symbol gives exactly four cases:
+
+| State after $x$ | Symbol $\sigma$ | State after $x\sigma$ | Count effect |
+|---|---|---|---|
+| $q_0$ | $b$ | $q_0$ | even stays even |
+| $q_0$ | $a$ | $q_1$ | even becomes odd |
+| $q_1$ | $b$ | $q_1$ | odd stays odd |
+| $q_1$ | $a$ | $q_0$ | odd becomes even |
+
+The transition table and the count change agree in every case, so the claim holds for all strings.
+
+**Weak claim.** A weak claim states enough to identify the language, but not enough to complete the induction.
+
+This happens when the claim describes only the accepting state and ignores how the nonaccepting states differ. The induction step needs the current state after $x$, not only whether $x$ is currently accepted.
+
+**State characterization.** A state characterization gives a precise meaning to every state of a DFA.
+
+- **State set.** For a state $q_i$, define $T_i=\{w\mid \delta(q_0,w)=q_i\}$.
+- **Accepting language.** The language is the union of the state sets whose states are accepting.
+- **Strength.** A state characterization is often stronger than the language claim, because it proves where every string goes, not only whether it is accepted.
+
+**Example. At least two `a` symbols.**
+
+Let $\Sigma=\{a,b\}$. The following DFA accepts once it has seen two `a` symbols and then stays accepting.
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
+
+<Automaton
+  caption="A DFA for strings with at least two a symbols."
+  start="q0"
+  accepting={["q2"]}
+  states={[
+    { id: "q0", label: "q_0" },
+    { id: "q1", label: "q_1" },
+    { id: "q2", label: "q_2" },
+  ]}
+  transitions={[
+    { from: "q0", to: "q1", label: "a" },
+    { from: "q1", to: "q2", label: "a" },
+    { from: "q0", to: "q0", label: "b" },
+    { from: "q1", to: "q1", label: "b" },
+    { from: "q2", to: "q2", label: "a,b" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+The language claim is:
+
+$$
+L(M)=\{w\mid count(w,a)\ge 2\}.
+$$
+
+A tempting proof target is:
+
+$$
+\delta(q_0,w)=q_2 \text{ iff } count(w,a)\ge 2.
+$$
+
+This target is true, but it is too weak for a direct induction.
+
+</Pane>
+</Split>
+
+The weak induction hypothesis says that if $\delta(q_0,x)\ne q_2$, then $count(x,a)<2$. It does not distinguish the case $count(x,a)=0$ from the case $count(x,a)=1$. That distinction matters, because reading `a` from $q_0$ goes to $q_1$, while reading `a` from $q_1$ goes to $q_2$.
+
+The stronger claim names all three state meanings:
+
+$$
+\delta(q_0,w)=
+\begin{cases}
+q_0 & \text{if } count(w,a)=0,\\
+q_1 & \text{if } count(w,a)=1,\\
+q_2 & \text{if } count(w,a)\ge 2.
+\end{cases}
+$$
+
+This proves the language claim because $q_2$ is the only accepting state.
+
+The base case is $w=\epsilon$. No symbol is read, so $\delta(q_0,\epsilon)=q_0$, and $count(\epsilon,a)=0$.
+
+For the inductive step, assume the stronger claim holds for $x$. The transition function and the count update agree in all six possible cases:
+
+| State after $x$ | Count from the hypothesis | Symbol $\sigma$ | State after $x\sigma$ | Count after $x\sigma$ |
+|---|---|---|---|---|
+| $q_0$ | $0$ | $b$ | $q_0$ | $0$ |
+| $q_0$ | $0$ | $a$ | $q_1$ | $1$ |
+| $q_1$ | $1$ | $b$ | $q_1$ | $1$ |
+| $q_1$ | $1$ | $a$ | $q_2$ | $2$ |
+| $q_2$ | $\ge 2$ | $b$ | $q_2$ | $\ge 2$ |
+| $q_2$ | $\ge 2$ | $a$ | $q_2$ | $\ge 3$ |
+
+The stronger claim is preserved after appending either symbol, so it holds for every string.
+
+## Regular Languages
+
+**String universe.** For an alphabet $\Sigma$, the set $\Sigma^*$ is the set of all finite strings made from symbols in $\Sigma$.
+
+- **Empty string.** $\epsilon\in\Sigma^*$ for every alphabet $\Sigma$.
+- **Finite length.** Every string in $\Sigma^*$ has finite length, although $\Sigma^*$ itself is usually infinite.
+
+A language over $\Sigma$ is any subset of $\Sigma^*$. A DFA over $\Sigma$ can only accept or reject strings from this universe.
+
+**Regular language.** A language $L\subseteq\Sigma^*$ is regular if there exists a DFA $M$ such that $L=L(M)$.
+
+Regularity means finite-state recognizability. The machine may read strings of any length, but it must classify them using only finitely many states.
+
+*The language of strings over $\{0,1\}$ ending in `1` is regular. The language $\{0^n1^n\mid n\ge 0\}$ is not regular, because it needs unbounded counting.*
+
+## Operations on Languages
+
+Once languages are sets of strings, we can form new languages from old ones. For regular languages, the main point is not only to define the operation, but to see how a DFA can recognize the result.
+
+**Closure.** A class of languages is closed under an operation if applying that operation to languages in the class always produces another language in the same class.
+
+**Complement.** The complement of $L$ over alphabet $\Sigma$ is the set of all strings in $\Sigma^*$ that are not in $L$.
+
+- **Set definition.** $\overline{L}=\{w\in\Sigma^*\mid w\notin L\}$.
+- **DFA construction.** Keep the same states, start state, and transitions. Make every old accepting state rejecting, and every old rejecting state accepting.
+- **Reason.** Every run ends in the same state as before, but the final answer is flipped.
+
+If $M=(Q,\Sigma,\delta,q_0,F)$ recognizes $L$, then $M'=(Q,\Sigma,\delta,q_0,Q\setminus F)$ recognizes $\overline{L}$.
+
+**Example. Complement of strings ending in `1`.**
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
+
+<Automaton
+  caption="L: strings ending in 1."
+  start="N"
+  accepting={["Y"]}
+  states={[{ id: "N" }, { id: "Y" }]}
+  transitions={[
+    { from: "N", to: "N", label: "0" },
+    { from: "N", to: "Y", label: "1" },
+    { from: "Y", to: "N", label: "0" },
+    { from: "Y", to: "Y", label: "1" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+<Automaton
+  caption="Complement: empty or ending in 0."
+  start="N"
+  accepting={["N"]}
+  states={[{ id: "N" }, { id: "Y" }]}
+  transitions={[
+    { from: "N", to: "N", label: "0" },
+    { from: "N", to: "Y", label: "1" },
+    { from: "Y", to: "N", label: "0" },
+    { from: "Y", to: "Y", label: "1" },
+  ]}
+/>
+
+</Pane>
+</Split>
+
+The arrows are identical. Only the accepting states change.
+
+**Union.** The union of two languages contains strings that belong to at least one of them.
+
+- **Set definition.** $L_1\cup L_2=\{w\in\Sigma^*\mid w\in L_1\text{ or }w\in L_2\}$.
+- **DFA construction.** Run the two DFAs in parallel. Accept if either component accepts.
+- **State meaning.** A product state records both current states at once.
+
+**Intersection.** The intersection of two languages contains strings that belong to both of them.
+
+- **Set definition.** $L_1\cap L_2=\{w\in\Sigma^*\mid w\in L_1\text{ and }w\in L_2\}$.
+- **DFA construction.** Run the two DFAs in parallel. Accept only if both components accept.
+- **State meaning.** The product states and transitions are the same as for union. Only the accepting states change.
+
+**Product construction.** The product construction turns two DFAs over the same alphabet into one DFA whose states are ordered pairs.
+
+$$
+M_1=(Q_1,\Sigma,\delta_1,s_1,F_1)
+$$
+
+$$
+M_2=(Q_2,\Sigma,\delta_2,s_2,F_2)
+$$
+
+The product DFA has:
+
+$$
+Q=Q_1\times Q_2,\qquad q_0=(s_1,s_2)
+$$
+
+$$
+\delta((r,t),a)=(\delta_1(r,a),\delta_2(t,a))
+$$
+
+If the alphabets differ, first extend both machines to the common alphabet $\Sigma=\Sigma_1\cup\Sigma_2$ by adding a rejecting dead state where needed.
+
+**Example. Product states for union and intersection.**
+
+Let $A$ be the language of strings ending in `1`. Let $B$ be the language of strings with an even number of `0` symbols.
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
+
+<Automaton
+  caption="A: strings ending in 1."
+  start="N"
+  accepting={["Y"]}
+  states={[{ id: "N" }, { id: "Y" }]}
+  transitions={[
+    { from: "N", to: "N", label: "0" },
+    { from: "N", to: "Y", label: "1" },
+    { from: "Y", to: "N", label: "0" },
+    { from: "Y", to: "Y", label: "1" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+<Automaton
+  caption="B: strings with an even number of 0s."
+  start="E"
+  accepting={["E"]}
+  states={[{ id: "E" }, { id: "O" }]}
+  transitions={[
+    { from: "E", to: "O", label: "0" },
+    { from: "O", to: "E", label: "0" },
+    { from: "E", to: "E", label: "1" },
+    { from: "O", to: "O", label: "1" },
+  ]}
+/>
+
+</Pane>
+</Split>
+
+In the product machine, the first letter tracks $A$ and the second letter tracks $B$:
+
+| Product state | Meaning |
+|---|---|
+| `NE` | not ending in `1`, even number of `0`s |
+| `NO` | not ending in `1`, odd number of `0`s |
+| `YE` | ending in `1`, even number of `0`s |
+| `YO` | ending in `1`, odd number of `0`s |
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
+
+For union, accept `NE`, `YE`, and `YO`, because at least one component accepts.
+
+<Automaton
+  caption="A union B: accept if the A component accepts or the B component accepts."
+  start="NE"
+  accepting={["NE", "YE", "YO"]}
+  states={[
+    { id: "NE", x: 86, y: 92 },
+    { id: "NO", x: 86, y: 220 },
+    { id: "YE", x: 306, y: 92 },
+    { id: "YO", x: 306, y: 220 },
+  ]}
+  transitions={[
+    { from: "NE", to: "NO", label: "0" },
+    { from: "NE", to: "YE", label: "1" },
+    { from: "NO", to: "NE", label: "0", bend: "up" },
+    { from: "NO", to: "YO", label: "1" },
+    { from: "YE", to: "NO", label: "0" },
+    { from: "YE", to: "YE", label: "1" },
+    { from: "YO", to: "NE", label: "0" },
+    { from: "YO", to: "YO", label: "1" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+For intersection, use the same graph but accept only `YE`, because both components accept only there.
+
+<Automaton
+  caption="A intersection B: accept only if the A component and B component both accept."
+  start="NE"
+  accepting={["YE"]}
+  states={[
+    { id: "NE", x: 86, y: 92 },
+    { id: "NO", x: 86, y: 220 },
+    { id: "YE", x: 306, y: 92 },
+    { id: "YO", x: 306, y: 220 },
+  ]}
+  transitions={[
+    { from: "NE", to: "NO", label: "0" },
+    { from: "NE", to: "YE", label: "1" },
+    { from: "NO", to: "NE", label: "0", bend: "up" },
+    { from: "NO", to: "YO", label: "1" },
+    { from: "YE", to: "NO", label: "0" },
+    { from: "YE", to: "YE", label: "1" },
+    { from: "YO", to: "NE", label: "0" },
+    { from: "YO", to: "YO", label: "1" },
+  ]}
+/>
+
+</Pane>
+</Split>
+
+*The string `1` is in the intersection, since it ends in `1` and has zero `0`s. The string `10` is in the union but not the intersection, since it has an odd number of `0`s and does not end in `1`.*
+
+**Concatenation.** The concatenation of two languages contains strings obtained by taking one string from the first language and then one string from the second.
+
+$$
+L_1L_2=\{w\in\Sigma^*\mid w=xy,\ x\in L_1,\ y\in L_2\}
+$$
+
+- **Set definition.** A string is in $L_1L_2$ if it has some split $w=xy$ with $x\in L_1$ and $y\in L_2$.
+- **Key difference.** The split point is not fixed in advance.
+- **Regularity.** Regular languages are closed under concatenation, but the clean automaton construction uses nondeterminism.
+
+**Example. Concatenating finite languages.**
+
+Let $L_1=\{0,11\}$ and $L_2=\{1\}$. Then $L_1L_2=\{01,111\}$.
+
+<Mermaid
+  caption="Concatenation forms a string by choosing a left part from L1 and a right part from L2."
+  chart={`flowchart LR
+    A["0 ∈ L1"] --> C["01 ∈ L1L2"]
+    B["1 ∈ L2"] --> C
+    D["11 ∈ L1"] --> F["111 ∈ L1L2"]
+    E["1 ∈ L2"] --> F
+  `}
+/>
+
+The same right language can attach to each string in $L_1$. If $L_2$ had more strings, each left part would branch into more concatenations.

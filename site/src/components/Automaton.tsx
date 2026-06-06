@@ -23,6 +23,9 @@ export interface AutoState {
   id: string;
   /** Display label. `_` marks a subscript: `q_1` → q₁, `(r_1,r_2)` works too. */
   label?: string;
+  /** Optional manual position for diagrams that should not be laid out in a row. */
+  x?: number;
+  y?: number;
   /** Mark as accepting (double ring). Alternative to the top-level `accepting`. */
   accepting?: boolean;
 }
@@ -184,11 +187,22 @@ export function Automaton({
   });
   const byId = new Map(nodes.map((n) => [n.id, n] as const));
 
-  let cx = MARGIN + START_LEN + (nodes[0]?.rx ?? R);
-  nodes.forEach((n, i) => {
-    if (i > 0) cx += gap;
-    n.cx = cx;
-  });
+  const isManualLayout = nodes.some(
+    (n) => typeof n.x === "number" || typeof n.y === "number",
+  );
+
+  if (isManualLayout) {
+    nodes.forEach((n, i) => {
+      n.cx = n.x ?? MARGIN + START_LEN + n.rx + i * gap;
+      n.cy = n.y ?? R + LOOP_RISE + 24;
+    });
+  } else {
+    let cx = MARGIN + START_LEN + (nodes[0]?.rx ?? R);
+    nodes.forEach((n, i) => {
+      if (i > 0) cx += gap;
+      n.cx = cx;
+    });
+  }
 
   const bendDir = (t: AutoTransition): -1 | 1 => {
     if (t.bend) return t.bend === "up" ? -1 : 1;
@@ -204,11 +218,17 @@ export function Automaton({
   const topPad = hasSelf ? 88 : hasUp ? 60 : R + 16;
   const bottomPad = hasDown ? 60 : R + 16;
   const cy = topPad;
-  nodes.forEach((n) => (n.cy = cy));
+  if (!isManualLayout) {
+    nodes.forEach((n) => (n.cy = cy));
+  }
 
   const last = nodes[nodes.length - 1];
-  const width = (last?.cx ?? 0) + (last?.rx ?? R) + MARGIN;
-  const height = topPad + bottomPad;
+  const width = isManualLayout
+    ? Math.max(...nodes.map((n) => n.cx + n.rx), 0) + MARGIN
+    : (last?.cx ?? 0) + (last?.rx ?? R) + MARGIN;
+  const height = isManualLayout
+    ? Math.max(...nodes.map((n) => n.cy + n.ry), 0) + MARGIN
+    : topPad + bottomPad;
 
   // A per-instance marker id keeps multiple automata on one page valid, even
   // when two diagrams share state names (e.g. M and M′ in a complement proof).
@@ -255,7 +275,18 @@ export function Automaton({
     const dir = bendDir(t);
     const span = Math.abs(a.index - b.index);
     const mag = BEND_BASE + (span - 1) * BEND_STEP;
-    const apex = { x: (a.cx + b.cx) / 2, y: cy + dir * mag };
+    const apex = isManualLayout
+      ? (() => {
+          const dx = b.cx - a.cx;
+          const dy = b.cy - a.cy;
+          const len = Math.hypot(dx, dy) || 1;
+          const normal = { x: -dy / len, y: dx / len };
+          return {
+            x: (a.cx + b.cx) / 2 + normal.x * dir * mag,
+            y: (a.cy + b.cy) / 2 + normal.y * dir * mag,
+          };
+        })()
+      : { x: (a.cx + b.cx) / 2, y: cy + dir * mag };
     const p0 = edgePoint(a, apex.x - a.cx, apex.y - a.cy);
     const p1 = edgePoint(b, apex.x - b.cx, apex.y - b.cy);
     const mid = quadAt(0.5, p0, apex, p1);
