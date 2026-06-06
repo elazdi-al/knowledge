@@ -25,7 +25,7 @@
   --color-code-bg: #ffffff;
   --color-brand: #fad657;
 
-  --color-bg: var(--color-gray-100);
+  --color-bg: #ffffff;
   --color-text: var(--color-gray-1200);
   --color-muted: var(--color-gray-1100);
   --color-faint: var(--color-gray-1000);
@@ -66,21 +66,22 @@
   html.dark {
     color-scheme: dark;
 
-    /* Mermaid diagram palette — dark. Mirrors the reference exactly:
-       near-black card, a hair-lighter #111 node container, #2A2A2A element
-       borders, a light-grey junction dot, and an inverted highlight box. */
-    --mm-bg: #0b0b0b; /* card + element-box fill */
-    --mm-node: #111111; /* node container fill */
-    --mm-fg: #eeeeee; /* container titles */
-    --mm-border: #2a2a2a; /* element-box border */
-    --mm-line: #2a2a2a; /* connectors */
-    --mm-muted: #b5b5b5; /* element-box labels */
-    --mm-accent: #7b7b7b; /* junction dot centre */
-    --mm-dot-ring: #222222; /* junction dot ring */
-    --mm-caption: #7b7b7b; /* caption */
-    --mm-hi-bg: #eeeeee; /* highlight box fill */
-    --mm-hi-fg: #111111; /* highlight box text */
-    --mm-frame-border: rgba(255, 255, 255, 0.08); /* card + container ring */
+    /* Mermaid diagram palette — dark. Tuned for contrast: a near-black card,
+       a clearly-lighter node container, element boxes that drop back to the
+       card colour and read by a visible border, brighter connectors and dot,
+       and an inverted highlight box. */
+    --mm-bg: #0a0a0a; /* card + element-box fill */
+    --mm-node: #1c1c1f; /* node container fill (clear step up from the card) */
+    --mm-fg: #f5f5f5; /* container titles */
+    --mm-border: #383840; /* element-box border */
+    --mm-line: #4a4a52; /* connectors */
+    --mm-muted: #c6c6c6; /* element-box labels */
+    --mm-accent: #9a9aa0; /* junction dot centre + arrowheads */
+    --mm-dot-ring: #303036; /* junction dot ring */
+    --mm-caption: #8a8a8a; /* caption */
+    --mm-hi-bg: #f5f5f5; /* highlight box fill */
+    --mm-hi-fg: #0a0a0a; /* highlight box text */
+    --mm-frame-border: rgba(255, 255, 255, 0.14); /* card + container ring */
 
     --color-gray-100: #111110;
     --color-gray-200: #191918;
@@ -151,11 +152,17 @@
   .prose {
     color: var(--color-gray-1100);
     font-size: 0.9375rem;
-    line-height: 1.65;
+    line-height: 1.6;
   }
 
+  /* Base rhythm: the gap *within* one idea — lines that belong together. The
+     larger gaps below (headings, new definitions) are what set ideas apart. */
   .prose > * + * {
-    margin-top: 1.1em;
+    margin-top: 1em;
+  }
+
+  .prose > :first-child {
+    margin-top: 0;
   }
 
   .prose h1,
@@ -166,29 +173,58 @@
     font-weight: 500;
     letter-spacing: -0.025em;
     line-height: 1.3;
+    /* Headings hug what follows; the space *before* them separates sections. */
+    margin-bottom: 0;
   }
 
   .prose h2 {
-    font-size: 1rem;
-    margin-top: 2em;
-    margin-bottom: 0.4em;
+    font-size: 1.0625rem;
+    margin-top: 3em;
   }
 
   .prose h3 {
-    font-size: 0.95rem;
-    margin-top: 1.6em;
-    margin-bottom: 0.3em;
+    font-size: 1rem;
+    margin-top: 2.2em;
   }
 
   .prose h4 {
-    font-size: 0.9rem;
-    margin-top: 1.4em;
-    margin-bottom: 0.2em;
+    font-size: 0.9375rem;
+    margin-top: 1.7em;
     color: var(--color-muted);
+  }
+
+  /* The first line of a section sits close to its heading. */
+  .prose > :is(h2, h3, h4) + :is(p, ul, ol, blockquote) {
+    margin-top: 0.55em;
+  }
+
+  /* A bold lead-in opens a new idea inside a section: more air before it than
+     between the run-on lines of a single idea. */
+  .prose > p:has(> strong:first-child) {
+    margin-top: 1.75em;
+  }
+
+  /* …unless the heading already provided the separation. */
+  .prose > :is(h2, h3, h4) + p:has(> strong:first-child) {
+    margin-top: 0.55em;
   }
 
   .prose p {
     text-wrap: pretty;
+  }
+
+  /* Italic-only lines (worked examples) read as quiet asides. The default <em>
+     ink is darker than body text, which would make them out-shout the prose. */
+  .prose p:has(> em:only-child) {
+    color: var(--color-faint);
+  }
+
+  .prose p:has(> em:only-child) em {
+    color: inherit;
+  }
+
+  .prose > p:has(> em:only-child) {
+    margin-top: 1.3em;
   }
 
   .prose strong {
@@ -349,7 +385,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 0.9em;
-    margin-block: 1.6em;
+    margin-block: 2em;
   }
 
   .prose thead th {
@@ -371,7 +407,7 @@
   }
 
   .prose .katex-display {
-    margin-block: 1.4em;
+    margin-block: 1.5em;
     overflow-x: auto;
     overflow-y: hidden;
     padding-block: 0.2em;
@@ -444,7 +480,7 @@
 /* Mermaid diagram */
 @layer components {
   .mermaid-graph {
-    margin-block: 1.75rem;
+    margin-block: 2em;
   }
 
   /* The card. Caption lives outside it (below), matching the reference. */
@@ -490,6 +526,100 @@
     line-height: 1.6;
     white-space: pre-wrap;
     overflow-x: auto;
+  }
+}
+
+/* Automaton diagram — shares the Mermaid card/caption look so the two read as
+   one family. The SVG itself is sized in absolute px and centred in the card;
+   max-width keeps it inside the column on narrow screens. */
+@layer components {
+  .automaton {
+    margin-block: 2em;
+  }
+
+  .automaton__card {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1.25rem;
+    background: var(--mm-bg);
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px var(--mm-frame-border);
+    overflow: hidden;
+  }
+
+  .automaton__canvas {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .automaton__canvas svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .automaton__caption {
+    margin-top: 1rem;
+    color: var(--mm-caption);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    text-align: center;
+    text-wrap: pretty;
+  }
+
+  /* A diagram tightens up when it sits inside a Split pane. */
+  .split__pane .automaton,
+  .split__pane .mermaid-graph {
+    margin-block: 0;
+  }
+
+  .split__pane .automaton__card,
+  .split__pane .mermaid-graph__card {
+    padding: 1.25rem 0.75rem;
+  }
+}
+
+/* Split — two columns on wider screens, stacked on narrow ones. Each Pane
+   carries the same vertical rhythm as the surrounding prose. */
+@layer components {
+  .split {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.1rem;
+    margin-block: 2em;
+  }
+
+  @media (min-width: 640px) {
+    .split {
+      grid-template-columns: var(--split-cols, repeat(2, minmax(0, 1fr)));
+      gap: 1.5rem;
+    }
+  }
+
+  .split[data-align="center"] {
+    align-items: center;
+  }
+
+  .split[data-align="start"] {
+    align-items: start;
+  }
+
+  .split__pane > * + * {
+    margin-top: 1.1em;
+  }
+
+  .split__pane > :first-child {
+    margin-top: 0;
+  }
+
+  .split__pane > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* Tables read tighter in a half-width pane. */
+  .split__pane table {
+    margin-block: 0;
   }
 }
 
