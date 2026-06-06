@@ -44,10 +44,43 @@
 @layer base {
   :root {
     color-scheme: light;
+
+    /* Mermaid diagram palette — light. Clean inverse of the reference: a
+       white card, a faintly grey node container, element boxes read by their
+       border, and a darker box as the highlight. The Mermaid SVG references
+       these as var(--mm-*), so the diagram and its frame re-theme together. */
+    --mm-bg: #ffffff; /* card + element-box fill */
+    --mm-node: #f6f6f5; /* node container fill */
+    --mm-fg: #21201c; /* container titles */
+    --mm-border: #e2e1de; /* element-box border */
+    --mm-line: #cfceca; /* connectors */
+    --mm-muted: #63635e; /* element-box labels */
+    --mm-accent: #8d8d86; /* junction dot centre */
+    --mm-dot-ring: #e6e5e2; /* junction dot ring */
+    --mm-caption: #8d8d86; /* caption */
+    --mm-hi-bg: #21201c; /* highlight box fill */
+    --mm-hi-fg: #ffffff; /* highlight box text */
+    --mm-frame-border: var(--color-border); /* card + container ring */
   }
 
   html.dark {
     color-scheme: dark;
+
+    /* Mermaid diagram palette — dark. Mirrors the reference exactly:
+       near-black card, a hair-lighter #111 node container, #2A2A2A element
+       borders, a light-grey junction dot, and an inverted highlight box. */
+    --mm-bg: #0b0b0b; /* card + element-box fill */
+    --mm-node: #111111; /* node container fill */
+    --mm-fg: #eeeeee; /* container titles */
+    --mm-border: #2a2a2a; /* element-box border */
+    --mm-line: #2a2a2a; /* connectors */
+    --mm-muted: #b5b5b5; /* element-box labels */
+    --mm-accent: #7b7b7b; /* junction dot centre */
+    --mm-dot-ring: #222222; /* junction dot ring */
+    --mm-caption: #7b7b7b; /* caption */
+    --mm-hi-bg: #eeeeee; /* highlight box fill */
+    --mm-hi-fg: #111111; /* highlight box text */
+    --mm-frame-border: rgba(255, 255, 255, 0.08); /* card + container ring */
 
     --color-gray-100: #111110;
     --color-gray-200: #191918;
@@ -405,6 +438,58 @@
     font-size: 0.72rem;
     font-family: var(--font-mono);
     letter-spacing: 0.04em;
+  }
+}
+
+/* Mermaid diagram */
+@layer components {
+  .mermaid-graph {
+    margin-block: 1.75rem;
+  }
+
+  /* The card. Caption lives outside it (below), matching the reference. */
+  .mermaid-graph__card {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1.25rem;
+    background: var(--mm-bg);
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px var(--mm-frame-border);
+    overflow: hidden;
+  }
+
+  .mermaid-graph__canvas {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mermaid-graph__canvas svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .mermaid-graph__caption {
+    margin-top: 1rem;
+    color: var(--mm-caption);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    text-align: center;
+    text-wrap: pretty;
+  }
+
+  /* Fallback when the source can't be parsed: a quiet source dump rather
+     than a broken build. */
+  .mermaid-graph--error pre {
+    margin: 0;
+    width: 100%;
+    color: var(--mm-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-x: auto;
   }
 }
 
