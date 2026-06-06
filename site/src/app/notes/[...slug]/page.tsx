@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { CopyPageButton } from "@/components/CopyPageButton";
+import { KatexAutoFit } from "@/components/KatexAutoFit";
 import { renderMDX } from "@/lib/mdx";
 import { getAllNotes, getNoteBySlug, formatDate } from "@/lib/notes";
 
@@ -40,12 +42,25 @@ export default async function NotePage({
   const content = await renderMDX(note.body);
   const date = note.frontmatter.created;
 
+  // A clean Markdown reconstruction for the copy button: title as an H1, the
+  // description, then the raw source. Compact and well-structured for an LLM.
+  const pageMarkdown = [
+    `# ${note.frontmatter.title}`,
+    note.frontmatter.description,
+    note.body.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   return (
     <article className="flex flex-col">
       <header className="mb-6">
-        <h1 className="text-[color:var(--color-text)] text-[1.5rem] font-medium tracking-[-0.025em] leading-[1.2] mb-2">
-          {note.frontmatter.title}
-        </h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-[color:var(--color-text)] text-[1.5rem] font-medium tracking-[-0.025em] leading-[1.2] mb-2">
+            {note.frontmatter.title}
+          </h1>
+          <CopyPageButton markdown={pageMarkdown} className="-mt-1" />
+        </div>
         {note.frontmatter.description && (
           <p className="text-[color:var(--color-muted)] italic leading-snug text-balance">
             {note.frontmatter.description}
@@ -64,6 +79,7 @@ export default async function NotePage({
       <div className="prose">
         {content}
       </div>
+      <KatexAutoFit />
     </article>
   );
 }
