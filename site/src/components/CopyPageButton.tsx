@@ -11,7 +11,7 @@ interface CopyPageButtonProps {
 }
 
 /**
- * A round icon button that copies the page's Markdown source — clean to paste
+ * A round icon button that copies the page's Markdown source - clean to paste
  * into an LLM. Visually a sibling of the copy-link control: same size-9 pill,
  * same hover/active feel, but it reads from the palette tokens so it tracks
  * light/dark. The glyph morphs copy → check on success, then settles back.

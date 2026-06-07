@@ -6,9 +6,9 @@ import { cn } from "@/lib/cn";
  * ring for accepting states, curved labelled transitions, and self-loops
  * drawn above each node.
  *
- * Why a bespoke SVG instead of Mermaid: the academic automaton look — clean
+ * Why a bespoke SVG instead of Mermaid: the academic automaton look - clean
  * round states, a start arrow with no source node, paired arcs that bow apart,
- * and tidy self-loops — is exactly what flowchart engines render badly. Here
+ * and tidy self-loops - is exactly what flowchart engines render badly. Here
  * we lay states out on a row and draw every edge as a single quadratic (or the
  * self-loop as one cubic), so the geometry is fully under our control.
  *

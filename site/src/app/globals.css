@@ -45,7 +45,7 @@
   :root {
     color-scheme: light;
 
-    /* Mermaid diagram palette — light. Clean inverse of the reference: a
+    /* Mermaid diagram palette - light. Clean inverse of the reference: a
        white card, a faintly grey node container, element boxes read by their
        border, and a darker box as the highlight. The Mermaid SVG references
        these as var(--mm-*), so the diagram and its frame re-theme together. */
@@ -66,7 +66,7 @@
   html.dark {
     color-scheme: dark;
 
-    /* Mermaid diagram palette — dark. Tuned for contrast: a near-black card,
+    /* Mermaid diagram palette - dark. Tuned for contrast: a near-black card,
        a clearly-lighter node container, element boxes that drop back to the
        card colour and read by a visible border, brighter connectors and dot,
        and an inverted highlight box. */
@@ -154,7 +154,7 @@
   }
 }
 
-/* Scroll-edge fade — a soft mask at the top and bottom of the page, driven by
+/* Scroll-edge fade - a soft mask at the top and bottom of the page, driven by
    scroll position. The top fade is absent at the very top, and the bottom fade
    clears as you reach the end, so content is never dimmed where there's nothing
    more to scroll. Painted as background-coloured gradients over the solid page
@@ -217,7 +217,7 @@ body::after {
   }
 
   /* Even, gentle rhythm. New paragraphs and definitions sit only slightly
-     apart from the lines around them — enough to read as separate, not enough
+     apart from the lines around them - enough to read as separate, not enough
      to fragment the page. Headings carry a little more space before them. */
   .prose > * + * {
     margin-top: 0.9em;
@@ -260,7 +260,7 @@ body::after {
     margin-top: 0.5em;
   }
 
-  /* A bold lead-in gets a hair more air than a run-on line — just a cue. */
+  /* A bold lead-in gets a hair more air than a run-on line - just a cue. */
   .prose > p:has(> strong:first-child) {
     margin-top: 1.15em;
   }
@@ -579,7 +579,7 @@ body::after {
   }
 }
 
-/* Automaton diagram — shares the Mermaid card/caption look so the two read as
+/* Automaton diagram - shares the Mermaid card/caption look so the two read as
    one family. The SVG itself is sized in absolute px and centred in the card;
    max-width keeps it inside the column on narrow screens. */
 @layer components {
@@ -630,7 +630,7 @@ body::after {
   }
 }
 
-/* Split — two columns on wider screens, stacked on narrow ones. Each Pane
+/* Split - two columns on wider screens, stacked on narrow ones. Each Pane
    carries the same vertical rhythm as the surrounding prose. */
 @layer components {
   .split {

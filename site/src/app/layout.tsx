@@ -24,7 +24,7 @@ const themeInitScript = `(function(){try{var t=localStorage.getItem('theme');var
 
 export const metadata: Metadata = {
   title: {
-    default: "knowledge",
+    default: "my knowledge, all in one place",
     template: "%s · knowledge",
   },
   description: "A quiet, local-first knowledge renderer.",

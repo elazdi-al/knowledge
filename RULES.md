@@ -23,9 +23,14 @@ These rules describe the preferred style for course notes in this workspace.
 
 - Important concepts should follow this pattern:
   `**Concept Name (abbreviation if useful).** Clear, simple, readable description.`
-- Then use short property bullets when they help:
+- Use short property bullets only when they name actual formal attributes, roles, invariants, or structural components of the concept:
   `- **Property.** Clean description. *Example if useful.*`
-- Use property bullets only for real structure. Do not turn every sentence into a bullet.
+- Good property labels are names like `Alphabet`, `State set`, `Transition function`, `Start state`, `Accepting states`, `Acceptance condition`, `Invariant`, or `Construction`.
+- Do not use property bullets for ordinary explanation, reasons, restatements, formulas, examples, or narrative steps.
+- Labels like `Reason`, `Set definition`, `Why`, `Observation`, and `Consequence` usually belong in normal prose unless they name a precise formal claim being studied.
+- Use this test: if the label is not an actual property or formal descriptor of the concept, write normal prose instead.
+- Prefer prose when there are fewer than two real properties, or when bullets would interrupt the flow.
+- Do not let property bullets replace normal paragraphs. They are for structure, not decoration.
 - Put examples immediately after the concept they clarify.
 
 ## Definitions
