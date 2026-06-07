@@ -5,7 +5,7 @@ interface Props {
   /** Mermaid source. May also be passed as a string child. */
   chart?: string;
   children?: string;
-  /** Caption rendered below the card (sans, muted) — like the reference. */
+  /** Caption rendered below the card (sans, muted) - like the reference. */
   caption?: string;
   className?: string;
 }
@@ -14,12 +14,12 @@ interface Props {
  * Renders a Mermaid diagram in the site's house style.
  *
  * beautiful-mermaid does the parsing, ELK layout, shapes, arrowheads and edge
- * styles natively — we lean on all of that. A small, well-scoped `restyle()`
+ * styles natively - we lean on all of that. A small, well-scoped `restyle()`
  * pass then nudges three things the library can't express as options:
  *   1. container titles: centred + balanced in their header zone (no band),
  *   2. corner radii: containers `16`, element boxes `8`,
  *   3. connectors: every link keeps its native arrowhead and gains a small
- *      junction dot — one coherent motif shared across all edge styles.
+ *      junction dot - one coherent motif shared across all edge styles.
  *
  * The SVG is produced once at build time (Server Component → no client JS, no
  * flash) and every colour is a `var(--mm-*)` reference, so the baked geometry
@@ -32,12 +32,12 @@ const SCALE = 1.25;
 /**
  * How far outside a node box an arrow endpoint is seated. The native arrowhead
  * tip sits ~1px past the endpoint, so GAP=2 lands the tip ~1px clear of the box
- * — touching, never painted over by the box (nodes draw on top of edges).
+ * - touching, never painted over by the box (nodes draw on top of edges).
  */
 const GAP = 2;
 
 /** Shapes whose bounding box is a faithful rectangle, so endpoint-seating is safe.
- *  Diamonds, circles, hexagons etc. are left alone — the library already seats
+ *  Diamonds, circles, hexagons etc. are left alone - the library already seats
  *  their endpoints on the true (sloped/curved) perimeter. */
 const RECT_LIKE = new Set(["rectangle", "rounded", "stadium", "subroutine"]);
 
@@ -51,7 +51,7 @@ const TITLE_CENTER_FROM_TOP = 22;
 const COLOR_OPTS = {
   bg: "var(--mm-bg)",
   fg: "var(--mm-fg)",
-  // Element boxes sit at the card colour and read by their border — the
+  // Element boxes sit at the card colour and read by their border - the
   // reference's inner box is the same fill as the card, not a lighter tint.
   surface: "var(--mm-bg)",
   border: "var(--mm-border)",
@@ -66,7 +66,7 @@ const COLOR_OPTS = {
 } as const;
 
 // A ready-made class so authors can emphasise a node with `:::highlight`
-// (or `class X highlight`) without wiring colours — the inverted box. This is
+// (or `class X highlight`) without wiring colours - the inverted box. This is
 // beautiful-mermaid's own classDef mechanism, theme-reactive via var(--mm-*).
 const HIGHLIGHT_CLASSDEF =
   "classDef highlight fill:var(--mm-hi-bg),stroke:var(--mm-hi-bg),color:var(--mm-hi-fg);";
@@ -79,7 +79,7 @@ const round = (n: number) => Math.round(n * 1000) / 1000;
 const attr = (s: string, name: string): string =>
   (s.match(new RegExp(`\\b${name}="([^"]*)"`)) ?? [])[1] ?? "";
 
-/** Point halfway along a polyline by arc length — where the junction dot sits. */
+/** Point halfway along a polyline by arc length - where the junction dot sits. */
 function pathMidpoint(pts: { x: number; y: number }[]): { x: number; y: number } {
   const seg: number[] = [];
   let total = 0;
@@ -131,12 +131,12 @@ function scaleRoot(svg: string): string {
 }
 
 /**
- * Each subgraph emits a header trio — background rect, header-band rect, title —
+ * Each subgraph emits a header trio - background rect, header-band rect, title -
  * before any nested child group. Matching that trio (rather than the whole
  * group body) keeps the transform safe for arbitrarily nested subgraphs:
- *   • background rect → container fill, hairline ring, 16px radius,
- *   • header band     → dropped,
- *   • title           → centred, brightened, balanced in the header zone.
+ *   - background rect → container fill, hairline ring, 16px radius,
+ *   - header band     → dropped,
+ *   - title           → centred, brightened, balanced in the header zone.
  */
 function restyleContainers(svg: string): string {
   return svg.replace(
@@ -242,7 +242,7 @@ function snap(
  * flush with the box (so the arrowhead tip gets clipped) and insets edges that
  * cross a subgraph boundary by the padding (so they float short of their box).
  * Re-anchoring both ends to a uniform `GAP` fixes the clip and the float at once
- * — and, by spanning the line edge-to-edge, centres the junction dot too.
+ * - and, by spanning the line edge-to-edge, centres the junction dot too.
  */
 function seatEdges(svg: string): string {
   const boxes = collectBoxes(svg);
@@ -277,9 +277,9 @@ function seatEdges(svg: string): string {
 /**
  * The coherent connector system. Native arrowheads and dash/thickness are left
  * exactly as beautiful-mermaid drew them; we only add the shared junction dot:
- *   • directed link    → line + arrowhead + dot,
- *   • plain link (---)  → line + dot,
- *   • labelled link    → label box is the midpoint accent, so no dot.
+ *   - directed link    → line + arrowhead + dot,
+ *   - plain link (---)  → line + dot,
+ *   - labelled link    → label box is the midpoint accent, so no dot.
  * One motif, applied the same way across every edge style.
  */
 function dotConnectors(svg: string): string {
@@ -315,7 +315,7 @@ export function Mermaid({ chart, children, caption, className }: Props) {
   }
 
   if (!svg) {
-    // Unparseable source shouldn't break the static build — show the raw text.
+    // Unparseable source shouldn't break the static build - show the raw text.
     return (
       <figure className={cn("mermaid-graph mermaid-graph--error", className)}>
         <div className="mermaid-graph__card">

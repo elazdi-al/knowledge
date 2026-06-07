@@ -194,9 +194,9 @@ NFAs feel more flexible than DFAs because they branch. A DFA can simulate this b
 
 **Set of possible states.** After reading a prefix, the deterministic simulator stores all NFA states reachable by some path reading that prefix.
 
-- **Empty set.** $\varnothing$ means every branch has failed.
-- **Accepting set.** A set of states is accepting if it contains at least one accepting NFA state.
-- **Epsilon note.** If the NFA has $\epsilon$-transitions, possible states should also include states reachable by $\epsilon$-moves. The construction below is stated first without $\epsilon$-transitions.
+The empty set $\varnothing$ means every branch has failed. A set of states is accepting if it contains at least one accepting NFA state.
+
+If the NFA has $\epsilon$-transitions, possible states should also include states reachable by $\epsilon$-moves. The construction below is stated first without $\epsilon$-transitions.
 
 **One-symbol set transition.** For an NFA without $\epsilon$-transitions, define:
 

@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
 
 /**
  * @next/mdx wires .md/.mdx through @mdx-js/loader at build time. We never
- * route directly to an MDX file — pages live under app/notes/[...slug]
- * and pull their content via dynamic import — so `pageExtensions` is
+ * route directly to an MDX file - pages live under app/notes/[...slug]
+ * and pull their content via dynamic import - so `pageExtensions` is
  * intentionally left at the default.
  *
  * Turbopack requires plugin options to be JSON-serializable; every plugin

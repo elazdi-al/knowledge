@@ -130,9 +130,9 @@ $$
 
 **State meaning.** A state meaning is the property true about the input read so far whenever the machine is in that state.
 
-- **Method.** Test short strings, then name exactly what each state remembers.
-- **Accepting condition.** Once the state meanings are known, the accepting states give the language.
-- **Precision.** Give every state a meaning, not only the accepting states.
+To find state meanings, test short strings and name exactly what each state remembers. Once the state meanings are known, the accepting states give the language.
+
+Give every state a meaning, not only the accepting states.
 
 **Example 1. Strings ending in `1`.**
 
@@ -467,11 +467,13 @@ Once languages are sets of strings, we can form new languages from old ones. For
 
 **Complement.** The complement of $L$ over alphabet $\Sigma$ is the set of all strings in $\Sigma^*$ that are not in $L$.
 
-- **Set definition.** $\overline{L}=\{w\in\Sigma^*\mid w\notin L\}$.
-- **DFA construction.** Keep the same states, start state, and transitions. Make every old accepting state rejecting, and every old rejecting state accepting.
-- **Reason.** Every run ends in the same state as before, but the final answer is flipped.
+$$
+\overline{L}=\{w\in\Sigma^*\mid w\notin L\}
+$$
 
 If $M=(Q,\Sigma,\delta,q_0,F)$ recognizes $L$, then $M'=(Q,\Sigma,\delta,q_0,Q\setminus F)$ recognizes $\overline{L}$.
+
+The construction keeps the same states, start state, and transitions. Every run ends in the same state as before, but the final answer is flipped.
 
 **Example. Complement of strings ending in `1`.**
 
@@ -514,15 +516,19 @@ The arrows are identical. Only the accepting states change.
 
 **Union.** The union of two languages contains strings that belong to at least one of them.
 
-- **Set definition.** $L_1\cup L_2=\{w\in\Sigma^*\mid w\in L_1\text{ or }w\in L_2\}$.
-- **DFA construction.** Run the two DFAs in parallel. Accept if either component accepts.
-- **State meaning.** A product state records both current states at once.
+$$
+L_1\cup L_2=\{w\in\Sigma^*\mid w\in L_1\text{ or }w\in L_2\}
+$$
+
+To recognize a union, run the two DFAs in parallel. A product state records both current states at once. Accept if either component accepts.
 
 **Intersection.** The intersection of two languages contains strings that belong to both of them.
 
-- **Set definition.** $L_1\cap L_2=\{w\in\Sigma^*\mid w\in L_1\text{ and }w\in L_2\}$.
-- **DFA construction.** Run the two DFAs in parallel. Accept only if both components accept.
-- **State meaning.** The product states and transitions are the same as for union. Only the accepting states change.
+$$
+L_1\cap L_2=\{w\in\Sigma^*\mid w\in L_1\text{ and }w\in L_2\}
+$$
+
+To recognize an intersection, use the same product states and transitions as for union. Accept only if both components accept.
 
 **Product construction.** The product construction turns two DFAs over the same alphabet into one DFA whose states are ordered pairs.
 
@@ -648,9 +654,9 @@ $$
 L_1L_2=\{w\in\Sigma^*\mid w=xy,\ x\in L_1,\ y\in L_2\}
 $$
 
-- **Set definition.** A string is in $L_1L_2$ if it has some split $w=xy$ with $x\in L_1$ and $y\in L_2$.
-- **Key difference.** The split point is not fixed in advance.
-- **Regularity.** Regular languages are closed under concatenation, but the clean automaton construction uses nondeterminism.
+A string is in $L_1L_2$ if it has some split $w=xy$ with $x\in L_1$ and $y\in L_2$. The split point is not fixed in advance.
+
+Regular languages are closed under concatenation, but the clean automaton construction uses nondeterminism.
 
 **Example. Concatenating finite languages.**
 

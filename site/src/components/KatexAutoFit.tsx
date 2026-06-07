@@ -6,7 +6,7 @@ import { useEffect } from "react";
  * Scales any display-math block wider than its column down to fit, instead of
  * letting it overflow or scroll. KaTeX lays formulas out in `em`, so shrinking
  * the block's font-size shrinks the formula proportionally and the box height
- * collapses with it — a clean fit with no leftover whitespace and no transform
+ * collapses with it - a clean fit with no leftover whitespace and no transform
  * artefacts. Blocks that already fit are left at their natural size, and a
  * formula scales back up if the column later widens.
  *
@@ -25,7 +25,7 @@ export function KatexAutoFit() {
         // Measure at the inherited size, then scale only if it overflows. The
         // block is the `overflow-x: auto` scroll container, so its scrollWidth
         // is the formula's true width and clientWidth is the column it must fit
-        // — KaTeX's inner `.katex` is display:block, so its own box width is
+        // - KaTeX's inner `.katex` is display:block, so its own box width is
         // just the column and would never read as overflowing.
         block.style.fontSize = "";
         const available = block.clientWidth;
