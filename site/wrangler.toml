@@ -8,7 +8,7 @@
 # (separate from this site) to read/write to it. The site itself reads
 # R2 images over plain HTTPS, so no binding is strictly required.
 
-name = "knowledge-a16"
+name = "knowledge"
 compatibility_date = "2025-05-01"
 pages_build_output_dir = "out"
 

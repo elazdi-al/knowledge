@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "deploy": "next build && wrangler pages deploy out --project-name=knowledge-a16",
+    "deploy": "next build && wrangler pages deploy out --project-name=knowledge",
     "preview": "wrangler pages dev out"
   },
   "dependencies": {
