@@ -318,9 +318,10 @@ export function Automaton({
   const startArrow = startNode
     ? (() => {
         const tip = edgePoint(startNode, -1, 0);
+        const y = startNode.cy;
         return (
           <path
-            d={`M${r2(tip.x - START_LEN)},${r2(cy)} L${r2(tip.x)},${r2(cy)}`}
+            d={`M${r2(tip.x - START_LEN)},${r2(y)} L${r2(tip.x)},${r2(y)}`}
             fill="none"
             stroke="currentColor"
             strokeWidth={1.4}

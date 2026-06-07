@@ -1,0 +1,355 @@
+---
+title: "Theory of Computation: Lecture 2"
+description: "Nondeterministic finite automata, NFA acceptance, subset construction, and concatenation closure."
+tags: ["Theory of computation"]
+created: 2026-06-07
+updated: 2026-06-07
+---
+
+## From Closure to Nondeterminism
+
+Regular languages are languages recognized by finite automata. Some operations are already easy to handle with DFAs: complement flips accepting states, and union or intersection runs two DFAs in parallel.
+
+Concatenation is different. If $L_1$ and $L_2$ are languages, then:
+
+$$
+L_1\circ L_2=\{xy\mid x\in L_1,\ y\in L_2\}
+$$
+
+To recognize $L_1\circ L_2$, a machine reading $xy$ must know where the first part $x$ ends and where the second part $y$ begins. The input does not mark that split. This is the first place where it is useful to let the automaton guess.
+
+**Nondeterminism.** Nondeterminism lets a machine have several possible next moves. A string is accepted when at least one possible computation accepts.
+
+- **Choice.** The machine may branch into several states on the same input symbol.
+- **Missing transition.** A branch may stop if no transition is available.
+- **Epsilon move.** A transition labeled $\epsilon$ moves without reading an input symbol.
+- **Acceptance.** The whole input is accepted if some branch reads all of it and ends in an accepting state.
+
+The subset construction will make this precise: NFAs are often easier to draw than DFAs, but they recognize the same languages.
+
+## Nondeterministic Finite Automata
+
+**Nondeterministic finite automaton (NFA).** An NFA is a finite automaton whose transition rule may return a set of next states, rather than one next state.
+
+- **DFA transition.** From one state and one symbol, there is exactly one next state.
+- **NFA transition.** From one state and one symbol, there may be zero, one, or many next states.
+- **Epsilon transition.** From one state, the machine may move to another state without consuming input.
+
+**Example. Strings containing `11` or `101`.**
+
+This NFA waits in $q_1$ until it guesses that a matching substring has started. If the guess succeeds, it reaches $q_4$ and stays accepting.
+
+<Automaton
+  caption="An NFA for strings containing 11 or 101."
+  start="q1"
+  accepting={["q4"]}
+  states={[
+    { id: "q1", label: "q_1" },
+    { id: "q2", label: "q_2" },
+    { id: "q3", label: "q_3" },
+    { id: "q4", label: "q_4" },
+  ]}
+  transitions={[
+    { from: "q1", to: "q1", label: "0,1" },
+    { from: "q1", to: "q2", label: "1" },
+    { from: "q2", to: "q3", label: "0, ε" },
+    { from: "q3", to: "q4", label: "1" },
+    { from: "q4", to: "q4", label: "0,1" },
+  ]}
+/>
+
+$$
+L(N)=\{w\in\{0,1\}^*\mid w\text{ contains }11\text{ or }101\}
+$$
+
+The transition $q_2\to q_3$ has two labels. Reading `0` helps match `101`; taking $\epsilon$ helps match `11`.
+
+*Accepted: $11$, $101$, $010110$. Rejected: $\epsilon$, $0$, $1000$.*
+
+**Computation of an NFA.** There are two equivalent ways to read an NFA.
+
+- **Parallel view.** Keep the set of all states reachable after the input read so far.
+- **Existential view.** The NFA accepts when there exists at least one successful path.
+
+For the NFA above, while reading `010110`, one branch guesses the `101` in the middle and reaches $q_4$. Other branches may fail, but they do not matter once one branch accepts.
+
+## Formal NFA Definition
+
+**Formal NFA.** An NFA is written as a 5-tuple:
+
+$$
+N=(Q,\Sigma,\delta,q_0,F)
+$$
+
+| Symbol | Role |
+|---|---|
+| $Q$ | states |
+| $\Sigma$ | alphabet |
+| $\delta:Q\times(\Sigma\cup\{\epsilon\})\to 2^Q$ | transition function |
+| $q_0\in Q$ | start state |
+| $F\subseteq Q$ | accepting states |
+
+**Power set.** The power set $2^Q$ is the set of all subsets of $Q$. The NFA transition function returns an element of $2^Q$ because there may be many next states.
+
+*If $Q=\{q_1,q_2\}$, then $2^Q=\{\varnothing,\{q_1\},\{q_2\},\{q_1,q_2\}\}$.*
+
+**NFA acceptance.** An NFA accepts a string $w$ if there exists a path that starts at $q_0$, reads exactly $w$, and ends in a state of $F$. Epsilon transitions may be taken anywhere along the path because they do not read input.
+
+For the previous NFA, the diagram is equivalent to this transition table:
+
+| State | `0` | `1` | $\epsilon$ |
+|---|---|---|---|
+| $q_1$ | $\{q_1\}$ | $\{q_1,q_2\}$ | $\varnothing$ |
+| $q_2$ | $\{q_3\}$ | $\varnothing$ | $\{q_3\}$ |
+| $q_3$ | $\varnothing$ | $\{q_4\}$ | $\varnothing$ |
+| $q_4$ | $\{q_4\}$ | $\{q_4\}$ | $\varnothing$ |
+
+Each cell is a set. A blank possibility is written as $\varnothing$, not as an error.
+
+## NFA Design Patterns
+
+NFAs are useful because a small diagram can express a good guess. The proof that NFAs and DFAs recognize the same languages comes later, so at this stage the point is design clarity.
+
+**Guess-and-check pattern.** The NFA stays in a broad waiting state, guesses the important position, then checks the remaining symbols.
+
+**Example. A `1` in the third position from the end.**
+
+The machine may leave $q_1$ whenever it reads a `1`. After that guess, exactly two more symbols must be read before the input ends.
+
+<Automaton
+  caption="An NFA that guesses the third symbol from the end."
+  start="q1"
+  accepting={["q4"]}
+  states={[
+    { id: "q1", label: "q_1" },
+    { id: "q2", label: "q_2" },
+    { id: "q3", label: "q_3" },
+    { id: "q4", label: "q_4" },
+  ]}
+  transitions={[
+    { from: "q1", to: "q1", label: "0,1" },
+    { from: "q1", to: "q2", label: "1" },
+    { from: "q2", to: "q3", label: "0,1" },
+    { from: "q3", to: "q4", label: "0,1" },
+  ]}
+/>
+
+$$
+L=\{w\in\{0,1\}^*\mid w\text{ has }1\text{ in the third position from the end}\}
+$$
+
+The accepting state has no outgoing transition. If there are more than two symbols after the guessed `1`, that branch cannot accept.
+
+*Accepted: $100$, $000100$, $11011$. Rejected: $11$, $0011$, $1000$.*
+
+**Epsilon-branching pattern.** An NFA can choose between several submachines before reading input. This is useful for recognizing a union.
+
+**Example. Unary strings whose length is divisible by 2 or 3.**
+
+The start state chooses, by $\epsilon$-transition, whether to test divisibility by 2 or divisibility by 3.
+
+<Split cols="1.05fr 0.95fr" align="center">
+<Pane>
+
+<Automaton
+  caption="An NFA for lengths divisible by 2 or 3."
+  start="s"
+  accepting={["e2", "e3"]}
+  states={[
+    { id: "s", label: "s", x: 76, y: 172 },
+    { id: "e2", label: "r_0", x: 210, y: 90 },
+    { id: "o2", label: "r_1", x: 355, y: 90 },
+    { id: "e3", label: "t_0", x: 210, y: 252 },
+    { id: "t1", label: "t_1", x: 355, y: 216 },
+    { id: "t2", label: "t_2", x: 355, y: 302 },
+  ]}
+  transitions={[
+    { from: "s", to: "e2", label: "ε" },
+    { from: "s", to: "e3", label: "ε" },
+    { from: "e2", to: "o2", label: "0", bend: "up" },
+    { from: "o2", to: "e2", label: "0", bend: "down" },
+    { from: "e3", to: "t1", label: "0", bend: "up" },
+    { from: "t1", to: "t2", label: "0" },
+    { from: "t2", to: "e3", label: "0", bend: "down" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+$$
+L=\{0^k\mid k\text{ is divisible by }2\text{ or }3\}
+$$
+
+The top branch cycles with period 2. The bottom branch cycles with period 3. The empty string is accepted because $0$ is divisible by both 2 and 3.
+
+*Accepted: $\epsilon$, $00$, $000$, $0000$, $000000$. Rejected: $0$, $00000$.*
+
+</Pane>
+</Split>
+
+## Subset Construction
+
+NFAs feel more flexible than DFAs because they branch. A DFA can simulate this branching by storing the whole set of NFA states that are currently possible.
+
+**Set of possible states.** After reading a prefix, the deterministic simulator stores all NFA states reachable by some path reading that prefix.
+
+- **Empty set.** $\varnothing$ means every branch has failed.
+- **Accepting set.** A set of states is accepting if it contains at least one accepting NFA state.
+- **Epsilon note.** If the NFA has $\epsilon$-transitions, possible states should also include states reachable by $\epsilon$-moves. The construction below is stated first without $\epsilon$-transitions.
+
+**One-symbol set transition.** For an NFA without $\epsilon$-transitions, define:
+
+$$
+\widetilde{\delta}(A,a)=\bigcup_{q\in A}\delta(q,a)
+$$
+
+This is the set of all states reachable after reading one symbol $a$ from any state in $A$.
+
+**Example. Computing set transitions.**
+
+<Split cols="0.9fr 1.1fr" align="center">
+<Pane>
+
+<Automaton
+  caption="An NFA used for the subset construction."
+  start="p"
+  accepting={["r"]}
+  states={[
+    { id: "p", label: "p" },
+    { id: "q", label: "q" },
+    { id: "r", label: "r" },
+  ]}
+  transitions={[
+    { from: "p", to: "p", label: "0,1" },
+    { from: "p", to: "q", label: "1" },
+    { from: "q", to: "r", label: "0,1" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+| $A$ | $\widetilde{\delta}(A,0)$ | $\widetilde{\delta}(A,1)$ |
+|---|---|---|
+| $\varnothing$ | $\varnothing$ | $\varnothing$ |
+| $\{p\}$ | $\{p\}$ | $\{p,q\}$ |
+| $\{q\}$ | $\{r\}$ | $\{r\}$ |
+| $\{r\}$ | $\varnothing$ | $\varnothing$ |
+| $\{p,q\}$ | $\{p,r\}$ | $\{p,q,r\}$ |
+| $\{p,r\}$ | $\{p\}$ | $\{p,q\}$ |
+| $\{q,r\}$ | $\{r\}$ | $\{r\}$ |
+| $\{p,q,r\}$ | $\{p,r\}$ | $\{p,q,r\}$ |
+
+</Pane>
+</Split>
+
+The subset construction turns every subset $A\subseteq Q$ into one DFA state. For the NFA above, the simulated DFA may use up to $2^3=8$ states.
+
+**Subset construction.** Let
+
+$$
+N=(Q_N,\Sigma,\delta_N,q_0,F_N)
+$$
+
+be an NFA without $\epsilon$-transitions. Build the DFA
+
+$$
+M=(Q_M,\Sigma,\delta_M,\{q_0\},F_M)
+$$
+
+by setting:
+
+| DFA part | Definition |
+|---|---|
+| $Q_M$ | $2^{Q_N}$ |
+| $\delta_M(A,a)$ | $\displaystyle\bigcup_{q\in A}\delta_N(q,a)$ |
+| start state | $\{q_0\}$ |
+| $F_M$ | $\{A\subseteq Q_N\mid A\cap F_N\ne\varnothing\}$ |
+
+The DFA state $A$ means: after reading the current prefix, the NFA could be in exactly the states of $A$.
+
+**Equivalence theorem.** Every NFA has an equivalent DFA.
+
+For NFAs without $\epsilon$-transitions, the subset construction gives the equivalent DFA directly. The key invariant is:
+
+$$
+\Delta_M(A,w)=\Delta_N(A,w)
+$$
+
+for every subset $A\subseteq Q_N$ and every string $w\in\Sigma^*$. Here $\Delta_M$ is the extended DFA transition function, and $\Delta_N$ is the extended NFA transition function on sets of states.
+
+**Proof idea.**
+
+The proof is induction on the length of $w$.
+
+For $w=\epsilon$, both machines remain in $A$.
+
+For $w=xa$, assume $\Delta_M(A,x)=\Delta_N(A,x)$. Then:
+
+$$
+\begin{aligned}
+\Delta_M(A,xa)
+&=\delta_M(\Delta_M(A,x),a)\\
+&=\delta_M(\Delta_N(A,x),a)\\
+&=\Delta_N(\Delta_N(A,x),a)\\
+&=\Delta_N(A,xa).
+\end{aligned}
+$$
+
+Therefore the DFA and the NFA have the same possible states after every input. The DFA accepts exactly when its subset contains an accepting NFA state, so:
+
+$$
+L(M)=L(N)
+$$
+
+This proves that NFAs recognize exactly the regular languages.
+
+## Concatenation with NFAs
+
+Nondeterminism gives a clean construction for concatenation. The NFA for $L_1\circ L_2$ runs the first machine, guesses when the first part is finished, then moves into the second machine by an $\epsilon$-transition.
+
+**Concatenation construction.** Let $N_1$ recognize $L_1$ and $N_2$ recognize $L_2$:
+
+$$
+N_1=(Q_1,\Sigma,\delta_1,q_1,F_1),
+\qquad
+N_2=(Q_2,\Sigma,\delta_2,q_2,F_2)
+$$
+
+Assume the state sets are disjoint. Build an NFA $N$ for $L_1\circ L_2$ as follows:
+
+<Automaton
+  caption="Construction sketch for concatenation."
+  start="q1"
+  accepting={["f2"]}
+  states={[
+    { id: "q1", label: "q_1" },
+    { id: "f1", label: "F_1" },
+    { id: "q2", label: "q_2" },
+    { id: "f2", label: "F_2" },
+  ]}
+  transitions={[
+    { from: "q1", to: "f1", label: "N_1" },
+    { from: "f1", to: "q2", label: "ε" },
+    { from: "q2", to: "f2", label: "N_2" },
+  ]}
+/>
+
+The node labeled $F_1$ represents any accepting state of $N_1$ where the split may occur. In the new machine, accepting states are taken from $F_2$.
+
+| Part of $N$ | Definition |
+|---|---|
+| States | $Q_1\cup Q_2$ |
+| Start state | $q_1$ |
+| Accepting states | $F_2$ |
+| Old transitions | Keep all transitions of $N_1$ and $N_2$ |
+| New transitions | Add $\epsilon$-transitions from each state in $F_1$ to $q_2$ |
+
+The $\epsilon$-transition is the guessed split. If a branch reaches an accepting state of $N_1$ after reading $x$, it may jump to the start of $N_2$ without consuming input. The remaining input must then be read as a string in $L_2$.
+
+**Closure under concatenation.** If $L_1$ and $L_2$ are regular, then $L_1\circ L_2$ is regular.
+
+The construction gives an NFA for $L_1\circ L_2$. Since every NFA has an equivalent DFA, the concatenated language is regular.
+
+The next question is whether every language is regular, or whether finite memory has a real limit.
