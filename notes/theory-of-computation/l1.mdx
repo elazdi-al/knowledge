@@ -526,43 +526,32 @@ The arrows are identical. Only the accepting states change.
 
 **Product construction.** The product construction turns two DFAs over the same alphabet into one DFA whose states are ordered pairs.
 
-$$
-M_1=(Q_1,\Sigma,\delta_1,s_1,F_1)
-$$
+For DFAs $M_1=(Q_1,\Sigma,\delta_1,s_1,F_1)$ and $M_2=(Q_2,\Sigma,\delta_2,s_2,F_2)$:
 
-$$
-M_2=(Q_2,\Sigma,\delta_2,s_2,F_2)
-$$
-
-The product DFA has:
-
-$$
-Q=Q_1\times Q_2,\qquad q_0=(s_1,s_2)
-$$
-
-$$
-\delta((r,t),a)=(\delta_1(r,a),\delta_2(t,a))
-$$
+| Part | Product DFA |
+|---|---|
+| States | $Q_1\times Q_2$ |
+| Start state | $(s_1,s_2)$ |
+| Transition | $\delta((r,t),a)=(\delta_1(r,a),\delta_2(t,a))$ |
 
 If the alphabets differ, first extend both machines to the common alphabet $\Sigma=\Sigma_1\cup\Sigma_2$ by adding a rejecting dead state where needed.
 
 **Example. Product states for union and intersection.**
 
-Let $A$ be the language of strings ending in `1`. Let $B$ be the language of strings with an even number of `0` symbols.
+Let $A$ be the language of strings containing at least one `1`. Let $B$ be the language of strings with an even number of `0` symbols.
 
 <Split cols="1fr 1fr" align="center">
 <Pane>
 
 <Automaton
-  caption="A: strings ending in 1."
+  caption="A: strings containing at least one 1."
   start="N"
   accepting={["Y"]}
   states={[{ id: "N" }, { id: "Y" }]}
   transitions={[
     { from: "N", to: "N", label: "0" },
     { from: "N", to: "Y", label: "1" },
-    { from: "Y", to: "N", label: "0" },
-    { from: "Y", to: "Y", label: "1" },
+    { from: "Y", to: "Y", label: "0,1" },
   ]}
 />
 
@@ -589,10 +578,10 @@ In the product machine, the first letter tracks $A$ and the second letter tracks
 
 | Product state | Meaning |
 |---|---|
-| `NE` | not ending in `1`, even number of `0`s |
-| `NO` | not ending in `1`, odd number of `0`s |
-| `YE` | ending in `1`, even number of `0`s |
-| `YO` | ending in `1`, odd number of `0`s |
+| `NE` | no `1` seen, even number of `0`s |
+| `NO` | no `1` seen, odd number of `0`s |
+| `YE` | at least one `1` seen, even number of `0`s |
+| `YO` | at least one `1` seen, odd number of `0`s |
 
 <Split cols="1fr 1fr" align="center">
 <Pane>
@@ -614,9 +603,9 @@ For union, accept `NE`, `YE`, and `YO`, because at least one component accepts.
     { from: "NE", to: "YE", label: "1" },
     { from: "NO", to: "NE", label: "0", bend: "up" },
     { from: "NO", to: "YO", label: "1" },
-    { from: "YE", to: "NO", label: "0" },
+    { from: "YE", to: "YO", label: "0" },
     { from: "YE", to: "YE", label: "1" },
-    { from: "YO", to: "NE", label: "0" },
+    { from: "YO", to: "YE", label: "0", bend: "up" },
     { from: "YO", to: "YO", label: "1" },
   ]}
 />
@@ -641,9 +630,9 @@ For intersection, use the same graph but accept only `YE`, because both componen
     { from: "NE", to: "YE", label: "1" },
     { from: "NO", to: "NE", label: "0", bend: "up" },
     { from: "NO", to: "YO", label: "1" },
-    { from: "YE", to: "NO", label: "0" },
+    { from: "YE", to: "YO", label: "0" },
     { from: "YE", to: "YE", label: "1" },
-    { from: "YO", to: "NE", label: "0" },
+    { from: "YO", to: "YE", label: "0", bend: "up" },
     { from: "YO", to: "YO", label: "1" },
   ]}
 />
@@ -651,7 +640,7 @@ For intersection, use the same graph but accept only `YE`, because both componen
 </Pane>
 </Split>
 
-*The string `1` is in the intersection, since it ends in `1` and has zero `0`s. The string `10` is in the union but not the intersection, since it has an odd number of `0`s and does not end in `1`.*
+*The string `1` is in the intersection, since it contains a `1` and has zero `0`s. The string `10` is in the union but not the intersection, since it contains a `1` but has an odd number of `0`s.*
 
 **Concatenation.** The concatenation of two languages contains strings obtained by taking one string from the first language and then one string from the second.
 

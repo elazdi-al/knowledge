@@ -62,6 +62,8 @@ These rules describe the preferred style for course notes in this workspace.
 - Do not overuse layout components. Use them when they make scanning easier.
 - For automata, show start states, accepting states, and transitions in the standard visual form.
 - Prefer transition tables when they make the transition function easier to study.
+- For operations or constructions, use a uniform rhythm: definition, construction idea, then a compact visual example.
+- When an operation is introduced, include a clear visual example unless it would repeat a visual already serving the same purpose.
 
 ## Math and Formalism
 
