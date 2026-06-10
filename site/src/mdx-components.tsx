@@ -8,10 +8,16 @@ import { DemoFrame } from "@/components/DemoFrame";
 import { ERDiagram } from "@/components/ERDiagram";
 import { ERInstanceMapping } from "@/components/ERInstanceMapping";
 import { HashDiagram } from "@/components/HashDiagram";
+import { IdeaBreak } from "@/components/IdeaBreak";
 import { IndexMap } from "@/components/IndexMap";
 import { Mermaid } from "@/components/Mermaid";
 import { PageLayout } from "@/components/PageLayout";
 import { QueryTree } from "@/components/QueryTree";
+import {
+  ExecutionModelSchema,
+  HashProjectionSchema,
+  QueryProcessingFlow,
+} from "@/components/QueryExecutionSchemas";
 import { R2Image } from "@/components/R2Image";
 import { RAIDDiagram } from "@/components/RAIDDiagram";
 import { SortPasses } from "@/components/SortPasses";
@@ -32,11 +38,16 @@ export function useMDXComponents(
     ERDiagram,
     ERInstanceMapping,
     HashDiagram,
+    hr: IdeaBreak,
+    IdeaBreak,
     IndexMap,
     Mermaid,
     PageLayout,
     Pane,
+    ExecutionModelSchema,
+    HashProjectionSchema,
     QueryTree,
+    QueryProcessingFlow,
     R2Image,
     RAIDDiagram,
     SortPasses,
