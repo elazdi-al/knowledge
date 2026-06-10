@@ -84,19 +84,19 @@ The lifecycle is fixed:
 
 <ExecutionModelSchema mode="iterator" />
 
-```text
+```python
 Project.Next():
-  while (t = child.Next()) != EOF:
+  while (t := child.Next()) != EOF:
     return project(t)
   return EOF
 
 HashJoin.Next():
   if not built:
-    while (r = left.Next()) != EOF:
+    while (r := left.Next()) != EOF:
       buildHashTable(r.id, r)
-    built = true
+    built = True
 
-  while true:
+  while True:
     if pending is not empty:
       return pending.pop()
     s = right.Next()
@@ -105,7 +105,7 @@ HashJoin.Next():
     pending = [join(r, s) for r in probe(s.id)]
 
 Select.Next():
-  while (s = child.Next()) != EOF:
+  while (s := child.Next()) != EOF:
     if s.value > 100:
       return s
   return EOF
@@ -129,7 +129,7 @@ Its main properties are:
 
 <ExecutionModelSchema mode="materialized" />
 
-```text
+```python
 Project.Output():
   out = []
   for t in child.Output():
@@ -156,6 +156,8 @@ Select.Output():
 Materialization moves the cost to operator boundaries. Each `Output()` call returns a complete relation, so a parent starts only after the child has finished and stored its result. This can be simple and efficient when intermediates are small, because the parent reads compact arrays or temporary files rather than repeatedly calling into child operators.
 
 The weakness appears when an intermediate is large. A large filtered input, join result, or projected result must be held in memory or written to disk before the next operator can reduce it further. In analytical plans, this extra write-read cycle can dominate the cost even when the logical tree is good.
+
+**Any pipeline boundary can be replaced by a materialization boundary without changing the result, but potentially with substantial storage and I/O overhead.**
 
 **Plan processing direction.** The direction in which control moves through the plan tree. It is related to the processing model, but it names a different choice: who starts the work.
 
