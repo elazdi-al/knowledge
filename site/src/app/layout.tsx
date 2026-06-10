@@ -7,7 +7,9 @@ import "katex/dist/katex.min.css";
 import "./globals.css";
 
 const inter = Inter({
-  subsets: ["latin"],
+  // greek covers the σ/π/δ the diagram labels use; math glyphs Inter lacks
+  // (⋈, ∈, ⟨⟩) fall back to the system stack by design.
+  subsets: ["latin", "greek"],
   variable: "--font-inter",
   display: "swap",
 });

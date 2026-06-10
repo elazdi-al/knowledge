@@ -1,0 +1,391 @@
+---
+title: "Data Intensive Systems: Lecture 4"
+description: "Storage hardware and the buffer manager: disk geometry and access time, RAID levels, the buffer pool and page table, and replacement policies including Clock, LRU/2Q, and sequential flooding."
+tags: ["Data intensive systems"]
+created: 2026-06-09
+updated: 2026-06-09
+---
+
+## The Storage Hierarchy
+
+A DBMS does not run on one uniform memory. Data lives across a hierarchy of storage levels with different latency, capacity, and cost, and the entire design of the storage layer follows from the gaps between those levels.
+
+**Storage hierarchy.** The ordered set of memory levels a DBMS uses, from fast volatile memory near the CPU down to slow persistent and archival storage. Going up gives lower latency but less capacity at a higher cost per byte; going down gives the opposite.
+
+The top levels (CPU registers, caches, DRAM) are volatile, byte-addressable, and fast. The lower levels (SSD, HDD, network storage) are persistent, block-addressable, much larger, and much slower. Main memory holds the **working set**, the data currently being processed, while persistent storage holds the full database.
+
+| Operation | Latency | If 1 ns were 1 s |
+|---|---|---|
+| L1 cache reference | 1 ns | 1 s |
+| L2 cache reference | 4 ns | 4 s |
+| DRAM access | 100 ns | 100 s |
+| SSD access | 16,000 ns | 4.4 hours |
+| HDD access | 2,000,000 ns | 3.3 weeks |
+| Network storage | $\sim 50{,}000{,}000$ ns | 1.5 years |
+| Tape archive | 1,000,000,000 ns | 31.7 years |
+
+Exact values vary by hardware, but the orders of magnitude do not: one extra I/O can cost more than millions of CPU instructions.
+
+Because the database is too large and too valuable to keep entirely in volatile DRAM, the DBMS stores it on secondary storage and pulls in only what it needs. That choice creates two expensive operations: a **read** transfers a page from disk to memory, and a **write** transfers a modified page back. Keeping everything in DRAM is impractical for general systems: production databases reach the TB or PB scale, so all-DRAM storage is costly, and conventional DRAM loses its contents on power failure while a database must survive across runs. Main-memory DBMSs remain useful for smaller or latency-critical workloads, but disks stay the default place to keep data.
+
+**Page (disk block).** The basic unit of transfer between secondary storage and main memory. All DBMS I/O is organized around whole pages, never individual bytes.
+
+Access cost depends on both the device and the access pattern. Magnetic disks (HDDs) offer large capacity at low cost per byte but slow random access; flash (SSDs) offer lower latency and strong random reads but stay far slower than DRAM and are more constrained on writes. Unlike RAM, page access time on these devices depends heavily on where a page sits and whether access is sequential or random.
+
+## Magnetic Disk Geometry and Access Time
+
+A magnetic disk stores bits on rotating platters coated with magnetic material, and each surface is organized geometrically. A **track** is one concentric circle on a surface; a **sector** is a slice of a track and the smallest hardware-addressable unit; and a **cylinder** is the set of tracks at the same radius across all surfaces. A read/write head on a moving arm floats above each platter, and the platters spin under the heads at a fixed rate.
+
+- **Zones.** Disks are divided into zones; all tracks in one zone hold the same number of sectors. Outer tracks are longer, so they store more sectors and offer higher transfer bandwidth than inner tracks.
+- **Sector size.** The hardware exposes a sector-addressable space, commonly 512 B or 4096 B. A DBMS page size is a fixed multiple of the sector size.
+
+The cost of reaching one page is well approximated by the sum of three components, each tied to a physical motion of the drive.
+
+$$
+\text{access time} = \text{seek time} + \text{rotational delay} + \text{transfer time}
+$$
+
+| Component | What it is | Typical value |
+|---|---|---|
+| Seek time | Move the arm so the head reaches the right track | 5-15 ms |
+| Rotational delay | Wait for the sector to rotate under the head | $\approx$ half a rotation |
+| Transfer time | Move the bytes once the head is in position | small for one page |
+
+At 7200 RPM one rotation takes about $8.3$ ms, so the average rotational delay is about half of that. Once the head is already in position, moving the bytes of a single page costs far less than the positioning that preceded it. This is exactly why **sequential access** beats random access: neighboring blocks can be read with almost no extra positioning.
+
+To make access sequential, blocks of one file should be laid out in a sensible physical order. The best notion of the *next* block is a block on the same track, then a block on the same cylinder, then a block on an adjacent cylinder. Because the head is already near these neighbors, the DBMS can apply **pre-fetching**: reading nearby pages before they are explicitly requested, since sequential layout makes them cheap to fetch.
+
+**Example 1. Cost of a 4 KB read on a 7200 RPM HDD.**
+
+*Take average seek $5$ ms, spindle $7200$ RPM so one rotation is $\tfrac{60{,}000}{7200}\approx 8.33$ ms and average rotational delay $\approx 4.17$ ms, transfer rate $50$ MB/s, and a $4096$ B page so transfer time $=\tfrac{4096}{50\times 10^6}\,\text{s}\approx 0.082$ ms. The access pattern decides which terms survive.*
+
+| Access pattern | Time | Throughput |
+|---|---|---|
+| Random block anywhere on disk | $5 + 4 + 0.082 = 9.082$ ms | $\approx 451$ KB/s |
+| Random block in the same cylinder | $4 + 0.082 = 4.082$ ms | $\approx 1.03$ MB/s |
+| Next block on the same track (sequential) | $0.082$ ms | $\approx 50$ MB/s |
+
+*Good physical layout improves effective bandwidth by two orders of magnitude.* Two rules of thumb capture the whole picture: main-memory access is roughly $1000\times$ faster than disk I/O, and on magnetic disks sequential I/O is roughly $10\times$ faster than random I/O. So a DBMS keeps hot data in memory and lays out pages sequentially on disk. Buffer management builds directly on this gap.
+
+## Flash Storage
+
+Flash memory evolved from USB keys and mobile storage into consumer and enterprise **SSDs**. In a DBMS it can serve as main storage or as an accelerator such as a cache or logging device. It exposes the same block-oriented API as a disk, so the DBMS still works in pages, but its performance comes from a completely different mechanism.
+
+Flash offers orders-of-magnitude higher I/O performance than HDDs, and because there is no mechanical seek, **random reads** cost almost as much as **sequential reads**. Access time is no longer determined by a page's physical location on the device.
+
+**Flash page and flash block.** Reads and writes operate at page granularity, while erases operate at block granularity. A flash block contains many pages.
+
+An SSD is a small parallel system rather than a single chip. A controller runs firmware and exports a disk-like block interface; flash packages connect through **channels**; each package holds several **dies**; and each die contains **planes**, **blocks**, and **pages**. Access time therefore depends on controller design, internal parallelism, firmware, and package bandwidth, not on a moving head.
+
+Flash supports three basic operations, and their asymmetry is what shapes SSD design. A **read** and a **write** act at page granularity, but a write can only program cells from $1 \rightarrow 0$. To reset cells from $0 \rightarrow 1$ the device must **erase**, and erase works only at block granularity. Flash cannot overwrite a page in place the way a magnetic disk can.
+
+**Flash Translation Layer (FTL).** The firmware layer that gives an SSD an HDD-like interface. It remaps logical pages to physical flash locations, performs garbage collection, applies wear leveling, and tunes both performance and lifetime.
+
+The FTL exists precisely because of the no-in-place-overwrite constraint. Repeated writes wear cells out, so the FTL applies **wear leveling**, spreading writes and erases across blocks so no small region fails early. Device lifetime is measured in **program/erase (P/E) cycles**, often ranging from about $10^5$ down to $10^3$ depending on how densely each cell stores data.
+
+| Type | Bits/cell | Typical trade-off |
+|---|---|---|
+| SLC | 1 | fastest, longest lifetime, highest cost |
+| MLC | 2 | more capacity, lower endurance |
+| TLC | 3 | cheaper per bit, lower endurance and slower writes |
+| QLC | 4 | highest density, lowest endurance; best for read-heavy use |
+
+As density rises from SLC to QLC, cost per bit falls but endurance and write performance decline. In practice the two technologies serve different goals: HDDs win when the aim is large, inexpensive capacity, and flash wins when the workload needs low latency, high IOPS, and efficient random reads.
+
+## RAID
+
+A storage system should ideally be fast, reliable, and affordable, but a single disk rarely optimizes all three. RAID combines several physical disks so the array beats any one of them on at least one axis.
+
+**RAID (Redundant Array of Inexpensive Disks).** A scheme that builds one logical disk from several physical disks to improve throughput, reliability, or both. It combines two ideas: **striping** spreads data across disks for higher throughput, and **redundancy** duplicates or protects data so the array can survive failures. The three canonical levels trade these ideas differently.
+
+RAID 0 is pure striping. File blocks are striped across disks with no redundancy, so the array uses the cumulative bandwidth of all disks and usable capacity is the sum of all disks. The cost is reliability: with $N$ independent disks, *any* failure breaks the array, so its mean time to failure is roughly $\tfrac{1}{N}$ of a single disk's.
+
+<RAIDDiagram
+  mode="striping"
+  minViewBoxWidth={520}
+  disks={[
+    { title: "Disk 0", cells: ["Block 0", "Block 2", "Block 4", "Block 6", "Block 8"] },
+    { title: "Disk 1", cells: ["Block 1", "Block 3", "Block 5", "Block 7", "Block 9"] },
+  ]}
+  caption="RAID 0: file blocks are striped across both disks for throughput, with no redundancy."
+/>
+
+RAID 1 is mirroring. Every block is duplicated on another disk, so reads can be parallelized while each write must update all copies. Usable capacity is only that of one disk per mirror pair. It handles disk loss well but does not protect against logical corruption or a bad write mirrored to both copies. RAID 1 is reliable and mechanically straightforward, but expensive, since half the raw capacity goes to redundancy.
+
+<RAIDDiagram
+  mode="mirroring"
+  minViewBoxWidth={520}
+  disks={[
+    { title: "Disk 0", cells: ["Block 0", "Block 1", "Block 2", "Block 3", "Block 4"] },
+    { title: "Disk 1", cells: ["Block 0", "Block 1", "Block 2", "Block 3", "Block 4"] },
+  ]}
+  caption="RAID 1: every block is mirrored to both disks; usable capacity is that of one disk."
+/>
+
+RAID 5 strikes the common compromise using parity instead of full duplication.
+
+**Parity.** An extra block computed as the bitwise XOR of several data blocks. If one data block is lost, it is reconstructed from the parity block and the surviving blocks. For one stripe group, $P = S_0 \oplus S_1 \oplus \cdots \oplus S_{N-2}$.
+
+Data is striped across the disks, but the parity block rotates from disk to disk rather than living on one dedicated disk. The array can survive the loss of one disk, and usable capacity is the equivalent of $N-1$ disks out of $N$. Reads are fast, but writes are more complex because parity must be updated. RAID 5 is more affordable than mirroring and more reliable than pure striping, which is why it is widely used in servers and datacenters.
+
+<RAIDDiagram
+  mode="parity"
+  disks={[
+    { title: "Disk 0", cells: [{ label: "Parity 0-2", kind: "parity" }, "Block 3", "Block 6", "Block 9"] },
+    { title: "Disk 1", cells: ["Block 0", { label: "Parity 3-5", kind: "parity" }, "Block 7", "Block 10"] },
+    { title: "Disk 2", cells: ["Block 1", "Block 4", { label: "Parity 6-8", kind: "parity" }, "Block 11"] },
+    { title: "Disk 3", cells: ["Block 2", "Block 5", "Block 8", { label: "Parity 9-11", kind: "parity" }] },
+  ]}
+  caption="RAID 5: data is striped across disks, and the parity block rotates diagonally from disk to disk."
+/>
+
+## The Buffer Manager
+
+Two layers turn physical storage into clean page operations. **Disk space management** tracks free space on disk and exports page-level operations (allocate, deallocate, read, write), so higher layers request pages without managing physical layout. Its best case is a request for a *sequence* of pages satisfied by pages stored sequentially, which delivers the full benefit of sequential I/O. **Buffer management** turns in-memory page requests into page I/O.
+
+A DBMS can only process data that is currently in DRAM. The buffer manager hides the fact that most pages still live on disk, much as a hardware cache hides the gap between CPU and main memory.
+
+<Mermaid
+  caption="The DBMS asks the buffer manager for pages in memory; the buffer manager turns misses into disk reads and dirty evictions into disk writes."
+  chart={`flowchart TB
+    DB["DBMS access methods"] -- "request page" --> BM["Buffer manager"]
+    BM -- "return frame" --> DB
+    BM -- "read page on miss" --> DISK["Disk (database file)"]
+    DISK -- "page in" --> BM
+    BM -- "write back dirty page" --> DISK
+  `}
+/>
+
+The OS already provides a file system and a block cache, yet a DBMS still manages pages its own way for four reasons. It wants **custom prefetching**, because many scans are predictable; **replacement control**, to choose which pages stay resident instead of accepting a generic OS policy; **flushing control**, because recovery protocols such as **write-ahead logging (WAL)** require log records to reach disk before the dirty data pages they describe; and **scheduling control**, because OS scheduling can interfere with DBMS locking and create **convoy effects**, where one blocked worker delays many others.
+
+The buffer manager caches pages in a fixed region of memory and remembers where each one sits.
+
+**Buffer pool.** A region of DRAM organized as an array of fixed-size slots used to cache database pages.
+
+**Frame.** One slot in the buffer pool. When the DBMS fetches a page, an exact copy of that page is placed into one frame.
+
+**Page table.** An in-memory mapping from page IDs to the frames that currently hold them. It exists only in memory and is never stored on disk.
+
+<Split cols="1.05fr 0.95fr" align="center">
+<Pane>
+
+<IndexMap
+  mode="frames"
+  columns={[
+    {
+      title: "entries",
+      entries: [
+        { id: "e1", label: "p1: f1" },
+        { id: "e2", label: "p3: f2" },
+        { id: "e3", label: "p2: f3" },
+      ],
+    },
+  ]}
+  frames={{
+    title: "frames",
+    kind: "bucket",
+    entries: [
+      { id: "f1", label: "page 1" },
+      { id: "f2", label: "page 3" },
+      { id: "f3", label: "page 2" },
+      { id: "f4", label: "frame 4" },
+    ],
+  }}
+  disk={{
+    title: "On-disk file",
+    pages: [
+      { id: "dp1", label: "page 1" },
+      { id: "dp2", label: "page 2" },
+      { id: "dp3", label: "page 3" },
+      { id: "dp4", label: "page 4" },
+    ],
+  }}
+  links={[
+    { from: "e1", to: "f1", variant: "solid" },
+    { from: "e2", to: "f2", variant: "solid" },
+    { from: "e3", to: "f3", variant: "solid" },
+    { from: "dp4", to: "f4", variant: "dashed" },
+  ]}
+  caption="Page table to buffer pool: solid links map page ids to resident frames; on a miss, the dashed arrow fetches page 4 from disk into the free frame."
+/>
+
+</Pane>
+<Pane>
+
+For each cached page the buffer manager keeps a small set of metadata that the request and eviction logic depend on:
+
+- **Dirty flag.** Whether the in-memory copy was modified and must be written back before eviction.
+- **Pin count.** How many DBMS components are currently using the page (a reference count).
+- **Replacement metadata.** Per-page state the policy needs, such as timestamps, access counters, or reference bits.
+
+Dirty pages are often kept in memory for a while rather than written back at once. This avoids turning every update into a synchronous disk stall.
+
+</Pane>
+</Split>
+
+The pin count is what makes a page safe or unsafe to evict.
+
+**Pinned page.** A page whose pin count is greater than zero because some operator or transaction is actively using it. Pinned pages are never eviction candidates.
+
+A page request resolves as a hit or a miss. On a **hit**, the page is already in the pool, so the DBMS returns its frame and increments the pin count. On a **miss**, it must first find a frame: use an empty frame if one exists, otherwise choose a victim by the replacement policy, considering only pages with pin count $=0$. If the victim is dirty, write it back first; then read the requested page into the frame, pin it, and return its address. When the caller finishes it must **unpin** the page and report whether it was modified. Because a page may be pinned several times, it becomes evictable only when its pin count returns to $0$. If the access pattern is predictable, the manager can pre-fetch several pages at once, and an eviction may itself trigger extra I/O when WAL forces older log records to disk ahead of a dirty page.
+
+## Replacement Policies
+
+When the buffer pool is full, some page must be replaced. A clean page can be discarded immediately, but a dirty one must be written back first. A good policy balances correctness, hit rate, speed, and metadata overhead.
+
+Page-fault rate decreases as buffer-pool size grows. No policy can beat **OPT**, the offline optimal that evicts the page whose next use is farthest in the future. OPT is a lower bound that requires knowledge of the future, so it is unrealizable; real policies sit above it and try to approach it cheaply. Common choices include FIFO, LRU, MFU, Clock, LRU-K, and 2Q.
+
+**FIFO (first-in-first-out).** Keep frames in queue order, insert newly loaded pages at the tail, and evict from the head. It has low implementation cost but ignores locality: an old page may still be hot and yet be evicted first, so FIFO does not reliably retain reused pages.
+
+**LRU (least recently used).** Evict the unpinned page whose last access is oldest. Conceptually this keeps a timestamp per page; a practical version keeps frames in recency order with a doubly-linked list, so reused pages drift toward the back and tend to stay cached. LRU is one of the most widely used policies because it exploits temporal locality well.
+
+Maintaining exact recency on every access is more bookkeeping than necessary, and Clock approximates it for far less.
+
+**Clock (second chance).** An approximation of LRU that stores one **reference bit** per frame instead of a full timestamp. Frames sit conceptually on a circle with a moving **clock hand**, and each access sets the page's reference bit to $1$. When a victim is needed, the hand advances around the ring.
+
+- **If the frame is pinned.** Skip it.
+- **If its reference bit is $1$.** Clear the bit and advance (a second chance).
+- **If its reference bit is $0$.** Evict it.
+
+A hit does not move the page to another frame; it only turns the reference bit back on. That keeps Clock cheaper than exact LRU while preserving most of the same behavior.
+
+<ClockPolicy
+  title="Clock / second-chance policy"
+  caption="Frames on a circle with a clock hand. ref = 1 gives the page a second chance (clear the bit, advance); ref = 0 with pin count 0 is evicted."
+  frames={[
+    { id: "p1", label: "page 1", ref: 0, victim: true },
+    { id: "p2", label: "page 2", ref: 1 },
+    { id: "p3", label: "page 3", ref: 0 },
+    { id: "p4", label: "page 4", ref: 1 },
+  ]}
+  hand="p1"
+  handLabel="clock hand"
+  notes={[
+    { head: "If ref = 1", body: "clear the bit and keep scanning." },
+    { head: "If ref = 0 and pin count = 0", body: "evict this frame." },
+  ]}
+/>
+
+**MFU (most frequently used).** Evict by access frequency rather than recency. It is uncommon in practice, but it shows that reuse history can be richer than "last access only", which is the weakness the next policies attack.
+
+Recency-based policies share a blind spot that a single large scan exposes.
+
+**Scan resistance.** The ability of a replacement policy to avoid filling the buffer pool with pages touched once during a large scan and never reused.
+
+Both LRU and Clock can suffer from **sequential flooding**. A long scan reads pages $p_5, p_6, \dots$ one by one; each is a miss that briefly enters the pool. If the number of frames is smaller than the number of pages in the file, almost every request triggers an I/O, and the pool ends up full of read-once pages while the previously hot working set has been evicted.
+
+<BufferQueue
+  title="Sequential flooding"
+  caption="A sequential scan displaces the hot working set with read-once pages that are never reused; under LRU the buffer pool ends up full of scan pages."
+  columns={[
+    {
+      id: "before",
+      title: "Before scan",
+      foot: "working set",
+      cells: [
+        { label: "page 1", role: "hot" },
+        { label: "page 2", role: "hot" },
+        { label: "page 3", role: "hot" },
+        { label: "page 4", role: "hot" },
+      ],
+    },
+    {
+      id: "scan",
+      title: "Sequential scan",
+      framed: false,
+      horizontal: true,
+      cells: [
+        { id: "p5", label: "page 5", role: "read-once" },
+        { id: "p6", label: "page 6", role: "scan" },
+        { id: "p7", label: "page 7", role: "scan" },
+        { id: "p8", label: "page 8", role: "read-once" },
+        { id: "p9", label: "page 9", role: "scan" },
+      ],
+    },
+    {
+      id: "after",
+      title: "After scan under LRU",
+      cells: [
+        { label: "page 9", role: "scan" },
+        { label: "page 8", role: "read-once" },
+        { label: "page 7", role: "scan" },
+        { label: "page 6", role: "scan" },
+      ],
+    },
+  ]}
+  arrows={[
+    {
+      from: "scan#p5:left",
+      to: "scan#p9:right",
+      kind: "scan",
+      label: "scan sweep",
+      labelSide: "below",
+    },
+  ]}
+  note={{
+    title: "Sequential flooding",
+    body: "Read-once scan pages displace hot pages even though they are not reused later.",
+  }}
+/>
+
+The fix is to distinguish genuine reuse from a one-time access, which the last two policies do in different ways.
+
+**LRU-K.** An extension of LRU that records the last $K$ references to each page and uses them to judge reuse. A page with fewer than $K$ recorded accesses is **cold**; one with at least $K$ is **warm**. Cold pages are evicted before warm ones, and among warm pages the one whose $K$-th most recent access is oldest is evicted first. When $K=1$ this reduces to ordinary LRU. Because one-off scan pages stay cold, LRU-K resists sequential flooding.
+
+**2Q.** A scan-resistant policy with two queues: a FIFO queue for recently seen pages and an LRU queue for pages that proved they are reused. New pages enter the FIFO queue. If a page is referenced again while still known to the system, it is promoted to the LRU queue. Evictions prefer the FIFO queue, so read-once scan pages are discarded there, while hot pages stay protected in the LRU queue.
+
+<BufferQueue
+  title="2Q replacement policy"
+  caption="2Q keeps scan pages in a FIFO queue and promotes only reused pages into the LRU queue; evictions prefer FIFO, so read-once pages are discarded before hot pages."
+  columns={[
+    {
+      id: "fifo",
+      title: "FIFO queue",
+      foot: "read-once pages",
+      cells: [
+        { id: "f9", label: "page 9", role: "read-once" },
+        { id: "f8", label: "page 8", role: "scan" },
+        { id: "f7", label: "page 7", role: "read-once" },
+      ],
+    },
+    {
+      id: "lru",
+      title: "LRU queue",
+      foot: "hot pages",
+      cells: [
+        { id: "l4", label: "page 4", role: "hot" },
+        { id: "l3", label: "page 3", role: "hot" },
+        { id: "l2", label: "page 2", role: "hot" },
+      ],
+    },
+  ]}
+  arrows={[
+    {
+      from: "fifo#f9:left",
+      fromOffset: [-44, 0],
+      to: "fifo#f9:left",
+      kind: "insert",
+      label: "new page",
+    },
+    {
+      from: "fifo#f7:left",
+      to: "fifo#f7:left",
+      toOffset: [-44, 0],
+      kind: "evict",
+      label: "evict",
+      labelSide: "below",
+    },
+    {
+      from: "fifo#f8:right",
+      to: "lru#l3:left",
+      kind: "promote",
+      label: "second hit promotes",
+    },
+  ]}
+  note={{
+    title: "2Q idea",
+    body: "Keep scan pages in FIFO; only pages that show reuse move to the LRU queue.",
+  }}
+/>
+
+Read-once pages stay in FIFO and reused pages graduate to LRU, which makes 2Q cheap to maintain and far more scan-resistant than plain LRU or Clock.

@@ -214,6 +214,12 @@ body::after {
     color: var(--color-text);
     font-size: 0.9375rem;
     line-height: 1.6;
+    min-width: 0;
+  }
+
+  .prose > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
   /* Even, gentle rhythm. New paragraphs and definitions sit only slightly
@@ -364,8 +370,10 @@ body::after {
     background: var(--color-code-bg);
     border: 1px solid var(--color-border);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1rem;
     overflow: auto;
+    max-width: 100%;
+    min-width: 0;
   }
 
   @media (min-width: 768px) {
@@ -399,6 +407,8 @@ body::after {
 
   .prose figure[data-rehype-pretty-code-figure] {
     margin-block: 1.5rem;
+    min-width: 0;
+    max-width: 100%;
   }
 
   @media (min-width: 768px) {
@@ -433,9 +443,18 @@ body::after {
 
   .prose table {
     width: 100%;
+    max-width: 100%;
     border-collapse: collapse;
     font-size: 0.9em;
     margin-block: 1.4em;
+  }
+
+  @media (max-width: 639px) {
+    .prose table {
+      display: block;
+      width: max-content;
+      overflow-x: auto;
+    }
   }
 
   .prose thead th {
@@ -461,6 +480,8 @@ body::after {
     overflow-x: auto;
     overflow-y: hidden;
     padding-block: 0.2em;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .prose img {
@@ -577,54 +598,12 @@ body::after {
     white-space: pre-wrap;
     overflow-x: auto;
   }
-}
-
-/* Automaton diagram - shares the Mermaid card/caption look so the two read as
-   one family. The SVG itself is sized in absolute px and centred in the card;
-   max-width keeps it inside the column on narrow screens. */
-@layer components {
-  .automaton {
-    margin-block: 1.4em;
-  }
-
-  .automaton__card {
-    display: flex;
-    justify-content: center;
-    padding: 1.5rem 1rem;
-    background: var(--mm-bg);
-    border-radius: 12px;
-    box-shadow: 0 0 0 1px var(--mm-frame-border);
-    overflow: hidden;
-  }
-
-  .automaton__canvas {
-    display: flex;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .automaton__canvas svg {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-
-  .automaton__caption {
-    margin-top: 1rem;
-    color: var(--mm-caption);
-    font-size: 0.8125rem;
-    line-height: 1.6;
-    text-align: center;
-    text-wrap: pretty;
-  }
 
   /* A diagram tightens up when it sits inside a Split pane. */
-  .split__pane .automaton,
   .split__pane .mermaid-graph {
     margin-block: 0;
   }
 
-  .split__pane .automaton__card,
   .split__pane .mermaid-graph__card {
     padding: 0.9rem 0.6rem;
   }
@@ -638,6 +617,8 @@ body::after {
     grid-template-columns: 1fr;
     gap: 1.1rem;
     margin-block: 1.4em;
+    min-width: 0;
+    max-width: 100%;
   }
 
   @media (min-width: 640px) {
@@ -659,6 +640,11 @@ body::after {
     margin-top: 0.9em;
   }
 
+  .split__pane {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .split__pane > :first-child {
     margin-top: 0;
   }
@@ -673,31 +659,62 @@ body::after {
   }
 }
 
-/* Callout */
+/* Shared shell for the bespoke diagrams (Automaton, BPlusTree, PageLayout,
+   IndexMap, ERDiagram, ...). Mirrors the Mermaid card so the whole diagram
+   family reads as one thing. */
 @layer components {
-  .callout {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.5rem 0.85rem;
-    border: 1px solid var(--color-gray-400);
-    background: var(--color-bg-fill);
-    border-radius: 8px;
-    padding: 0.85rem 1rem;
+  .diagram {
     margin-block: 1.4em;
-    font-size: 0.9rem;
-    line-height: 1.55;
+    min-width: 0;
+    max-width: 100%;
   }
 
-  .callout__icon {
-    color: var(--color-muted);
-    font-weight: 500;
-    margin-top: 0.05rem;
+  .diagram__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 1rem;
+    background: var(--mm-bg);
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px var(--mm-frame-border);
+    overflow: hidden;
   }
 
-  .callout__title {
-    color: var(--color-text);
-    font-weight: 500;
-    margin-bottom: 0.15rem;
+  .diagram__title {
+    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--mm-fg);
+    text-align: center;
+  }
+
+  .diagram__canvas {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .diagram__canvas svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .diagram__caption {
+    margin-top: 1rem;
+    color: var(--mm-caption);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    text-align: center;
+    text-wrap: pretty;
+  }
+
+  .split__pane .diagram {
+    margin-block: 0;
+  }
+
+  .split__pane .diagram__card {
+    padding: 0.9rem 0.6rem;
   }
 }
 

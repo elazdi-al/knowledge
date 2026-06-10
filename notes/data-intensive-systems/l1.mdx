@@ -1,0 +1,439 @@
+---
+title: "Data Intensive Systems: Lecture 1"
+description: "Conceptual data modeling with the Entity-Relationship model: entities, relationships, attributes, keys, participation and key constraints, weak entities, ISA hierarchies, and aggregation."
+tags: ["Data intensive systems"]
+created: 2026-06-09
+updated: 2026-06-09
+---
+
+## From Data to a DBMS
+
+Modern software is useful only when data can be stored, shared, and queried correctly over time. The starting point is the difference between raw facts and meaning.
+
+**Data.** Raw facts used as input for reasoning and computation. Data may be useful, irrelevant, or redundant, and must be processed before it carries meaning.
+
+**Information.** Data that has been organized and processed so that it is relevant to a problem and actionable for a decision. The flow is $\text{data} \xrightarrow{\text{organize}+\text{process}} \text{information}$, which in turn supports knowledge and wisdom.
+
+Once facts carry meaning, they need structure. A **database** is a large, integrated, structured collection of data that models a real-world enterprise. The two things it organizes are **entities** (object types we store data about, such as a student or a course) and **relationships** (meaningful associations between entities, such as a student enrolling in a course).
+
+A database on its own is passive, so we need software to manage it.
+
+**Database Management System (DBMS).** A software system that stores, manages, and provides access to databases. It decomposes as $\text{DBMS} = \text{database} + \text{programs to access and manage it}$, and its core role is efficient, reliable, convenient, and safe multi-user access to massive persistent data.
+
+That sentence packs several guarantees that a plain file system does not provide.
+
+- **Persistence.** Data outlives any single process or program execution.
+- **Concurrency control.** Simultaneous operations are coordinated so outcomes stay correct.
+- **Recovery.** Failures of hardware, software, or power do not corrupt the stored data.
+- **Declarative access.** Queries are stated at a high level, with physical data independence from how bytes are laid out.
+
+The reason a file system is not enough is the missing contract. *If two collaborators save the same file at nearly the same time, whose changes survive is unclear; if power fails mid-write, which changes survive is unclear.* When durability, isolation, and recovery are not explicit, every application has to re-implement them, so the DBMS exists to supply these guarantees systematically. The web has the same gap in a different form: it is strong at retrieval, but its data is unstructured, completeness is not guaranteed, and consistency and freshness are weak, so serious sites place a DBMS behind the web layer rather than treat the web as one.
+
+**Ad-hoc query.** A query formed for a specific immediate need rather than predefined as part of a fixed workflow. Supporting ad-hoc querying, alongside concurrency control and recovery, is precisely what raises a DBMS above storage.
+
+## Describing Data Across Levels
+
+The central architectural question is how to keep one coherent meaning of the data while serving many users and storing bytes efficiently. The answer is to describe data with a model and to separate that description into levels.
+
+**Data model.** A collection of concepts for describing data. A model is a high-level abstraction: it hides storage details so we can reason about structure and meaning first. The dominant family is the **relational model**, where data is a set of records organized into relations.
+
+- **Relation.** A named table with rows (tuples) and columns (attributes).
+- **Schema.** The structural definition of a relation: its attribute names, types, and organization.
+
+Schema is the type and data is a value following that type, the same way *string* is a type and *"hello"* is a value. A relational schema names attributes with their types explicitly.
+
+*Example. University schema. The relations are `Students(sid:string, name:string, login:string, age:integer, gpa:real)`, `Enrolled(sid:string, cid:string, grade:string)`, and `Courses(cid:string, cname:string, credits:integer)`. Explicit typing in the schema is the point.*
+
+The same database is described at three levels of abstraction, and the schema at each level can change without disturbing the level above it.
+
+- **External schema.** User- or application-specific views, often used for access control. *Examples: `Students_Info(sid, name)` view; `Course_Enrollment(cid, #enrolled)` summary.*
+- **Logical (conceptual) schema.** The single global structure that users and application programs see. *The university relations.*
+- **Physical (internal) schema.** How data is stored: files, indexes, and layout. *Relations stored as unordered files with indexes on `Students.sid` and `Courses.cid`.*
+
+The mapping runs $\text{external schemas} \rightarrow \text{logical schema} \rightarrow \text{physical schema}$: many external views map onto one logical schema, which is then realized by physical structures.
+
+**Data independence.** The ability to change the schema at one level without changing the schema at the next higher level. **Logical data independence** changes the conceptual schema without touching user views; **physical data independence** changes the internal schema without touching the conceptual schema or views. This matters because storage layouts and indexes improve constantly, and applications should keep working while they do.
+
+The relational level connects relations through their values. A **key** is an attribute (or set of attributes) whose value uniquely identifies a tuple inside a relation, and a **foreign key** is an attribute in one relation whose values reference the keys of another, linking the two.
+
+*Example. Enrolled references Students. In `Enrolled`, the column `SID` is a foreign key referencing `Students.SID`, so a row like `(53666, Carnatic101, 5)` only makes sense when `53666` also appears as a student. This is how rows in separate relations are tied together.*
+
+Database design proceeds through requirements analysis, conceptual design, logical design, schema refinement, physical design, and security design. Conceptual design has its own modeling language.
+
+**Conceptual design.** A high-level description of the enterprise data, independent of storage and implementation. It answers three questions: which entities and relationships exist, what information about them to store, and which integrity constraints must always hold. Its standard language is the Entity-Relationship model, and the resulting **ER diagram** maps cleanly into a relational schema.
+
+## Entities, Attributes, and Relationships
+
+The ER model captures entities, their attributes, relationships, and constraints before any logical or physical decision is made. The first three building blocks describe what exists.
+
+**Entity.** A real-world object, distinguishable from every other object.
+
+**Attribute.** A property used to describe an entity, drawing its values from a **domain**, the set of values that attribute is allowed to take.
+
+**Entity set.** A collection of similar entities that share the same attributes. Its **key** is an attribute, or minimal set of attributes, that uniquely identifies the entities in the set. In an ER diagram an entity set is a rectangle, an attribute is an ellipse joined to it, and the key attribute is underlined.
+
+<ERDiagram
+  caption="The entity set Employees with attributes ssn, name, lot; ssn is the key (solid underline)."
+  entities={[{ id: "emp", label: "Employees", x: 0, y: 0 }]}
+  attributes={[
+    { owner: "emp", label: "ssn", x: -2.0, y: 1.1, kind: "key" },
+    { owner: "emp", label: "name", x: 0, y: 1.7 },
+    { owner: "emp", label: "lot", x: 2.0, y: 1.1 },
+  ]}
+/>
+
+An **instance** of an entity set is the collection of entities currently stored in it. *For `Employees`, the instance might be `(123-22-3666, John, P1)` and `(231-31-5368, Tom, P2)`: two concrete employees, each a tuple over the declared attributes.*
+
+Entities become useful when they are associated.
+
+**Relationship.** An association among two or more entities. A **relationship set** is a collection of similar relationships, drawn as a diamond joining the participating entity sets, and a relationship may carry its own attributes.
+
+*Example. Works_In. `Works_In` links `Employees` and `Department` and records when the assignment began through the descriptive attribute `since`, an attribute of the relationship rather than of either entity.*
+
+<ERDiagram
+  caption="The Works_In relationship set between Employees and Department, with descriptive attribute since."
+  entities={[
+    { id: "emp", label: "Employees", x: 0, y: 0 },
+    { id: "dep", label: "Department", x: 7.6, y: 0 },
+  ]}
+  relationships={[{ id: "works", label: "Works_In", x: 3.8, y: 0 }]}
+  attributes={[
+    { owner: "emp", label: "ssn", x: -1.8, y: 0.85, kind: "key" },
+    { owner: "emp", label: "name", x: 0, y: 1.55 },
+    { owner: "emp", label: "lot", x: 1.8, y: 0.85 },
+    { owner: "works", label: "since", x: 3.8, y: 1.55 },
+    { owner: "dep", label: "did", x: 5.8, y: 0.85, kind: "key" },
+    { owner: "dep", label: "dname", x: 7.6, y: 1.55 },
+    { owner: "dep", label: "budget", x: 9.4, y: 0.85 },
+  ]}
+  edges={[
+    { from: "emp", to: "works" },
+    { from: "works", to: "dep" },
+  ]}
+/>
+
+An **instance** of a relationship set is the set of relationship tuples currently stored between the participating entity sets. Each tuple of `Works_In(ssn, did, since)` is one row that ties an employee instance to a department instance through a date, so the relationship instance is best read as concrete links rather than as a table.
+
+<ERInstanceMapping
+  left={{
+    label: "Employees",
+    anchor: "right",
+    items: [
+      { id: "e1", value: "123-22-3666" },
+      { id: "e2", value: "231-31-5368" },
+      { id: "e3", value: "131-24-3650" },
+      { id: "e4", value: "223-32-6316" },
+    ],
+  }}
+  mid={{
+    label: "Works_In",
+    itemStyle: "bare",
+    anchor: "center",
+    items: [
+      { id: "w1", value: "1/1/91" },
+      { id: "w2", value: "3/3/93" },
+      { id: "w3", value: "2/2/92" },
+      { id: "w4", value: "3/1/92" },
+      { id: "w5", value: "3/1/92" },
+    ],
+  }}
+  right={{
+    label: "Departments",
+    anchor: "left",
+    items: [
+      { id: "d1", value: "51" },
+      { id: "d2", value: "56" },
+      { id: "d3", value: "60" },
+    ],
+  }}
+  links={[
+    { left: "e1", mid: "w1", right: "d1" },
+    { left: "e2", mid: "w2", right: "d2" },
+    { left: "e2", mid: "w3", right: "d2" },
+    { left: "e3", mid: "w4", right: "d3" },
+    { left: "e4", mid: "w5", right: "d3" },
+  ]}
+  caption="Instance of Works_In(ssn, did, since): each line links an employee tuple to a department tuple via a date, so every stored relationship row is a concrete association between participating entity instances."
+/>
+
+A single entity set can participate in more than one relationship set, and it can even participate more than once in the same relationship set. When that happens we need a way to tell its appearances apart.
+
+**Role name.** A label identifying the function of an entity set when it appears more than once in the same relationship.
+
+*Example. Reports_To. In `Reports_To`, `Employees` participates twice, once as supervisor and once as subordinate, so a relationship tuple pairs one employee in each role. The same entity set still participates separately in `Works_In`.*
+
+<ERDiagram
+  caption="Reports_To is a self-relationship on Employees: the same entity set participates twice, under the roles supervisor and subordinate, while still taking part in Works_In."
+  entities={[
+    { id: "emp", label: "Employees", x: 0, y: 0 },
+    { id: "dep", label: "Department", x: 7.6, y: 0 },
+  ]}
+  relationships={[
+    { id: "works", label: "Works_In", x: 3.8, y: 0 },
+    { id: "reports", label: "Reports_To", x: 0, y: -2.2 },
+  ]}
+  attributes={[
+    { owner: "emp", label: "ssn", x: -1.8, y: 0.85, kind: "key" },
+    { owner: "emp", label: "name", x: 0, y: 1.55 },
+    { owner: "emp", label: "lot", x: 1.8, y: 0.85 },
+    { owner: "works", label: "since", x: 3.8, y: 1.55 },
+    { owner: "dep", label: "did", x: 5.8, y: 0.85, kind: "key" },
+    { owner: "dep", label: "dname", x: 7.6, y: 1.55 },
+    { owner: "dep", label: "budget", x: 9.4, y: 0.85 },
+  ]}
+  edges={[
+    { from: "emp", to: "works" },
+    { from: "works", to: "dep" },
+    { from: "emp", to: "reports", label: "supervisor" },
+    { from: "emp", to: "reports", label: "subordinate" },
+  ]}
+/>
+
+## Constraints on Participation
+
+A relationship set by itself allows any entity to take part in any number of relationship instances. Constraints sharpen this into precise cardinality. The two independent dimensions are how many instances one entity may join (key constraints) and whether every entity must join at least one (participation constraints).
+
+**Key constraint.** A restriction stating that each entity in a set participates in at most one relationship instance of a given relationship set. In the diagram it is drawn as an arrow from the entity set to the relationship. Placing arrows on neither, one, or both sides yields many-to-many, one-to-many, and one-to-one relationships.
+
+<ERDiagram
+  caption="Key constraints set cardinality: no arrow is many-to-many, one arrow is one-to-many, arrows on both sides are one-to-one. An arrowhead means at most one."
+  entities={[
+    { id: "e1", label: "Employees", x: 0, y: 0 },
+    { id: "d1", label: "Department", x: 6.8, y: 0 },
+    { id: "e2", label: "Employees", x: 0, y: -2.0 },
+    { id: "d2", label: "Department", x: 6.8, y: -2.0 },
+    { id: "e3", label: "Driver", x: 0, y: -4.0 },
+    { id: "d3", label: "Vehicle", x: 6.8, y: -4.0 },
+  ]}
+  relationships={[
+    { id: "r1", label: "Works_In", x: 3.4, y: 0 },
+    { id: "r2", label: "Manages", x: 3.4, y: -2.0 },
+    { id: "r3", label: "Drives", x: 3.4, y: -4.0 },
+  ]}
+  edges={[
+    { from: "e1", to: "r1" },
+    { from: "r1", to: "d1" },
+    { from: "e2", to: "r2" },
+    { from: "d2", to: "r2", style: "arrow" },
+    { from: "e3", to: "r3", style: "arrow" },
+    { from: "d3", to: "r3", style: "arrow" },
+  ]}
+  annotations={[
+    { text: "Many-to-Many", x: 9.5, y: 0, anchor: "start" },
+    { text: "One-to-Many", x: 9.5, y: -2.0, anchor: "start" },
+    { text: "One-to-One", x: 9.5, y: -4.0, anchor: "start" },
+  ]}
+/>
+
+With no arrows, an employee works in many departments and a department has many employees. The arrow into `Manages` says each department has at most one manager. Arrows on both sides of `Drives` say each driver drives at most one vehicle and each vehicle has at most one driver.
+
+**Total participation.** Every entity in the set joins at least one relationship instance; drawn with a thick line. **Partial participation** is the default thin line, where some entities may join none. Total participation answers a different question from the key constraint, so the two combine freely.
+
+<ERDiagram
+  caption="A thick line means total participation; a thin line is partial. The thick border and thick arrow on Manages combine total participation with a key constraint."
+  entities={[
+    { id: "e1", label: "Employees", x: 0, y: 0, variant: "weak" },
+    { id: "d1", label: "Department", x: 6.8, y: 0, variant: "weak" },
+    { id: "e2", label: "Employees", x: 0, y: -2.2 },
+    { id: "d2", label: "Department", x: 6.8, y: -2.2, variant: "weak" },
+    { id: "e3", label: "Customer", x: 0, y: -4.4 },
+    { id: "d3", label: "Products", x: 6.8, y: -4.4 },
+  ]}
+  relationships={[
+    { id: "r1", label: "Works_In", x: 3.4, y: 0 },
+    { id: "r2", label: "Manages", x: 3.4, y: -2.2 },
+    { id: "r3", label: "Buys", x: 3.4, y: -4.4 },
+  ]}
+  edges={[
+    { from: "e1", to: "r1", style: "thick" },
+    { from: "r1", to: "d1", style: "thick" },
+    { from: "e2", to: "r2", style: "arrow" },
+    { from: "d2", to: "r2", style: "thickArrow" },
+    { from: "e3", to: "r3" },
+    { from: "r3", to: "d3" },
+  ]}
+  annotations={[
+    { text: "Total: every entity participates", x: 8.4, y: 0, anchor: "start" },
+    { text: "Partial + key constraint", x: 8.4, y: -2.2, anchor: "start" },
+    { text: "Partial: entities may not participate", x: 8.4, y: -4.4, anchor: "start" },
+  ]}
+/>
+
+The four combinations of line and arrow give the full cardinality semantics.
+
+| Line | Arrow | Meaning |
+|---|---|---|
+| thick | none | total, many: every entity participates, possibly in several instances |
+| thick | arrow | total, at most one: every entity participates in exactly one instance |
+| thin | arrow | partial, at most one: an entity participates in zero or one instance |
+| thin | none | partial, many: an entity may or may not participate, with no upper bound |
+
+## Weak Entities
+
+Some entities have no key of their own and exist only relative to another entity. They are identified partly by a neighbor.
+
+**Weak entity.** An entity that can be identified uniquely only by combining its own partial key with the primary key of an owner entity. Its **identifying relationship** links it to that owner, and the weak entity must have total participation in this relationship.
+
+A weak entity set obeys three structural rules.
+
+- **Ownership.** Owner and weak entity set participate in a one-to-many relationship: one owner, many weak entities.
+- **Total participation.** The weak entity set participates totally in the identifying relationship, since no weak entity exists without an owner.
+- **Partial key.** The weak entity has only a partial key, drawn with a dashed underline, which identifies it only within the scope of one owner.
+
+The weak entity and its identifying relationship are drawn with thick borders, and the arrow from the weak entity marks the key constraint.
+
+<ERDiagram
+  caption="Dependents is a weak entity (thick border) owned by Employees through the identifying relationship Policy (thick diamond). pname is a partial key (dashed underline); the thick arrow marks total participation with a key constraint."
+  entities={[
+    { id: "emp", label: "Employees", x: 0, y: 0 },
+    { id: "dep", label: "Dependents", x: 8.0, y: 0, variant: "weak" },
+  ]}
+  relationships={[
+    { id: "pol", label: "Policy", x: 4.0, y: 0, variant: "identifying" },
+  ]}
+  attributes={[
+    { owner: "emp", label: "ssn", x: -1.8, y: 0.85, kind: "key" },
+    { owner: "emp", label: "name", x: 0, y: 1.55 },
+    { owner: "emp", label: "lot", x: 1.8, y: 0.85 },
+    { owner: "pol", label: "cost", x: 4.0, y: 1.55 },
+    { owner: "dep", label: "pname", x: 6.7, y: 0.85, kind: "partial" },
+    { owner: "dep", label: "age", x: 9.3, y: 0.85 },
+  ]}
+  edges={[
+    { from: "emp", to: "pol" },
+    { from: "dep", to: "pol", style: "thickArrow" },
+  ]}
+/>
+
+Here `Dependents` is owned by `Employees` through `Policy`. The partial key `pname` distinguishes dependents of the same employee but is not unique on its own, so a dependent is identified only by the pair (owner `ssn`, `pname`).
+
+## ISA Hierarchies
+
+Sometimes an entity set has subgroups that carry extra attributes or join their own relationships. ISA captures specialization while keeping shared attributes in one place.
+
+**ISA hierarchy.** A relationship between a superclass entity set and one or more subclass entity sets, where every subclass entity is also a member of the superclass and inherits all of its attributes. Declaring A **ISA** B means each A entity is a B entity and has every attribute of B, plus the specialized attributes A adds for itself.
+
+<ERDiagram
+  caption="Hourly_Emps and Contract_Emps are subclasses of Employees: they inherit ssn, name, lot and add their own specialized attributes."
+  entities={[
+    { id: "emp", label: "Employees", x: 0, y: 0 },
+    { id: "hourly", label: "Hourly_Emps", x: -2.5, y: -3.2 },
+    { id: "contract", label: "Contract_Emps", x: 2.5, y: -3.2 },
+  ]}
+  isa={[{ id: "isa", x: 0, y: -1.6 }]}
+  attributes={[
+    { owner: "emp", label: "ssn", x: -2.0, y: 0.85, kind: "key" },
+    { owner: "emp", label: "name", x: 0, y: 1.55 },
+    { owner: "emp", label: "lot", x: 2.0, y: 0.85 },
+    { owner: "hourly", label: "hourly_wages", x: -6, y: -2.0 },
+    { owner: "hourly", label: "hours_worked", x: -2.5, y: -2.0 },
+    { owner: "contract", label: "contractid", x: 4.3, y: -2.35 },
+  ]}
+  edges={[
+    { from: "emp", to: "isa" },
+    { from: "isa", to: "hourly" },
+    { from: "isa", to: "contract" },
+  ]}
+/>
+
+Two orthogonal constraints govern how the subclasses relate to the superclass. The **overlap constraint** asks whether an entity may belong to more than one subclass at once, defaulting to no (disjoint). The **covering constraint** asks whether every superclass entity must belong to some subclass, defaulting to no (partial coverage). We use ISA either to add descriptive attributes specific to a subclass, or to identify exactly the entities that take part in some relationship.
+
+These two defaults are not fixed; a single superclass can have several specialization branches with different overlap behavior.
+
+*Example. Student hierarchy. A `Student` is classified by degree (Bachelor or Post-Graduate) and by status (Full-time or Part-time) at the same time, so these are two overlapping branches off the same superclass. Within each branch the subclasses are non-overlapping: a student is a Bachelor or a Post-Graduate, not both. Post-Graduate specializes further into Master and Doctorate. Each leaf can join its own relationships, so Bachelors register for Projects and Post-Graduates register for a Thesis.*
+
+<ERDiagram
+  caption="A deep ISA tree: Student specializes by degree and by status (two overlapping branches), Post-Graduate splits further into Master and Doctorate, and leaf subclasses join their own relationships."
+  entities={[
+    { id: "stu", label: "Student", x: 6.6, y: 0 },
+    { id: "crs", label: "Courses", x: 13.0, y: 0 },
+    { id: "bach", label: "Bachelor", x: 0.6, y: -3.2 },
+    { id: "pg", label: "Post-Grad.", x: 5.2, y: -3.2 },
+    { id: "ft", label: "Full-time", x: 9.3, y: -3.2 },
+    { id: "pt", label: "Part-time", x: 12.4, y: -3.2 },
+    { id: "proj", label: "Project", x: 0.6, y: -6.4 },
+    { id: "msc", label: "Master", x: 3.6, y: -6.4 },
+    { id: "phd", label: "Doctorate", x: 6.6, y: -6.4 },
+    { id: "thes", label: "Thesis", x: 9.6, y: -6.4 },
+  ]}
+  relationships={[
+    { id: "enr", label: "Enrolls", x: 9.8, y: 0 },
+    { id: "reg1", label: "Registers", x: 0.6, y: -4.8 },
+    { id: "reg2", label: "Registers", x: 9.6, y: -4.8 },
+  ]}
+  isa={[
+    { id: "isa1", x: 3.4, y: -1.6 },
+    { id: "isa2", x: 10.8, y: -1.6 },
+    { id: "isa3", x: 5.2, y: -4.8 },
+  ]}
+  edges={[
+    { from: "stu", to: "enr" },
+    { from: "enr", to: "crs" },
+    { from: "stu", to: "isa1" },
+    { from: "stu", to: "isa2" },
+    { from: "isa1", to: "bach" },
+    { from: "isa1", to: "pg" },
+    { from: "isa2", to: "ft" },
+    { from: "isa2", to: "pt" },
+    { from: "bach", to: "reg1" },
+    { from: "reg1", to: "proj" },
+    { from: "pg", to: "isa3" },
+    { from: "isa3", to: "msc" },
+    { from: "isa3", to: "phd" },
+    { from: "pg", to: "reg2" },
+    { from: "reg2", to: "thes" },
+  ]}
+  annotations={[
+    { text: "Overlapping", x: 6.6, y: -0.8 },
+    { text: "Non-Overl.", x: 2.45, y: -1.6, anchor: "end" },
+    { text: "Non-Overl.", x: 11.8, y: -1.6, anchor: "start" },
+    { text: "Non-Overl.", x: 4.25, y: -4.8, anchor: "end" },
+  ]}
+/>
+
+## Aggregation
+
+ISA relates entity sets to entity sets. Aggregation handles a different need: relating a relationship to an entity, by treating a whole relationship as if it were one entity set.
+
+**Aggregation.** A mechanism that treats a relationship set together with its participating entity sets as a single higher-level entity set, so the bundle can itself participate in another relationship.
+
+Aggregation is needed when a relationship must involve a relationship. *Departments sponsor projects through `Sponsors`, and an employee must monitor each sponsorship.* Modeling this as a ternary relationship among Projects, Departments, and Employees would lose the fact that monitoring applies to the sponsorship itself, not to an independent triple. Enclosing `Sponsors` in a dashed box turns it into an entity set that then participates in `Monitors`.
+
+<ERDiagram
+  caption="The Sponsors relationship together with Projects and Departments is enclosed in a dashed box and treated as a single entity set, which then participates in Monitors with an Employee."
+  entities={[
+    { id: "proj", label: "Projects", x: 0, y: 0 },
+    { id: "dept", label: "Departments", x: 8.0, y: 0 },
+    { id: "emp", label: "Employee", x: 4.0, y: -3.5 },
+  ]}
+  relationships={[
+    { id: "spon", label: "Sponsors", x: 4.0, y: 0 },
+    { id: "mon", label: "Monitors", x: 4.0, y: -2.0 },
+  ]}
+  attributes={[
+    { owner: "proj", label: "pid", x: -1.8, y: 0.85, kind: "key" },
+    { owner: "proj", label: "name", x: 0, y: 1.55 },
+    { owner: "proj", label: "lot", x: 1.8, y: 0.85 },
+    { owner: "spon", label: "since", x: 4.0, y: 1.55 },
+    { owner: "dept", label: "did", x: 6.5, y: 0.85, kind: "key" },
+    { owner: "dept", label: "dname", x: 8.0, y: 1.55 },
+    { owner: "dept", label: "budget", x: 9.5, y: 0.85 },
+  ]}
+  aggregations={[{ id: "agg", members: ["proj", "spon", "dept"] }]}
+  edges={[
+    { from: "proj", to: "spon" },
+    { from: "spon", to: "dept" },
+    { from: "agg", to: "mon" },
+    { from: "mon", to: "emp" },
+  ]}
+/>
+
+## Design Choices
+
+A correct ER schema is rarely unique. The recurring decisions are whether a concept is an entity or an attribute, whether it is an entity or a relationship, and whether a relationship should be binary, ternary, or replaced by aggregation. Each answer depends on the data's semantics and the queries the application must support.
+
+The entity-versus-attribute choice turns on structure and multiplicity, because attributes in the basic ER model are atomic and single-valued. An *address* must become its own entity if an employee can have several addresses, or if the address has internal structure such as city, street, and zip that the application needs to query. The same reasoning applies to relationship attributes: if `Works_In` records a period with `from` and `to`, an employee can hold only one period; to record several periods the time must be promoted into a separate `Duration` entity linked by a new relationship.
+
+The entity-versus-relationship choice turns on identity: if a concept has its own identity or participates in other relationships, make it an entity rather than a relationship. The binary-versus-ternary choice turns on decomposability: prefer binary relationships when a ternary one can be split into binaries without losing information, and keep the ternary only when some combination of pairs does not imply the triple.
+
+Finally, the ER model captures a great deal of semantics directly, including key constraints, participation constraints, weak entities, ISA hierarchies, and aggregation, but not everything. A rule such as *a manager must also be an employee of the department they manage* cannot be expressed in an ER diagram and has to be enforced by the application or by database-level integrity constraints.

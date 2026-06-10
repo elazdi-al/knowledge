@@ -1,0 +1,885 @@
+---
+title: "Data Intensive Systems: Lecture 3"
+description: "Storage and access: the storage hierarchy, record and page layouts, file organizations, row vs column stores, indexing (dense, sparse, clustered, secondary, multilevel, composite), access-path cost, and index selection."
+tags: ["Data intensive systems"]
+created: 2026-06-09
+updated: 2026-06-09
+---
+
+## The Storage Hierarchy
+
+At the physical level a database is a file of records, and the DBMS reaches those records through a small set of operations: it creates and deletes files, inserts, deletes, and updates records, retrieves one record by its identifier (**point access**), retrieves all records satisfying a condition (**range access**), or reads the whole file (**scan**). How fast each of these runs is decided entirely by how the data is laid out on disk. The physical design layer makes three choices: how records sit inside pages, how pages are arranged inside a file, and which indexes exist. The metadata recording these choices lives in the *system catalog*.
+
+**Storage hierarchy.** A database is a set of files; a file is a set of fixed-size pages (blocks); a page stores several records; a record is a sequence of fields.
+
+<StorageHierarchy
+  stages={[
+    { title: "Database", items: ["File A", "File B", "File C"] },
+    { title: "File", items: ["Page 0", "Page 1", "Page 2", "Page 3"] },
+    { title: "Page", items: ["Record 0", "Record 1", "Record 2", "Record 3"] },
+    { title: "Record", layout: "row", items: ["id", "name", "dept", "gpa"], note: "Fields" },
+  ]}
+  caption="A database is a set of files, a file is a set of pages, a page stores records, and a record is a sequence of fields."
+/>
+
+Every access path is ultimately a way of locating the right page, then the right slot inside it. We start at the bottom of the hierarchy with how a page names and stores its records.
+
+## Records and Pages
+
+Most databases use the **N-ary storage model (NSM)**, or row store: each page holds many complete tuples, one per slot. To name a tuple the system uses a record identifier.
+
+**Record Identifier (RID).** A tuple is addressed by its page id and slot number, written $\langle \text{page\_id}, \text{slot\_number} \rangle$. Some systems expose a logical identifier instead, but it still resolves to a page and a slot.
+
+Once the page is found, the slot number points to the record inside it. Keeping that slot number stable across insertions, deletions, and reorganizations is the main goal of page design, because every index entry that names a record names its RID.
+
+<PageLayout
+  mode="slot-grid"
+  header="Page 42"
+  headerNote="header"
+  columns={4}
+  cells={[
+    { label: "slot 0" },
+    { label: "slot 1" },
+    { label: "slot 2" },
+    { label: "slot 3", state: "hit" },
+    { label: "slot 4" },
+    { label: "slot 5" },
+    { label: "slot 6" },
+    { label: "slot 7" },
+  ]}
+  annotation="RID = (42, 3)"
+  caption="A record identifier names the page, then the slot inside it."
+/>
+
+The first question a page format must answer is whether its records are fixed-length or variable-length, because that decides which slot layout is possible.
+
+**Fixed-length records.** All fields have fixed size (integers, fixed `char`), so every record has the same length, the schema is stored once in the catalog, field $i$ begins at a fixed offset, and the page can use a compact slot layout. Two such layouts trade space against RID stability.
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+<PageLayout
+  mode="byte-strip"
+  title="Packed page"
+  header="Contiguous records"
+  cells={[
+    { label: "R0" },
+    { label: "R1" },
+    { label: "delete", state: "gap" },
+    { label: "R3" },
+    { label: "R4" },
+  ]}
+  shiftLabel="later records shift left"
+  caption="Packed: records sit next to each other, so deleting one shifts the rest and changes their RIDs."
+/>
+
+</Pane>
+<Pane>
+
+<PageLayout
+  mode="slot-grid"
+  title="Bitmap page"
+  header="Bitmap"
+  headerRight="1 1 0 1 0"
+  columns={5}
+  cells={[
+    { label: "S0" },
+    { label: "S1" },
+    { label: "S2", state: "empty" },
+    { label: "S3" },
+    { label: "S4", state: "empty" },
+  ]}
+  footnote="slot positions stay fixed, so RIDs stay stable"
+  caption="Bitmap: a bit per slot marks use; deleting clears its bit, the slot is reused later, and positions stay stable."
+/>
+
+</Pane>
+</Split>
+
+A packed page uses space perfectly but cannot delete without shifting; a bitmap page keeps positions fixed at the cost of one bit per slot. The moment a field is a `varchar`, or a single file mixes record types, neither fixed layout works.
+
+**Variable-length record.** A record whose length depends on its data. A common layout places fixed-size values at the front, then one $\langle \text{offset}, \text{length} \rangle$ entry per variable field, then the variable data at the end, plus a small null bitmap for missing attributes.
+
+<PageLayout
+  mode="byte-strip"
+  cells={[
+    { label: "(21,5)", group: "Directory" },
+    { label: "(26,10)" },
+    { label: "(36,9)" },
+    { label: "65000", group: "Fixed" },
+    { label: "0000", state: "meta" },
+    { label: "10101", span: 1, group: "Payload" },
+    { label: "Srinivasan", span: 1.6 },
+    { label: "Comp. Sci.", span: 1.4 },
+  ]}
+  offsets={[0, 4, 8, 12, 20, 21, 26, 36, 45]}
+  rulerLabel="bytes"
+  caption="A variable-length record: a directory of (offset, length) entries, fixed values, a null bitmap, then the payload."
+/>
+
+Variable-length records can move within a page, so the RID can no longer be a raw byte offset. The standard answer is the slotted page, which separates the stable slot identity from the moving bytes.
+
+**Slotted page.** The page header and a slot directory grow forward from the front; the records grow backward from the back; a free-space pointer marks the boundary. Each slot entry stores a record's location and size, so compaction can move the bytes without changing the slot number, leaving the RID intact.
+
+<PageLayout
+  mode="slotted"
+  leftTitle="Header + slot directory"
+  rightTitle="Packed records"
+  headerRows={["# entries = 3", "free ptr"]}
+  slots={[
+    { label: "slot 0  (off, len)", recWeight: 0.85, recLabel: "record 0" },
+    { label: "slot 1  (off, len)", recWeight: 1.25, recLabel: "record 1" },
+    { label: "slot 2  (off, len)", recWeight: 0.65, recLabel: "record 2" },
+  ]}
+  freeLabel="Free space"
+  caption="A slotted page: directory grows from the front, records from the back, and slots stay stable when records move."
+/>
+
+The header holds the number of slot entries, the free-space pointer, and one location/size entry per record. Three operational issues remain. *Record growth*: enlarging a field may shift later records within the page. *Page overflow*: if the record no longer fits, it moves to another page, usually leaving a forwarding pointer at the old slot. *Oversized records*: some systems forbid records larger than a page, others spill large values to overflow storage.
+
+## Row Stores and Column Stores
+
+Every layout so far is a row store: a slot holds one full tuple, so all of a tuple's attributes sit together. The alternative reorganizes data by attribute instead of by tuple.
+
+**Decomposition storage model (DSM).** A column-oriented layout that stores each attribute separately. A tuple is rebuilt by reading the value at the same logical position from each needed column.
+
+<PageLayout
+  mode="row-column"
+  columns={["Col A", "Col B", "Col C"]}
+  rows={[
+    ["a0", "b0", "c0"],
+    ["a1", "b1", "c1"],
+    ["a2", "b2", "c2"],
+    ["a3", "b3", "c3"],
+  ]}
+  rowLabels={["row #0", "row #1", "row #2", "row #3"]}
+  leftTitle="Row store (NSM)"
+  rightTitle="Column store (DSM)"
+  leftTag="page"
+  rightTag="block"
+  highlightRow={1}
+  highlightColumn={1}
+  leftNote="complete tuples stay together"
+  rightNote="same-attribute values stay together"
+  caption="Row store keeps a complete tuple together (the ringed row); column store keeps same-attribute values together (the ringed column)."
+/>
+
+The two models make opposite trade-offs. A row store gives fast inserts, updates, and deletes and reads or rewrites whole tuples cheaply, but it wastes I/O when a scan needs only a few of many attributes, and one page mixing many value types compresses poorly. A column store reads only the attributes a query touches, gains CPU cache locality, compresses each column far better, and processes values in vectorized batches; in return, reconstructing a full tuple is expensive, updates and deletes are harder, and compressed columns may need decompression first. As a rule of thumb, **row stores fit OLTP** (transactional) workloads and **column stores fit OLAP** (analytical) workloads, and some systems are **hybrid** and support both.
+
+Pure column stores split attributes across the whole file. PAX keeps the file's page structure but applies the columnar idea inside each page.
+
+**Partition Attributes Across (PAX).** Within one page, values of the same attribute are grouped into a contiguous column partition. The page still holds the same tuples as a row page; a tuple is rebuilt logically by taking the same offset in each partition.
+
+<PageLayout
+  mode="pax"
+  header="PAX page"
+  headerNote="page header"
+  columns={["A", "B", "C"]}
+  groups={[
+    {
+      label: "row group 0",
+      cells: [
+        ["a0", "a1", "a2"],
+        ["b0", "b1", "b2"],
+        ["c0", "c1", "c2"],
+      ],
+    },
+    {
+      label: "row group 1",
+      cells: [
+        ["a3", "a4", "a5"],
+        ["b3", "b4", "b5"],
+        ["c3", "c4", "c5"],
+      ],
+    },
+  ]}
+  footnote="same offset across partitions reconstructs a tuple"
+  caption="PAX splits each row group into per-attribute partitions inside one page, keeping the page-based design of row stores."
+/>
+
+This buys cache-friendly scans over a few attributes without abandoning the page-based design. Analytical file formats such as **Parquet** and **ORC** apply the same idea at file scale: they gather tuples into large row groups (or stripes) and store each group column by column.
+
+<PageLayout
+  mode="orc"
+  leftTitle="File of row groups / stripes"
+  rightTitle="Inside one stripe"
+  stripes={[
+    { label: "stripe 1", bands: [{ label: "Index data", kind: "meta" }, { label: "Row data", kind: "data" }, { label: "Stripe footer", kind: "footer" }] },
+    { label: "stripe 2", bands: [{ label: "Index data", kind: "meta" }, { label: "Row data", kind: "data" }, { label: "Stripe footer", kind: "footer" }] },
+    { label: "stripe n", bands: [{ label: "Index data", kind: "meta" }, { label: "Row data", kind: "data" }, { label: "Stripe footer", kind: "footer" }] },
+  ]}
+  ellipsis
+  fileFooter="File footer"
+  detail={[
+    { label: "Col 1 index", kind: "index" },
+    { label: "Col 2 index", kind: "index" },
+    { label: "Col 3 index", kind: "index" },
+    { label: "Col 1 data", kind: "data" },
+    { label: "Col 2 data", kind: "data" },
+    { label: "Col 3 data", kind: "data" },
+  ]}
+  footnote="metadata and column streams are stored separately"
+  caption="An ORC file is a sequence of stripes; inside one stripe, per-column index and data streams are stored separately."
+/>
+
+Each column stream compresses well, the engine can skip irrelevant columns and often whole groups, and a scan over a few attributes never touches the rest of the file.
+
+## File Organizations and Their Cost
+
+The next layer up is how pages are arranged inside a file. The choice is again driven by the workload: full scans and cheap inserts favor one organization, ordered reads favor another.
+
+**Heap file.** An unordered organization: records sit in no particular search order. Records are scanned sequentially or reached directly by RID, an insert goes into any page with free space, and the DBMS tracks free space as pages are allocated and freed. It finds heap pages either through *linked lists* (a header page points to a list of free pages and a list of data pages) or through *page directories* (directory pages hold each data page's location and remaining free space).
+
+<PageLayout
+  mode="heap-dir"
+  dirTitle="Directory"
+  pages={[
+    { title: "Page 42", entry: "P42 | 20% free", free: 0.2, usedLabel: "data", freeLabel: "free" },
+    { title: "Page 43", entry: "P43 |  0% free", free: 0, usedLabel: "full" },
+    { title: "Page 44", entry: "P44 | 55% free", free: 0.55, usedLabel: "data", freeLabel: "free" },
+  ]}
+  ellipsis
+  footnote="directory entry = page id + free-space summary"
+  caption="A heap-file directory: each entry is a page id plus a free-space summary, pointing to a page with its used and free regions."
+/>
+
+Heap files are ideal when most queries scan the file, since no physical order is maintained. When queries instead read by key or by key range, ordering the file pays off.
+
+**Sorted (sequential) file.** Records are kept in **search-key** order, where the search key is the set of attributes used to physically order the file (it need not be unique). Scanning in order is cheap, and a range query becomes efficient: after the first match the DBMS reads forward.
+
+<PageLayout
+  mode="overflow"
+  topNote="records remain ordered by the search key"
+  pages={[
+    { title: "Page 0", records: [10, 20, 30] },
+    { title: "Page 1", records: [40, 50, 60] },
+  ]}
+  overflow={{ title: "Overflow block", record: 35, afterPage: 0 }}
+  footnote="if the target page is full, insert into overflow and update the chain"
+  caption="Records stay ordered by the search key; when the target page is full, the new record goes to an overflow block and the chain is updated."
+/>
+
+Order makes updates costly. Deletions use pointer chains or tombstones so later records need not move immediately. Insertions find the right position and, if the target page is full, divert to an overflow page and patch the chain. Overflow pages accumulate over time, so the file must occasionally be reorganized to restore physical order.
+
+To compare the two, we measure cost in page I/Os.
+
+**Simplified I/O cost model.** Cost is counted only in page I/Os. I/O is assumed to dominate CPU work, so buffering, prefetching, and similar effects are ignored, and only the average case is considered.
+
+Let $B$ be the number of data pages. Each operation touches one record, an equality search returns one match, a heap insert appends at the end, and a sorted file searches on its ordering attribute and stays compacted after deletes.
+
+| Operation | Heap file | Sorted file |
+|---|---|---|
+| Scan all records | $B$ | $B$ |
+| Equality search | $0.5\,B$ | $\log_2 B$ |
+| Range search | $B$ | $\log_2 B + \text{(matching pages)}$ |
+| Insert | $2$ | $\log_2 B + B$ |
+| Delete | $0.5\,B + 1$ | $\log_2 B + B$ |
+
+Scans cost the same either way. Sorted files win decisively on equality and range search over the ordering attribute, dropping from a linear scan to a binary search $\log_2 B$. Heap files win on inserts (a constant append instead of shifting half the file) and usually on deletes. A sorted file thus buys one excellent access path at a steep update cost, which is exactly the problem indexes solve more flexibly.
+
+## Indexing
+
+A sorted file is fast only for its single physical order. If a file is sorted on `ID`, lookups on `ID` are cheap, but a predicate on `salary` or `dept_name` still forces a scan. An index removes that restriction.
+
+**Index.** An auxiliary access structure mapping search-key values to records or pages, letting the DBMS answer a selection with far fewer I/Os than a full scan. Several indexes can give the same relation several efficient entry points at once, while the data file keeps one physical order.
+
+<IndexMap
+  mode="rows"
+  columns={[
+    {
+      title: "Index on ID",
+      entries: [
+        { id: "id22222", label: "22222" },
+        { id: "id33456", label: "33456" },
+        { id: "id83821", label: "83821" },
+      ],
+    },
+    {
+      title: "Index on Salary",
+      entries: [
+        { id: "sal90000", label: "90000" },
+        { id: "sal92000", label: "92000" },
+        { id: "sal95000", label: "95000" },
+      ],
+    },
+  ]}
+  table={{
+    headers: ["ID", "name", "dept name", "salary"],
+    rows: [
+      { id: "r10101", cells: ["10101", "Srinivasan", "Comp. Sci.", "65000"] },
+      { id: "r12121", cells: ["12121", "Wu", "Finance", "90000"] },
+      { id: "r22222", cells: ["22222", "Einstein", "Physics", "95000"] },
+      { id: "r33456", cells: ["33456", "Gold", "Physics", "87000"] },
+      { id: "r83821", cells: ["83821", "Brandt", "Comp. Sci.", "92000"] },
+      { id: "r98345", cells: ["98345", "Kim", "Elec. Eng.", "80000"] },
+    ],
+  }}
+  links={[
+    { from: "id22222", to: "r22222" },
+    { from: "id33456", to: "r33456" },
+    { from: "id83821", to: "r83821" },
+    { from: "sal90000", to: "r12121" },
+    { from: "sal92000", to: "r83821" },
+    { from: "sal95000", to: "r22222" },
+  ]}
+  caption="One physical order, multiple access paths: each index gives the same relation a different ordered entry point into the data file."
+/>
+
+The search key need not be unique, any subset of attributes can serve as one, and every insert, delete, and update must also maintain the affected indexes. What an index speeds up is described by a predicate.
+
+**Index search condition.** A predicate of the form $\langle \text{search key}, \text{comparison operator} \rangle$. *`dept_name = "CS"` has search key `dept_name` and an equality operator; `gpa > 3` has search key `gpa` and a greater-than operator.* Equality asks for one exact value; the inequalities $<, \leq, >, \geq$ define ranges and so benefit most from ordered access paths.
+
+Indexes are classified along four independent axes: **clustered vs unclustered**, **dense vs sparse**, **key vs non-key** search key, and whether the data file is **ordered** on the indexing field. The first axis is the one with the largest performance consequences.
+
+**Clustered vs unclustered.** If the physical order of the data records follows the order of the index entries, the index is *clustered*; otherwise it is *unclustered*.
+
+<IndexMap
+  mode="mapping"
+  panelLayout="row"
+  panels={[
+    {
+      title: "Clustered",
+      topRow: [
+        { id: "c10", label: 10 },
+        { id: "c20", label: 20 },
+        { id: "c30", label: 30 },
+      ],
+      bottomRow: [
+        { id: "cd1", label: 10 },
+        { id: "cd2", label: 12 },
+        { id: "cd3", label: 20 },
+        { id: "cd4", label: 22 },
+        { id: "cd5", label: 30 },
+        { id: "cd6", label: 32 },
+      ],
+      links: [
+        { from: "c10", to: "cd1", variant: "solid" },
+        { from: "c10", to: "cd2", variant: "solid" },
+        { from: "c20", to: "cd3", variant: "solid" },
+        { from: "c20", to: "cd4", variant: "solid" },
+        { from: "c30", to: "cd5", variant: "solid" },
+        { from: "c30", to: "cd6", variant: "solid" },
+      ],
+      bottomNote: "nearby index entries lead to nearby data",
+    },
+    {
+      title: "Unclustered",
+      topRow: [
+        { id: "u10", label: 10 },
+        { id: "u20", label: 20 },
+        { id: "u30", label: 30 },
+      ],
+      bottomRow: [
+        { id: "ud1", label: 22 },
+        { id: "ud2", label: 10 },
+        { id: "ud3", label: 30 },
+        { id: "ud4", label: 20 },
+        { id: "ud5", label: 12 },
+        { id: "ud6", label: 32 },
+      ],
+      links: [
+        { from: "u10", to: "ud2", variant: "solid" },
+        { from: "u10", to: "ud5", variant: "solid" },
+        { from: "u20", to: "ud1", variant: "solid" },
+        { from: "u20", to: "ud4", variant: "solid" },
+        { from: "u30", to: "ud3", variant: "solid" },
+        { from: "u30", to: "ud6", variant: "solid" },
+      ],
+      bottomNote: "matching records are scattered across the file",
+    },
+  ]}
+  caption="Clustered keeps matching records on nearby pages (parallel arrows); unclustered scatters them across the file (crossing arrows)."
+/>
+
+A clustered index keeps matching records on nearby pages, so range queries stay efficient; an unclustered index may jump to many unrelated pages, so large result sets become expensive. A file can carry many unclustered indexes but only one clustered physical order at a time. Some texts say *primary* for clustered and *secondary* for unclustered, but that vocabulary is not universal, so the physical term clustered is safer. In the clustered case, the file is ordered on `ID`, so neighbouring index entries point to neighbouring data pages.
+
+<IndexMap
+  mode="pages"
+  columns={[
+    {
+      title: "Index on ID",
+      kind: "entry",
+      entries: [
+        { id: "e10101", label: "10101" },
+        { id: "e12121", label: "12121" },
+        { id: "e15151", label: "15151" },
+        { id: "e22222", label: "22222" },
+        { id: "e83821", label: "83821" },
+        { id: "e98345", label: "98345" },
+      ],
+    },
+  ]}
+  pages={[
+    { id: "p0", title: "Page 0", rows: [["10101", "Srinivasan"], ["12121", "Wu"]] },
+    { id: "p1", title: "Page 1", rows: [["15151", "Mozart"], ["22222", "Einstein"]] },
+    { id: "p2", title: "Page 5", rows: [["83821", "Brandt"], ["98345", "Kim"]] },
+  ]}
+  links={[
+    { from: "e10101", to: "p0" },
+    { from: "e12121", to: "p0" },
+    { from: "e15151", to: "p1" },
+    { from: "e22222", to: "p1" },
+    { from: "e83821", to: "p2" },
+    { from: "e98345", to: "p2" },
+  ]}
+  caption="Clustered index on ID: nearby entries point to nearby data pages, so a range scan touches only a few sequential pages."
+/>
+
+The second axis is how completely the index covers the data.
+
+**Dense index.** Has an index entry for every search-key value that appears in the data file.
+
+**Sparse index.** Has entries for only some values, typically one per data page. A sparse index uses less space and needs fewer updates, but works well only when the data file is ordered on the search key, since after reaching the right page the DBMS still searches within it.
+
+For range predicates the clustered/unclustered distinction grows even larger: a **clustered** index costs roughly the number of *data pages* holding matches, while an **unclustered** index costs closer to the number of *matching index entries*, because each match may lead to a different page. So a clustered index is efficient for ranges and ordered scans but expensive to maintain when updates disturb the order, whereas an unclustered index is cheap to add as an extra access path but can trigger many random I/Os on a large result.
+
+The shape of a dense index depends on whether its search key is a key. If the search key *is* a key, each value identifies one record, so a dense index has one entry per record, each pointing straight at a single RID.
+
+<IndexMap
+  mode="rows"
+  columns={[
+    {
+      title: "Dense index",
+      entries: [
+        "10101", "12121", "15151", "22222", "32343", "33456",
+        "45565", "58583", "76543", "76766", "83821", "98345",
+      ].map((v) => ({ id: `e${v}`, label: v })),
+    },
+  ]}
+  table={{
+    headers: ["ID", "name", "dept name", "salary"],
+    rows: [
+      { id: "r10101", cells: ["10101", "Srinivasan", "Comp. Sci.", "65000"] },
+      { id: "r12121", cells: ["12121", "Wu", "Finance", "90000"] },
+      { id: "r15151", cells: ["15151", "Mozart", "Music", "40000"] },
+      { id: "r22222", cells: ["22222", "Einstein", "Physics", "95000"] },
+      { id: "r32343", cells: ["32343", "El Said", "History", "60000"] },
+      { id: "r33456", cells: ["33456", "Gold", "Physics", "87000"] },
+      { id: "r45565", cells: ["45565", "Katz", "Comp. Sci.", "75000"] },
+      { id: "r58583", cells: ["58583", "Califieri", "History", "62000"] },
+      { id: "r76543", cells: ["76543", "Singh", "Finance", "80000"] },
+      { id: "r76766", cells: ["76766", "Crick", "Biology", "72000"] },
+      { id: "r83821", cells: ["83821", "Brandt", "Comp. Sci.", "92000"] },
+      { id: "r98345", cells: ["98345", "Kim", "Elec. Eng.", "80000"] },
+    ],
+  }}
+  links={[
+    "10101", "12121", "15151", "22222", "32343", "33456",
+    "45565", "58583", "76543", "76766", "83821", "98345",
+  ].map((v) => ({ from: `e${v}`, to: `r${v}` }))}
+  caption="Dense index on a key: exactly one entry per record, each pointing directly at its row."
+/>
+
+If instead the file is sorted on a *non-key* attribute, equal values are adjacent, so a dense index keeps one entry per *distinct* value and points to the first record of that group.
+
+<IndexMap
+  mode="rows"
+  columns={[
+    {
+      title: "Dense index on dept name",
+      entries: [
+        { id: "dBiology", label: "Biology" },
+        { id: "dComp", label: "Comp. Sci." },
+        { id: "dElec", label: "Elec. Eng." },
+        { id: "dFinance", label: "Finance" },
+        { id: "dHistory", label: "History" },
+        { id: "dMusic", label: "Music" },
+        { id: "dPhysics", label: "Physics" },
+      ],
+    },
+  ]}
+  table={{
+    headers: ["ID", "name", "dept name", "salary"],
+    rows: [
+      { id: "g-biology", cells: ["76766", "Crick", "Biology", "72000"], groupStart: true },
+      { id: "g-comp", cells: ["10101", "Srinivasan", "Comp. Sci.", "65000"], groupStart: true },
+      { id: "r-comp2", cells: ["45565", "Katz", "Comp. Sci.", "75000"] },
+      { id: "r-comp3", cells: ["83821", "Brandt", "Comp. Sci.", "92000"] },
+      { id: "g-elec", cells: ["98345", "Kim", "Elec. Eng.", "80000"], groupStart: true },
+      { id: "g-finance", cells: ["12121", "Wu", "Finance", "90000"], groupStart: true },
+      { id: "r-finance2", cells: ["76543", "Singh", "Finance", "80000"] },
+      { id: "g-history", cells: ["32343", "El Said", "History", "60000"], groupStart: true },
+      { id: "r-history2", cells: ["58583", "Califieri", "History", "62000"] },
+      { id: "g-music", cells: ["15151", "Mozart", "Music", "40000"], groupStart: true },
+      { id: "g-physics", cells: ["22222", "Einstein", "Physics", "95000"], groupStart: true },
+      { id: "r-physics2", cells: ["33456", "Gold", "Physics", "87000"] },
+    ],
+  }}
+  links={[
+    { from: "dBiology", to: "g-biology" },
+    { from: "dComp", to: "g-comp" },
+    { from: "dElec", to: "g-elec" },
+    { from: "dFinance", to: "g-finance" },
+    { from: "dHistory", to: "g-history" },
+    { from: "dMusic", to: "g-music" },
+    { from: "dPhysics", to: "g-physics" },
+  ]}
+  caption="Dense index on a non-key field: one entry per distinct value, pointing to the first record of each group (heavier rules)."
+/>
+
+A sparse index pushes this further by keeping one *anchor* entry per data page.
+
+<IndexMap
+  mode="pages"
+  columns={[
+    {
+      title: "Sparse index",
+      entries: [
+        { id: "i0", label: "10101" },
+        { id: "i1", label: "32343" },
+        { id: "i2", label: "76543" },
+      ],
+      note: "one anchor per page",
+    },
+  ]}
+  pages={[
+    { id: "p0", title: "Page 0", rows: [["10101", "Srinivasan"], ["12121", "Wu"], ["15151", "Mozart"], ["22222", "Einstein"]] },
+    { id: "p1", title: "Page 1", rows: [["32343", "El Said"], ["33456", "Gold"], ["45565", "Katz"], ["58583", "Califieri"]] },
+    { id: "p2", title: "Page 2", rows: [["76543", "Singh"], ["76766", "Crick"], ["83821", "Brandt"], ["98345", "Kim"]] },
+  ]}
+  links={[
+    { from: "i0", to: "p0", toSide: "left" },
+    { from: "i1", to: "p1", toSide: "left" },
+    { from: "i2", to: "p2", toSide: "left" },
+  ]}
+  caption="Sparse index: to find K, jump to the page with the largest anchor key ≤ K and scan forward."
+/>
+
+To locate a value $K$, find the index entry with the largest key $\leq K$, follow its pointer to that data page, and scan forward until $K$ is found or passed. Because the method relies on the file's sequential order, a sparse index is normally clustered.
+
+When an index itself spans many pages, finding the right index page is its own search, solved by recursion.
+
+**Multilevel index.** Treat the index file as a sorted file and build a sparse index on top of it, repeating until the top level is small enough to search cheaply. In a two-level design the *inner index* is the ordinary index on the data file and the *outer index* is a sparse index over the inner index's pages.
+
+<IndexMap
+  mode="levels"
+  levels={[
+    [{ id: "outer", title: "Outer index", rows: 4, ellipsis: true, note: "sparse index on the index file" }],
+    [
+      { id: "inner0", title: "Inner index 0", rows: 2, ellipsis: true },
+      { id: "inner1", title: "Inner index 1", rows: 2, ellipsis: true },
+      { id: "inner2", title: "Inner index 2", rows: 2 },
+    ],
+    [
+      { id: "d0", kind: "data", note: "data" },
+      { id: "d1", kind: "data", note: "data" },
+      { id: "d2", kind: "data", note: "data" },
+    ],
+  ]}
+  links={[
+    { from: "outer", to: "inner0" },
+    { from: "outer", to: "inner1" },
+    { from: "outer", to: "inner2" },
+    { from: "inner0", to: "d0" },
+    { from: "inner1", to: "d1" },
+    { from: "inner2", to: "d2" },
+  ]}
+  caption="Multilevel index: build a sparse index over the index, repeating until the top level scans cheaply."
+/>
+
+Search descends level by level to the target data page, and more levels can be added if the outer index also grows too large; the cost is that an insertion or deletion may need updates at several levels. When the indexing field is not the file's physical order, the index is necessarily unclustered, and a different structure is needed.
+
+**Secondary index.** An index whose search key does not define the physical order of the data file, so it is unclustered. For a non-key search key it stores one entry per value, and each entry points to a *bucket* (or list) of RIDs holding all matching records.
+
+<IndexMap
+  mode="rows"
+  columns={[
+    {
+      title: "Index on salary",
+      entries: [
+        { id: "i1", label: "40000" },
+        { id: "i2", label: "60000" },
+        { id: "i3", label: "65000" },
+        { id: "i4", label: "75000" },
+        { id: "i5", label: "80000" },
+        { id: "i6", label: "92000" },
+        { id: "i7", label: "95000" },
+      ],
+    },
+  ]}
+  buckets={{
+    title: "Buckets",
+    kind: "bucket",
+    entries: [
+      { id: "b1", label: "1 ptr" },
+      { id: "b2", label: "1 ptr" },
+      { id: "b3", label: "1 ptr" },
+      { id: "b4", label: "1 ptr" },
+      { id: "b5", label: "2 ptrs" },
+      { id: "b6", label: "1 ptr" },
+      { id: "b7", label: "1 ptr" },
+    ],
+  }}
+  table={{
+    headers: ["ID", "name", "dept", "salary"],
+    rows: [
+      { id: "d10101", cells: ["10101", "Srinivasan", "Comp. Sci.", "65000"] },
+      { id: "d15151", cells: ["15151", "Mozart", "Music", "40000"] },
+      { id: "d22222", cells: ["22222", "Einstein", "Physics", "95000"] },
+      { id: "d32343", cells: ["32343", "El Said", "History", "60000"] },
+      { id: "d45565", cells: ["45565", "Katz", "Comp. Sci.", "75000"] },
+      { id: "d76543", cells: ["76543", "Singh", "Finance", "80000"] },
+      { id: "d83821", cells: ["83821", "Brandt", "Comp. Sci.", "92000"] },
+      { id: "d98345", cells: ["98345", "Kim", "Elec. Eng.", "80000"] },
+    ],
+  }}
+  links={[
+    { from: "i1", to: "b1" },
+    { from: "i2", to: "b2" },
+    { from: "i3", to: "b3" },
+    { from: "i4", to: "b4" },
+    { from: "i5", to: "b5" },
+    { from: "i6", to: "b6" },
+    { from: "i7", to: "b7" },
+    { from: "b1", to: "d15151", curve: true },
+    { from: "b2", to: "d32343", curve: true },
+    { from: "b3", to: "d10101", curve: true },
+    { from: "b4", to: "d45565", curve: true },
+    { from: "b5", to: "d76543", curve: true },
+    { from: "b5", to: "d98345", curve: true },
+    { from: "b6", to: "d83821", curve: true },
+    { from: "b7", to: "d22222", curve: true },
+  ]}
+  caption="Secondary index on an unsorted field: one entry per value points to a bucket of RIDs, which point into the scattered file."
+/>
+
+A secondary index on an unsorted column must be dense; a sparse one would leave some matching records unreachable. This fixes the vocabulary: a clustered (primary) index sits on a file physically ordered on the indexing field and may be sparse or dense, while an unclustered (secondary) index sits on a file that is not so ordered, points to records or RID buckets, and must be dense. The core question is always whether the data file itself follows the search-key order.
+
+## B+-Trees, Hash Indexes, and Choosing a Key
+
+Sequential dense and sparse indexes explain the ideas, but a static index degrades under updates. Real systems prefer the B+-tree because it stays balanced.
+
+**B+-tree.** A balanced search tree whose nodes are page-sized blocks. Internal nodes store separator keys and child pointers to route a search; leaf nodes store sorted entries and are linked left-to-right for range scans.
+
+- **Balance.** Every root-to-leaf path has the same length.
+- **Internal fan-out.** Each non-root internal node has between $\lceil n/2 \rceil$ and $n$ children, for a tree of order $n$.
+- **Leaf occupancy.** Each leaf holds between $\lceil (n-1)/2 \rceil$ and $n-1$ key values.
+- **Root.** If the root is not a leaf it has at least $2$ children; if it is also a leaf it holds between $0$ and $n-1$ values.
+
+<PageLayout
+  mode="node-strip"
+  nodes={[
+    { title: "Internal node", cells: ["P_1", "K_1", "P_2", "K_2", "P_3", "K_{q-1}", "P_q"] },
+    { title: "Leaf node", cells: ["K_1", "ptr", "K_2", "ptr", "...", "next"], nextLink: true },
+  ]}
+  footnote="internal nodes route the search; leaves store entries and are linked for range scans"
+  caption="B+-tree node anatomy: internal nodes alternate pointers and keys; leaves store entries and link for range scans."
+/>
+
+An internal node with child pointers $P_1, \dots, P_q$ stores separator keys $K_1, \dots, K_{q-1}$, where $K_i$ separates the subtree under $P_i$ from the subtree under $P_{i+1}$. The order $n$ controls fan-out, which controls height.
+
+<BPlusTree
+  caption="Order 4: small fan-out, so the tree is wider and deeper."
+  leafLinks="single"
+  nodes={[
+    { id: "root", keys: ["Mozart"] },
+    { id: "i1", keys: ["Einstein", "Gold"] },
+    { id: "i2", keys: ["Srinivasan"] },
+    { id: "l1", keys: ["Brandt", "Crick"] },
+    { id: "l2", keys: ["Einstein", "El Said"] },
+    { id: "l3", keys: ["Gold", "Katz"] },
+    { id: "l4", keys: ["Mozart", "Singh"] },
+    { id: "l5", keys: ["Srinivasan", "Wu"] },
+  ]}
+  links={[
+    { parent: "root", child: "i1" },
+    { parent: "root", child: "i2" },
+    { parent: "i1", child: "l1" },
+    { parent: "i1", child: "l2" },
+    { parent: "i1", child: "l3" },
+    { parent: "i2", child: "l4" },
+    { parent: "i2", child: "l5" },
+  ]}
+/>
+
+<BPlusTree
+  caption="Order 6: higher fan-out indexes the same data with fewer levels."
+  nodes={[
+    { id: "root", keys: [13, 17, 24, 30] },
+    { id: "l1", keys: [2, 3, 5, 7] },
+    { id: "l2", keys: [14, 16] },
+    { id: "l3", keys: [19, 20, 22] },
+    { id: "l4", keys: [24, 27, 29] },
+    { id: "l5", keys: [33, 34, 38, 39] },
+  ]}
+  links={[
+    { parent: "root", child: "l1" },
+    { parent: "root", child: "l2" },
+    { parent: "root", child: "l3" },
+    { parent: "root", child: "l4" },
+    { parent: "root", child: "l5" },
+  ]}
+/>
+
+
+A small order gives limited fan-out, so the tree grows wide and deep quickly; a larger order packs more keys and pointers per node and indexes the same data with fewer levels, which is why disk-based trees aim for high fan-out. In both, leaves are linked in sorted order, so once the first matching leaf is found a range scan continues sequentially.
+
+The B+-tree is one of two index families, each tuned to a different predicate. A hash index optimizes the other.
+
+**Hash-based index.** Applies a hash function $h$ to the search key to pick a bucket. Each bucket has one primary page and may grow overflow pages as collisions accumulate.
+
+<HashDiagram
+  mode="static"
+  source="h(age)"
+  pages={[
+    { id: "b00", title: "Bucket 00", rows: ["(22, r1)", "(44, r6)", "(44, r9)"] },
+    { id: "b01", title: "Bucket 01", rows: ["(33, r2)", "(65, r7)", "(81, r8)"], state: "full" },
+    { id: "b10", title: "Bucket 10", rows: ["(25, r3)", "(58, r4)", "(90, r5)"] },
+  ]}
+  overflow={[
+    { id: "ov", title: "Overflow", rows: ["(97, r10)", "(113, r11)", "(129, r12)"] },
+  ]}
+  fanout={[
+    { to: "b00", label: "00" },
+    { to: "b01", label: "01" },
+    { to: "b10", label: "10" },
+  ]}
+  spills={[{ from: "b01", to: "ov", label: "overflow" }]}
+  caption="Hash index: an equality lookup computes one bucket; collisions create overflow pages."
+/>
+
+Hash indexes are best for equality predicates: to evaluate `age = 44` the DBMS computes $h(44)$ and reads one bucket, duplicates land in the same bucket, and inserts and deletes usually touch one bucket only. Because entries are not kept in order, hash indexes do not help range predicates such as `age > 40`: the DBMS would have to inspect nearly every bucket, which is close to a full scan. A **tree-based index**, in practice a B+-tree, keeps entries sorted, so its leaf links turn a range predicate into one descent plus a sequential walk, and the same structure also serves equality, ordered scans, and prefix lookups.
+
+This makes the index family follow directly from the predicate. For
+
+```sql
+SELECT E.dno
+FROM Employees E
+WHERE E.age > 40
+```
+
+`age > 40` is a range, so a tree index on `age` is the natural choice and a hash index would not help. If many tuples qualify, a *clustered* tree index beats an unclustered one; and if the predicate matches a large fraction of the relation, a plain sequential scan may still be cheaper than any index.
+
+**Selective predicate.** A predicate matching a small fraction of the relation. Indexes help most here; when most records qualify, scanning is often cheaper.
+
+When several predicates apply, the question becomes which attribute, and in what combination, the index should cover. Consider
+
+```sql
+SELECT sid
+FROM Student
+WHERE sname = 'Mary'
+  AND gpa > 3.9
+```
+
+An index on `sname` helps the equality `sname = 'Mary'` (a hash index suffices if such lookups dominate); an index on `gpa` helps the range `gpa > 3.9` (this must be a tree index); but an index on the pair $\langle \texttt{sname}, \texttt{gpa} \rangle$ is usually best, narrowing to `Mary` first and then scanning only the qualifying GPAs inside that group.
+
+**Composite search key.** An index whose search key is a tuple of attributes. In a tree index entries follow **lexicographic order**: sorted first by the leading attribute, then, among equal values, by the next.
+
+<IndexMap
+  mode="rows"
+  columns={[
+    {
+      title: "B+-tree on (sname, gpa)",
+      entries: [
+        { id: "sg1", label: "(Mary, 3.95)" },
+        { id: "sg2", label: "(Mary, 4.00)" },
+        { id: "sg3", label: "(Mike, 3.90)" },
+        { id: "sg4", label: "(Sue, 3.80)" },
+      ],
+    },
+  ]}
+  rightColumns={[
+    {
+      title: "B+-tree on (gpa, sname)",
+      entries: [
+        { id: "gs1", label: "(3.80, Sue)" },
+        { id: "gs2", label: "(3.90, Mike)" },
+        { id: "gs3", label: "(3.95, Mary)" },
+        { id: "gs4", label: "(4.00, Mary)" },
+      ],
+    },
+  ]}
+  table={{
+    headers: ["sid", "sname", "gpa"],
+    rows: [
+      { id: "rec101", cells: ["101", "Mary", "3.95"] },
+      { id: "rec104", cells: ["104", "Sue", "3.80"] },
+      { id: "rec107", cells: ["107", "Mike", "3.90"] },
+      { id: "rec115", cells: ["115", "Mary", "4.00"] },
+    ],
+  }}
+  links={[
+    { from: "sg1", to: "rec101" },
+    { from: "sg2", to: "rec115" },
+    { from: "sg3", to: "rec107" },
+    { from: "sg4", to: "rec104" },
+    { from: "gs1", to: "rec104", fromSide: "left", toSide: "right" },
+    { from: "gs2", to: "rec107", fromSide: "left", toSide: "right" },
+    { from: "gs3", to: "rec101", fromSide: "left", toSide: "right" },
+    { from: "gs4", to: "rec115", fromSide: "left", toSide: "right" },
+  ]}
+  caption="The same attributes in a different lexicographic order index the same records, but make different predicates efficient."
+/>
+
+Field order is decisive. With `age = 12 AND sal = 75`, full equality, both a hash and a tree index on $\langle \texttt{age}, \texttt{sal} \rangle$ work. With only `age = 12`, prefix equality, the tree index still works because equal-age entries are adjacent, but the hash index on the full pair does not. With `age = 12 AND sal > 20`, the tree index on $\langle \texttt{age}, \texttt{sal} \rangle$ is ideal, while $\langle \texttt{sal}, \texttt{age} \rangle$ is much weaker. This is the general rule.
+
+**Leftmost-prefix rule.** A composite tree index on $\langle A, B, C \rangle$ can be used efficiently only when the query constrains a prefix of the key: $A$, or $A$ and $B$, or all three.
+
+A well-ordered composite key can also let the index answer the query by itself.
+
+```sql
+SELECT AVG(E.sal)
+FROM Employees E
+WHERE E.age = 25
+  AND E.sal BETWEEN 3000 AND 5000
+```
+
+`BETWEEN` is a range, so this needs a tree index, and the order $\langle \texttt{age}, \texttt{sal} \rangle$ is right: it fixes one age, then scans only the salary interval inside that age group, whereas $\langle \texttt{sal}, \texttt{age} \rangle$ would scan the salary interval for every age and then filter. Since the query reads only `sal`, which is already in the key, the index alone suffices.
+
+**Index-only evaluation (covering index).** If every attribute the query needs is already in the index entries, the DBMS answers from the index alone, never fetching the data records. This is especially effective for aggregates such as `AVG`, `COUNT`, `MIN`, and `MAX`.
+
+## Choosing an Index
+
+Putting the four axes together, the choice of index follows a short decision path keyed on table size, predicate shape, and update frequency.
+
+1. **Tiny or update-dominated table.** With only a few hundred tuples, or with frequent updates and low-cost queries, use **no index**: a full scan is negligible and any index only adds write overhead.
+2. **No predicate, full scan, or whole-relation aggregation.** Use a **heap file**: inserts are append-only and the query reads everything anyway.
+3. **Equality predicate.** A **hash index** gives $O(1)$ lookup. If updates are infrequent, make it **clustered and sparse** (clustering packs matches together; sparse works because the data is sorted on the key); if updates are frequent, make it **unclustered and dense** to avoid maintaining physical order.
+4. **Range predicate.** Use a **B+-tree**, since hashing destroys order. Again **clustered and sparse** for infrequent updates (the scan reads consecutive pages, sparse keeps the index small) and **unclustered and dense** for frequent updates.
+5. **Choosing the key.** Index the attribute in the predicate; with several predicates, index the **most selective** one and apply the others as in-memory post-filters.
+6. **Sorted file vs B+-tree.** For static data with range queries, a plain **sorted file** with binary search ($O(\log B)$) is enough; for dynamic data, prefer a **B+-tree**, since sorted files are costly to maintain under inserts and deletes.
+
+| Scenario | Structure | Clustered? | Density |
+|---|---|---|---|
+| Tiny table / heavy updates | No index | n/a | n/a |
+| No predicate / full scan | Heap file | n/a | n/a |
+| Equality, few updates | Hash | Clustered | Sparse |
+| Equality, many updates | Hash | Unclustered | Dense |
+| Range, few updates | B+-tree | Clustered | Sparse |
+| Range, many updates | B+-tree | Unclustered | Dense |
+| Static range data | Sorted file | inherent | Sparse |
+
+**Index selection traps.**
+
+**Clustered ≠ primary key.** Clustering means data pages are physically ordered on the indexed attribute, which may be non-unique (you can cluster on `year`). Only one clustered index per table, because physical order is a single global property.
+
+**Sparse requires clustering.** A sparse index keeps one entry per data page and works only if the data is sorted on that key; an unclustered index must therefore be dense, or some matching records become unreachable.
+
+**Unclustered range can lose to a full scan.** Each qualifying entry may point to a different page, so the cost is as many random I/Os as matches. Above roughly $5$-$10\%$ selectivity, a sequential scan usually wins.
+
+**Hash indexes do not support ranges.** Hashing maps keys to buckets with no ordering, so `year > 2010` probes nearly every bucket.
+
+**Sorted files support equality too.** Binary search gives $O(\log B)$; "sorted = range only" is false. The hash advantage is $O(1)$ vs $O(\log B)$ for equality.
+
+**Inserts and deletes on a sorted file are expensive.** An insert is at least $2$ I/Os and degrades to $O(B)$ when shifting; a worst-case delete on a non-sort attribute scans all $B$ pages and rewrites them, $2B$ I/Os. Prefer B+-trees for dynamic data.
+
+**PAX ≠ DSM.** PAX reorganizes columns *within* a page, so the page count matches NSM; DSM decomposes into separate column files with different page counts.
+
+## System Catalogs
+
+File organizations, indexes, and statistics are recorded in one place the optimizer can read.
+
+**System catalog.** The DBMS's metadata repository, storing information about relations, attributes, indexes, views, constraints, statistics, and access control.
+
+For each relation it keeps the name, backing file, file organization, attribute names and types, and integrity constraints; for each index, the name, structure (B+-tree, hash), search-key fields, and clustering status; for each view, its name and definition; and for the optimizer, statistics such as relation cardinality, page count, and average row length, plus authorization data. The catalog is itself stored as relations, so it can be queried like any table. Oracle, for example, exposes it through views such as `USER_TABLES` and `USER_TAB_COLUMNS`:
+
+```sql
+SELECT table_name, num_rows, blocks, avg_row_len
+FROM user_tables
+```
+
+| TABLE_NAME | NUM_ROWS | BLOCKS | AVG_ROW_LEN |
+|---|---|---|---|
+| STUDENT | 5 | 5 | 20 |
+
+These views are exactly what the optimizer and storage manager consult: they describe the schema, give size estimates, and report which access paths already exist, closing the loop from physical layout back to query planning.

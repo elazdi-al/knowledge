@@ -1,0 +1,529 @@
+---
+title: "Data Intensive Systems: Lecture 2"
+description: "The relational model and relational algebra: relations, schemas, keys, the core operators, and how algebra expressions become query trees that can be rewritten for efficiency."
+tags: ["Data intensive systems"]
+created: 2026-06-09
+updated: 2026-06-09
+---
+
+## The Relational Model
+
+**Relation.** A named table with rows and columns. A database is a set of such relations. Each column is an *attribute* carrying a *type* (its domain): integer, real, string, an enumeration, and so on.
+
+**Tuple.** A single row of a relation, holding one value per attribute. All tuples in a relation are distinct, and they have no inherent order.
+
+*Students* records people; *Colleges* records institutions.
+
+<Split cols="1.15fr 0.85fr" align="start">
+<Pane>
+
+| sid | name | login | age | gpa |
+|---|---|---|---|---|
+| 50000 | Dave | dave@cs | 19 | 3.3 |
+| 53666 | Jones | jones@cs | 18 | 3.4 |
+| 53688 | Smith | smit@ee | 18 | 3.2 |
+
+</Pane>
+<Pane>
+
+| name | location | strength |
+|---|---|---|
+| MIT | USA | 10000 |
+| Oxford | UK | 22000 |
+| EPFL | CH | 9000 |
+
+</Pane>
+</Split>
+
+**Schema.** The structural definition of a relation: its name plus each attribute name and type. *For Students: `Students(sid: string, name: string, login: string, age: integer, gpa: real)`, with `sid` underlined as the key.*
+
+**Instance.** The actual set of tuples held in a relation at one point in time. Two numbers describe it: its **cardinality** (number of rows) and its **arity** or degree (number of attributes).
+
+Not every value is always known. A student who has received no grades yet has no meaningful GPA, so the model needs a way to record absence.
+
+**Null value.** A special marker for an unknown or undefined attribute value. A null is not zero and not an empty string; it is the explicit absence of a value.
+
+## Keys and Integrity Constraints
+
+Keys make tuples identifiable and let one relation point into another. They form a hierarchy that narrows from "enough to identify" down to "the one chosen identifier".
+
+**Superkey.** A set of attributes such that no two distinct tuples agree on all of them. Any superset of a superkey is again a superkey.
+
+**Candidate key.** A minimal superkey: it identifies tuples, and no proper subset of its attributes still does.
+
+**Primary key.** The candidate key chosen by the database administrator (DBA) as *the* identifier of the relation.
+
+**Example 1. Keys of Students.**
+
+*In `Students(sid, name, login, age, gpa)`, both `sid` and `login` identify a student, so each alone is a candidate key. The DBA picks `sid` as the primary key. Any superset such as `{sid, name}` is a superkey but not minimal, so not a candidate key.*
+
+**Integrity constraint (IC).** A condition that must hold on every valid instance of the database. ICs are declared with the schema and checked on every modification. Domain types, key uniqueness, and referential integrity are all ICs.
+
+**Legal instance.** An instance that satisfies every declared IC. The DBMS must reject any modification that would produce an illegal instance, which keeps stored data faithful to its real-world meaning and catches data-entry errors early.
+
+**Foreign key.** A set of attributes in one relation that references the primary key of another. The IC it carries is **referential integrity**: every foreign-key value must match an existing key in the referenced relation, so there are no dangling references.
+
+## SQL Basics
+
+SQL is the standard language for working with relational databases. It splits into two sub-languages by purpose.
+
+**Data Definition Language (DDL).** The part of SQL that creates, alters, and drops relations, declares constraints, and administers users and security.
+
+**Data Manipulation Language (DML).** The part of SQL that queries, inserts, updates, and deletes tuples.
+
+Five SQL commands define, read, and modify the relations used here.
+
+```sql
+CREATE TABLE <name> (<field> <domain>, ...)
+INSERT INTO <name> (<field names>) VALUES (<field values>)
+DELETE FROM <name> WHERE <condition>
+UPDATE <name> SET <field name> = <value> WHERE <condition>
+SELECT <fields> FROM <name> WHERE <condition>
+```
+
+A `CREATE TABLE` statement lists each attribute with its domain; the DBMS then enforces those types on every insert and update. Here *Students* holds people and *Enrolled* holds course enrollments.
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+```sql
+CREATE TABLE Students
+  (sid   CHAR(20),
+   name  CHAR(20),
+   login CHAR(10),
+   age   INTEGER,
+   gpa   FLOAT)
+```
+
+</Pane>
+<Pane>
+
+```sql
+CREATE TABLE Enrolled
+  (sid   CHAR(20),
+   cid   CHAR(20),
+   grade CHAR(2))
+```
+
+</Pane>
+</Split>
+
+Tuples are added one at a time with `INSERT`, and removed in bulk by a condition with `DELETE`.
+
+```sql
+INSERT INTO Students (sid, name, login, age, gpa)
+VALUES ('53688', 'Smith', 'smith@cs', 18, 3.2)
+
+DELETE FROM Students S WHERE S.name = 'Smith'
+```
+
+Keys are declared inside `CREATE TABLE`. `PRIMARY KEY` names the primary key; `UNIQUE` marks additional candidate keys. *In `Person`, `ssn` is the primary key and `licence#` is a second candidate key.*
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+```sql
+CREATE TABLE Students
+  (sid   CHAR(20),
+   name  CHAR(20),
+   login CHAR(10),
+   age   INTEGER,
+   gpa   FLOAT,
+   PRIMARY KEY(sid))
+```
+
+</Pane>
+<Pane>
+
+```sql
+CREATE TABLE Person
+  (ssn      CHAR(9),
+   name     CHAR(20),
+   licence# CHAR(10),
+   PRIMARY KEY(ssn),
+   UNIQUE(licence#))
+```
+
+</Pane>
+</Split>
+
+A key choice encodes a real-world constraint, so it must match the intended meaning. For *Enrolled*, the rule is "for a given student and course there is a single grade", which is the composite key `(sid, cid)`.
+
+```sql
+CREATE TABLE Enrolled
+  (sid   CHAR(20),
+   cid   CHAR(20),
+   grade CHAR(2),
+   PRIMARY KEY(sid, cid))
+```
+
+A wrong key states a different rule. Declaring `PRIMARY KEY(sid)` with `UNIQUE(cid, grade)` instead means "each student takes only one course, and no two students in a course get the same grade". A key is a constraint, not a label, so it must match the intended meaning.
+
+A foreign key acts as a logical pointer from one relation into another. *Enrolled.sid* references *Students.sid*, so every enrolled student must exist in *Students*.
+
+<Split cols="1.1fr 0.9fr" align="start">
+<Pane>
+
+| sid | name | login | age | gpa |
+|---|---|---|---|---|
+| 50000 | Dave | dave@cs | 19 | 3.3 |
+| 53666 | Jones | jones@cs | 18 | 3.4 |
+| 53688 | Smith | smit@ee | 18 | 3.2 |
+
+</Pane>
+<Pane>
+
+| cid | sid | grade |
+|---|---|---|
+| Carnatic101 | 53666 | C |
+| Reggae203 | 50000 | B |
+| Topology112 | 53666 | A |
+
+</Pane>
+</Split>
+
+When a modification threatens referential integrity, the DBMS must react. Inserting an *Enrolled* tuple with a non-existent `sid` is rejected. Deleting a referenced *Students* tuple, or updating its primary key, offers a choice of policy: cascade the change to all referencing tuples, disallow it, set the referencing `sid` to a default, or set it to `NULL`.
+
+## Relational Query Languages
+
+Before SQL, two mathematical languages define what querying a relational database means. They give the model its formal power and the room for optimization.
+
+**Query language (QL).** A language for retrieving and manipulating data. Unlike a general programming language, a QL is not Turing-complete: it is built for efficient access to large data sets, not arbitrary computation.
+
+A query is applied to relation instances, and its result is again a relation instance. The schemas of the inputs are fixed, and the language constructs determine the schema of the result, so a query can be type-checked before it ever runs. Two notations appear in practice: *positional* (convenient for formal definitions) and *named-field* (more readable); SQL uses both.
+
+Two formal QLs sit underneath SQL, differing in what they let you say.
+
+**Relational algebra.** An *operational* language: it says *how* to compute a result, step by step. This makes it the natural way to describe execution plans inside a database engine.
+
+**Relational calculus.** A *declarative* language: it says *what* the result should be, not how to obtain it.
+
+**Codd's theorem.** Relational algebra and relational calculus have equal expressive power: every query in one has an equivalent query in the other.
+
+Relational algebra examples use a university database. Key attributes are underlined.
+
+| Relation | Schema |
+|---|---|
+| instructor | <u>ID</u>, name, dept_name, salary |
+| course | <u>course_id</u>, title, dept_name, credits |
+| teaches | <u>ID</u>, <u>course_id</u>, <u>sec_id</u>, <u>semester</u>, <u>year</u> |
+| student | <u>ID</u>, name, dept_name, tot_cred |
+| takes | <u>ID</u>, <u>course_id</u>, <u>sec_id</u>, semester, year, grade |
+
+The operator examples use this *instructor* instance.
+
+| ID | name | dept_name | salary |
+|---|---|---|---|
+| 22222 | Einstein | Physics | 95000 |
+| 12121 | Wu | Finance | 90000 |
+| 32343 | El Said | History | 60000 |
+| 45565 | Katz | Comp. Sci. | 75000 |
+| 98345 | Kim | Elec. Eng. | 80000 |
+| 76766 | Crick | Biology | 72000 |
+| 10101 | Srinivasan | Comp. Sci. | 65000 |
+| 58583 | Califieri | History | 62000 |
+| 83821 | Brandt | Comp. Sci. | 92000 |
+| 15151 | Mozart | Music | 40000 |
+| 33456 | Gold | Physics | 87000 |
+| 76543 | Singh | Finance | 80000 |
+
+## The Five Basic Operators
+
+Relational algebra is built from five primitive operators. Because each one takes relations and returns a relation, they compose freely: the output of any operator can be the input of the next. They split into two unary operators that reshape a single relation and three binary operators that combine two.
+
+The unary operators filter along the two axes of a table. **Selection** ($\sigma$) keeps a subset of *rows*; **projection** ($\pi$) keeps a subset of *columns*. The binary operators combine relations: **cross-product** ($\times$) pairs every row of one with every row of the other, **set-difference** ($-$) keeps tuples of the first that are absent from the second, and **union** ($\cup$) keeps tuples in either.
+
+### Selection
+
+**Selection ($\sigma$).** Outputs exactly the rows satisfying a condition; the output schema equals the input schema.
+
+$$
+\sigma_{\text{condition}}(\textit{relation})
+$$
+
+With no condition, $\sigma(\textit{instructor})$ returns every row unchanged, matching `SELECT * FROM instructor`. A single condition filters rows, and conditions combine with $\wedge$ (and), $\vee$ (or), and $\neg$ (not).
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+$$
+\sigma_{\textit{dept\_name} = \text{"Physics"}}(\textit{instructor})
+$$
+
+```sql
+SELECT * FROM instructor
+WHERE dept_name = 'Physics'
+```
+
+| ID | name | dept_name | salary |
+|---|---|---|---|
+| 22222 | Einstein | Physics | 95000 |
+| 33456 | Gold | Physics | 87000 |
+
+</Pane>
+<Pane>
+
+$$
+\sigma_{\textit{dept\_name} = \text{"Physics"} \,\wedge\, \textit{salary} > 90000}(\textit{instructor})
+$$
+
+```sql
+SELECT * FROM instructor
+WHERE dept_name = 'Physics' AND salary > 90000
+```
+
+| ID | name | dept_name | salary |
+|---|---|---|---|
+| 22222 | Einstein | Physics | 95000 |
+
+</Pane>
+</Split>
+
+### Projection
+
+**Projection ($\pi$).** Keeps only the attributes in the projection list; the output schema is exactly those attributes.
+
+$$
+\pi_{\text{attribute list}}(\textit{relation})
+$$
+
+The result of $\pi_{\textit{ID, name, salary}}(\textit{instructor})$ has three columns instead of four, but all 12 rows survive because each remains distinct. The subtlety appears when projecting away the distinguishing columns: because the result must be a set, projection **eliminates duplicates**.
+
+$$
+\pi_{\textit{dept\_name}}(\textit{instructor})
+$$
+
+This reduces 12 rows to 7 distinct department names. SQL keeps duplicates by default, so matching the algebra requires `SELECT DISTINCT`:
+
+```sql
+SELECT DISTINCT dept_name FROM instructor
+```
+
+Selection and projection compose to pull specific columns from filtered rows. Order matters: $\sigma$ must run first while the selecting column is still present.
+
+$$
+\pi_{\textit{name}}\!\left(\sigma_{\textit{dept\_name} = \text{"Physics"}}(\textit{instructor})\right)
+$$
+
+```sql
+SELECT name FROM instructor WHERE dept_name = 'Physics'
+```
+
+| name |
+|---|
+| Einstein |
+| Gold |
+
+### Rename
+
+**Rename ($\rho$).** Renames a relation or its attributes, leaving the tuples untouched. Algebraic expressions can produce unnamed intermediate relations, so renaming is what avoids naming clashes and lets a relation be joined with itself.
+
+The form is $\text{oldname} \rightarrow \text{newname}$ (or $\text{position} \rightarrow \text{newname}$) for attributes, and a single new name for the whole relation. The output schema matches the input except for the renamed attributes, and the output instance is identical.
+
+$$
+\rho_{i}(\textit{instructor})
+\qquad
+\rho_{ID \rightarrow \textit{instructor.ID}}(\textit{instructor})
+$$
+
+In SQL this is the `AS` keyword in the `SELECT` or `FROM` clause:
+
+```sql
+SELECT i.name FROM instructor AS i WHERE i.ID = ...
+```
+
+### Union and Set-Difference
+
+The two set operators require their inputs to line up. Call two relations **union-compatible** when they have the same number of fields and corresponding fields share the same type.
+
+**Union ($\cup$).** Outputs the tuples in either input. Like projection, strict relational algebra eliminates duplicates.
+
+**Set-difference ($-$).** Outputs the tuples of the first input that are absent from the second. It needs union-compatible inputs and is *not* commutative: $c1 - c2 \neq c2 - c1$.
+
+In SQL these are `UNION` (with `UNION ALL` keeping duplicates and running faster) and `EXCEPT`:
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+```sql
+(SELECT * FROM c1)
+UNION
+(SELECT * FROM c2)
+```
+
+</Pane>
+<Pane>
+
+```sql
+(SELECT * FROM c1)
+EXCEPT
+(SELECT * FROM c2)
+```
+
+</Pane>
+</Split>
+
+## Compound Operators
+
+The five basic operators are complete: every query expressible in relational algebra uses only them. The compound operators add **no computational power**, since each rewrites into the basic five, but they are common enough to deserve their own notation.
+
+**Intersection ($\cap$).** Outputs the tuples shared by two union-compatible relations.
+
+$$
+R \cap S = R - (R - S)
+$$
+
+```sql
+(SELECT * FROM c1) INTERSECT (SELECT * FROM c2)
+```
+
+### Cross-Product and Join
+
+**Cross-product ($\times$).** Pairs every row of $S$ with every row of $R$. The result schema has one field per field of $S$ and $R$; when both share a field name, $\rho$ disambiguates them.
+
+$$
+\textit{instructor} \times \textit{teaches}
+$$
+
+A bare cross-product is rarely what we want: it pairs every instructor with every *teaches* row, including courses they never taught. The useful rows are kept by a selection on the matching identifier.
+
+$$
+\sigma_{\textit{instructor.id} = \textit{teaches.id}}(\textit{instructor} \times \textit{teaches})
+$$
+
+This pattern, a selection right after a cross-product, is so common that it earns its own operator.
+
+**Join ($\bowtie$).** A cross-product followed by a selection on a matching condition.
+
+$$
+\textit{instructor} \bowtie_{\textit{instructor.id} = \textit{teaches.id}} \textit{teaches}
+$$
+
+When the matched columns share a name in both relations, the condition can be dropped; this is a **natural join**. In SQL a join is written explicitly:
+
+```sql
+SELECT * FROM instructor
+JOIN teaches ON instructor.ID = teaches.ID
+```
+
+## Query Trees and Optimization
+
+Because operators compose, any relational-algebra query is an expression, and an expression is a tree: leaves are relations, internal nodes are operators, and edges feed each result upward. A single query can have many equivalent trees that all compute the same answer at different costs, which is exactly what a query optimizer exploits.
+
+Consider: *find the names of all instructors in the Music department together with the title of every course they teach.* It touches three relations and joins them before projecting the two wanted columns. Two equivalent formulations differ only in where the selection sits.
+
+$$
+\pi_{\textit{name, title}}\!\left(\sigma_{\textit{dept\_name} = \text{"Music"}}\!\left(\textit{instructor} \bowtie (\textit{teaches} \bowtie \pi_{\textit{course\_id, title}}(\textit{course}))\right)\right)
+$$
+
+$$
+\pi_{\textit{name, title}}\!\left(\left(\sigma_{\textit{dept\_name} = \text{"Music"}}(\textit{instructor})\right) \bowtie \left(\textit{teaches} \bowtie \pi_{\textit{course\_id, title}}(\textit{course}))\right)\right)
+$$
+
+The first joins all three relations and only then filters; the second pushes the selection down onto *instructor* before the join. Both return the same result, but the second is far cheaper, because the expensive join then operates on a tiny filtered relation instead of the full table. The two trees show the move: the highlighted $\sigma$ is the same operator, relocated.
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+<QueryTree
+  title="Initial"
+  caption="(a) Initial: σ applied after joining all three relations, so every joined tuple is processed."
+  nodes={[
+    { id: "pi", op: "project", sub: "name, title" },
+    { id: "sigma", op: "select", sub: 'dept_name = "Music"', state: "highlight" },
+    { id: "join1", op: "join" },
+    { id: "instructor", relation: "instructor" },
+    { id: "join2", op: "join" },
+    { id: "teaches", relation: "teaches" },
+    { id: "picourse", op: "project", sub: "course_id, title" },
+    { id: "course", relation: "course" },
+  ]}
+  links={[
+    { parent: "pi", child: "sigma" },
+    { parent: "sigma", child: "join1" },
+    { parent: "join1", child: "instructor" },
+    { parent: "join1", child: "join2" },
+    { parent: "join2", child: "teaches" },
+    { parent: "join2", child: "picourse" },
+    { parent: "picourse", child: "course" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+<QueryTree
+  title="Optimized"
+  caption="(b) Optimized: σ pushed down to filter instructor before the join, so far fewer tuples flow upward."
+  nodes={[
+    { id: "pi", op: "project", sub: "name, title" },
+    { id: "join1", op: "join" },
+    { id: "sigma", op: "select", sub: 'dept_name = "Music"', state: "highlight" },
+    { id: "join2", op: "join" },
+    { id: "instructor", relation: "instructor" },
+    { id: "teaches", relation: "teaches" },
+    { id: "picourse", op: "project", sub: "course_id, title" },
+    { id: "course", relation: "course" },
+  ]}
+  links={[
+    { parent: "pi", child: "join1" },
+    { parent: "join1", child: "sigma" },
+    { parent: "join1", child: "join2" },
+    { parent: "sigma", child: "instructor" },
+    { parent: "join2", child: "teaches" },
+    { parent: "join2", child: "picourse" },
+    { parent: "picourse", child: "course" },
+  ]}
+/>
+
+</Pane>
+</Split>
+
+The DBMS query optimizer performs exactly this kind of rewrite automatically, pushing selections down and reordering joins, to find an efficient execution plan among the equivalent trees.
+
+## Division
+
+One more compound operator answers "for all" questions, such as *find every supplier that supplies every part*. These are awkward with the basic operators alone, which is why division exists as shorthand.
+
+**Division ($A / B$).** Given $A(x, y)$ and $B(y)$, the result $A / B$ is every value of $x$ such that for *every* tuple $b$ in $B$, the pair $(x, b)$ appears in $A$.
+
+The behaviour is easiest to see by varying the divisor. With $A(\textit{sno}, \textit{pno})$ on the left and three nested divisors $B_1 \subseteq B_2 \subseteq B_3$, the result shrinks as $B$ grows: more required parts means fewer suppliers qualify.
+
+<Split cols="0.5fr 1.5fr" align="start">
+<Pane>
+
+| sno | pno |
+|---|---|
+| s1 | p1 |
+| s1 | p2 |
+| s1 | p3 |
+| s1 | p4 |
+| s2 | p1 |
+| s2 | p2 |
+| s3 | p2 |
+| s4 | p2 |
+| s4 | p4 |
+
+</Pane>
+<Pane>
+
+| Divisor $B$ | $A / B$ |
+|---|---|
+| $\{\text{p2}\}$ | $\{\text{s1, s2, s3, s4}\}$ |
+| $\{\text{p2, p4}\}$ | $\{\text{s1, s4}\}$ |
+| $\{\text{p1, p2, p4}\}$ | $\{\text{s1}\}$ |
+
+Only suppliers carrying *every* part in $B$ survive. As $B$ accumulates parts, the qualifying set contracts to the single supplier s1, who stocks them all.
+
+</Pane>
+</Split>
+
+Division is not primitive: it rewrites using only $\pi$, $\times$, and $-$. The idea is to compute every $x$ that is *not* disqualified, where an $x$ is disqualified if pairing it with some $y \in B$ produces a tuple missing from $A$.
+
+$$
+A / B \;=\; \pi_x(A) \;-\; \pi_x\!\left((\pi_x(A) \times B) - A\right)
+$$
+
+**Example 2. Tracing the rewrite with $B_3 = \{\text{p1, p2, p4}\}$.**
+
+*$\pi_{\textit{sno}}(A) = \{\text{s1, s2, s3, s4}\}$ lists the candidate suppliers, and $\pi_{\textit{sno}}(A) \times B_3$ forms all $4 \times 3 = 12$ required pairs. Subtracting $A$ leaves only the missing pairs $(\text{s2, p4}), (\text{s3, p1}), (\text{s3, p4}), (\text{s4, p1})$, whose suppliers $\{\text{s2, s3, s4}\}$ are disqualified. Removing them gives $\{\text{s1, s2, s3, s4}\} - \{\text{s2, s3, s4}\} = \{\text{s1}\}$.*

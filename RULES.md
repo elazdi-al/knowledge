@@ -13,11 +13,17 @@ These rules describe the preferred style for course notes in this workspace.
 
 - Write notes as a logical path, not as a list of disconnected definitions.
 - Introduce each concept exactly when it becomes needed.
+- Define the main object before the first full worked example that uses it.
 - Keep a clear conductor line: each paragraph should make the next definition or diagram feel natural.
 - Do not make examples into top-level sections. Examples should be compact blocks inside the relevant conceptual section, introduced with bold labels like `**Example 1. ...**`.
 - Use few sections. Prefer fewer strong headings over many small headings.
 - Skip administration, motivation fluff, and broad context unless it helps understand the technical content.
+- Body prose should not mention the lecture, slides, course logistics, or what "this note covers".
+- Frontmatter titles may keep the source sequence name, such as `Data Intensive Systems: Lecture 1`.
+- Do not write announcement sentences like "the rest of this lecture", "we will reuse", "the examples below", or "this section covers". Start with the concept or the object being used.
+- Remove bridge sentences that only state an obvious structure, such as "this has two aspects" when the next two definitions already show those aspects.
 - Do not add study checklists, recap sections, summary sections, or final review lists.
+- Do not use callout components in notes. If the content is important, write it as normal prose, a definition, or a compact list.
 
 ## Concept Blocks
 
@@ -38,8 +44,10 @@ These rules describe the preferred style for course notes in this workspace.
 - Define concepts in the form: `**Concept.** Clear definition.`
 - Keep definitions precise, short, and study-ready.
 - Define a concept once. Later sections should refer back to it or map notation to it, not define it again.
+- Do not split one concept into separate "formal" and "diagram" concepts. If both views describe the same object, introduce them together and say they are the same object in two forms.
 - Avoid duplicate diagrams or duplicate examples unless they add new information.
 - Do not repeat a definition if the previous sentence already states the same fact.
+- Do not add property bullets that merely restate the definition. Let the definition sentence carry the core idea, and reserve bullets for distinct formal components or invariants.
 - Do not add obvious examples. For instance, do not write an example that simply repeats the alphabet just stated above.
 - State edge cases when they matter, such as $\epsilon$ being accepted when the start state is accepting.
 
@@ -48,6 +56,7 @@ These rules describe the preferred style for course notes in this workspace.
 - Use simple, clear English with an academic tone.
 - Add useful verbosity only when it explains why a concept matters or how it connects to the next one.
 - Remove useless verbosity, filler, and slide-narration language.
+- Prefer direct technical statements over motivational framing.
 - Avoid em dashes.
 - Avoid overly casual phrasing, but allow a little interest and movement in the prose.
 - Prefer exact sentences over vague summaries.
@@ -57,6 +66,7 @@ These rules describe the preferred style for course notes in this workspace.
 - Format examples in italics.
 - Keep examples close to the concept they clarify.
 - Use examples to test or distinguish concepts, not to restate what was already obvious.
+- If an inline example makes a definition or property visually crowded, put the example on the next line as a short continuation paragraph.
 - If an example spans multiple lines, put the bold example title on its own line and begin the description in the next paragraph.
 - When showing accepted and rejected strings, include both sides if it improves study value.
 
@@ -68,14 +78,17 @@ These rules describe the preferred style for course notes in this workspace.
 - For automata, show start states, accepting states, and transitions in the standard visual form.
 - Prefer transition tables when they make the transition function easier to study.
 - For operations or constructions, use a uniform rhythm: definition, construction idea, then a compact visual example.
-- When an operation is introduced, include a clear visual example unless it would repeat a visual already serving the same purpose.
+- Use diagrams only when they reduce cognitive load. For trivial finite-language operations, a set equation or small table is often clearer than a graph.
+- When an operation is introduced, include a visual example only if it adds information beyond the definition, equation, or table.
 
 ## Math and Formalism
 
 - Introduce formal notation after the intuition is clear.
 - Use displayed equations for central definitions.
-- Keep notation consistent with the lecture source unless there is a good reason to rename it.
+- Keep notation consistent with the source material unless there is a good reason to rename it.
 - When a diagram and a tuple describe the same object, say so explicitly.
+- For formal proofs, use visible numbered step labels when the method matters: `**1. Claim.**`, `**2. Base case.**`, `**3. Inductive step.**`, `**4. Conclusion.**`.
+- In DFA correctness proofs, prefer a state characterization that gives every state a meaning. Prove the characterization first, then derive the accepted language from the accepting states.
 
 ## Tags and Frontmatter
 

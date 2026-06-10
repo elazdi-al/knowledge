@@ -21,3 +21,10 @@ next-env.d.ts
 
 # logs
 *.log
+
+# local diagram previews
+preview-*.html
+preview-*.png
+crop-*.png
+_slices/
+_shots/
