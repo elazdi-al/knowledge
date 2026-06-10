@@ -25,7 +25,9 @@ export async function generateMetadata({
   const note = await getNoteBySlug(slug.join("/"));
   if (!note) return {};
   return {
-    title: note.frontmatter.title,
+    // `absolute` bypasses the "%s · knowledge" template so note tabs show just
+    // the note title.
+    title: { absolute: note.frontmatter.title },
     description: note.frontmatter.description,
   };
 }
