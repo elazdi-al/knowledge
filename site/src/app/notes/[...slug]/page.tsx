@@ -53,7 +53,7 @@ export default async function NotePage({
     .join("\n\n");
 
   return (
-    <article className="flex flex-col">
+    <article className="flex min-w-0 flex-col">
       <header className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-[color:var(--color-text)] text-[1.5rem] font-medium tracking-[-0.025em] leading-[1.2] mb-2">
@@ -76,7 +76,7 @@ export default async function NotePage({
         )}
       </header>
 
-      <div className="prose">
+      <div className="prose min-w-0">
         {content}
       </div>
       <KatexAutoFit />

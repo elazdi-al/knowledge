@@ -1,0 +1,645 @@
+---
+title: "Data Intensive Systems: Lecture 5"
+description: "B+ trees in depth: node structure and fan-out, search, insertion with leaf and internal splits, deletion with redistribution and merging, range scans over clustered vs unclustered data, and latch crabbing."
+tags: ["Data intensive systems"]
+created: 2026-06-09
+updated: 2026-06-09
+---
+
+## Access Methods
+
+The execution engine reads and writes whole pages. To avoid scanning every page for every query, a DBMS adds **access methods**: physical data structures that lead it to the right page or record quickly. The two main families are hash-based indexes and tree-based indexes.
+
+**Hash-based index.** Uses a hash function $h(k)$ to send a search-key value to one bucket. Because buckets are not ordered by key, hashing is best for equality search and poor at ranges.
+
+**Tree-based index.** Keeps entries in sorted search-key order, so it answers both equality and range predicates. The standard disk-oriented form is the $B^+$-tree.
+
+| Structure | Best at | Main limitation |
+|---|---|---|
+| Hash index | equality, such as `age = 44` | no order, so ranges are poor |
+| $B^+$-tree | equality, ranges, ordered scans | small overhead for pure equality |
+
+Whatever the technique, the index must say how to reach the underlying record. That payload is the data entry.
+
+**Data entry ($k^*$).** The information stored in the index for a search-key value $k$. It tells the DBMS how to reach the matching record or records. There are three classic forms, and the choice is orthogonal to whether the index is a hash or a tree.
+
+| Alt. | Form of entry | Meaning |
+|---|---|---|
+| 1 | the data record itself | the index and the data file are the same structure, so no extra jump is needed |
+| 2 | $\langle k, \text{RID} \rangle$ | one key and one pointer per matching record; works even with duplicate keys |
+| 3 | $\langle k, \text{RID list} \rangle$ | one key and a list of pointers; compact when many records share a key |
+
+Alternatives 2 and 3 cost less to maintain than Alternative 1, and a file with several indexes can give only **one** of them Alternative 1, because the data can be physically organized only one way at a time. Alternative 3 saves space under heavy duplication, but its entries become variable-sized: one long RID list can spread a single entry across several pages.
+
+**Example 1. Two access paths over one file.**
+
+*An employee file is hashed on `age`, so its buckets hold the actual records: this is Alternative 1. A second index on `salary` should not duplicate those records, so it stores $\langle \texttt{salary}, \text{RID}\rangle$ pairs or $\langle \texttt{salary}, \text{RID list}\rangle$ entries instead.*
+
+## Why Ordered Trees
+
+Consider a range query:
+
+```sql
+SELECT *
+FROM Student
+WHERE gpa > 3.0
+```
+
+If the file were physically sorted on `gpa`, the DBMS could binary-search to the first match and then scan forward. The catch is that keeping the whole relation sorted is expensive: every insert and delete disturbs the order. The fix is to sort a smaller **index file** instead of the data, search the index first, and follow it to the data pages. Keeping the index ordered rather than the relation is exactly the idea behind the $B^+$-tree.
+
+**$B^+$-tree.** A self-balancing, ordered, page-based tree. Search, insertion, deletion, and sequential access all run in $O(\log_F N)$, where $F$ is the fan-out and $N$ is the number of leaves.
+
+**Fan-out.** The maximum number of child pointers an internal node can hold. Large fan-out is what keeps a disk-based tree shallow: one node is one page, each internal page packs many separator keys and pointers, and all leaves are chained in sorted order for range scans.
+
+A $B^+$-tree is an $n$-way search tree, and its shape is pinned down by a few invariants.
+
+- **Balanced.** Every leaf is at the same depth.
+- **Minimum occupancy.** Every node except the root is at least half full.
+- **Inner node.** Has between $\lceil n/2 \rceil$ and $n$ children; a node with $k$ children holds $k-1$ separator keys.
+- **Leaf node.** Holds between $\lceil (n-1)/2 \rceil$ and $n-1$ keys.
+- **Root exception.** The root alone may hold fewer entries than an ordinary internal node.
+
+Internal nodes store only separator keys and child pointers; leaves store the actual data entries and are connected left to right by sibling pointers. The tree decides *how to find* an entry; the chosen alternative decides *what the entry contains*.
+
+<BPlusTree
+  caption="Internal nodes route by separator keys; leaf links preserve key order for range scans."
+  roles={[
+    { level: 0, label: "root node" },
+    { level: 1, label: "inner nodes" },
+    { level: 2, label: "leaf nodes" },
+  ]}
+  nodes={[
+    { id: "root", keys: [20] },
+    { id: "li", keys: [10] },
+    { id: "ri", keys: [35] },
+    { id: "l1", keys: [6] },
+    { id: "l2", keys: [10] },
+    { id: "l3", keys: [20, 31] },
+    { id: "l4", keys: [38, 44] },
+  ]}
+  links={[
+    { parent: "root", child: "li", label: "< 20" },
+    { parent: "root", child: "ri", label: "≥ 20" },
+    { parent: "li", child: "l1", label: "< 10" },
+    { parent: "li", child: "l2", label: "≥ 10" },
+    { parent: "ri", child: "l3", label: "< 35" },
+    { parent: "ri", child: "l4", label: "≥ 35" },
+  ]}
+/>
+
+## Search
+
+Search always starts at the root. At each internal node, key comparisons select one child pointer, and the descent stops at a leaf. The leaf then settles the query: the key is present, the key is absent (it would have to sit between two stored neighbors), or it is the first of a range that the sibling pointers continue.
+
+<Split cols="1.25fr 0.75fr" align="center">
+<Pane>
+
+<BPlusTree
+  caption="Exact search stops in one leaf; range search continues through sibling pointers."
+  nodes={[
+    { id: "root", keys: [13, 17, 24, 30] },
+    { id: "l1", keys: [2, 3, 5, 7] },
+    { id: "l2", keys: [14, 16] },
+    { id: "l3", keys: [19, 20, 22] },
+    { id: "l4", keys: [24, 27, 29] },
+    { id: "l5", keys: [33, 34, 38, 39] },
+  ]}
+  links={[
+    { parent: "root", child: "l1" },
+    { parent: "root", child: "l2" },
+    { parent: "root", child: "l3" },
+    { parent: "root", child: "l4" },
+    { parent: "root", child: "l5" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+| Query | Leaf reached | Outcome |
+|---|---|---|
+| `find 5` | $[2,3,5,7]$ | present |
+| `find 15` | $[14,16]$ | absent: it would sit between 14 and 16 |
+| keys $\geq 24$ | $[24,27,29]$ | first match, then follow sibling links right |
+
+Equality search descends to one leaf and checks it. Range search descends once, then scans leaf pages in order.
+
+</Pane>
+</Split>
+
+## Insertion
+
+**Leaf split.** When the target leaf is full, the DBMS allocates a new leaf, redistributes the entries evenly, and inserts a separator into the parent. If the parent also overflows, the split propagates upward.
+
+**Example 2. Insert 8.**
+
+*The search reaches the first leaf because $8 < 13$, but $[2,3,5,7]$ is full. A new leaf is allocated, the values are split into $[2,3]$ and $[5,7,8]$, and separator $5$ (the new right leaf's first key) is copied into the parent. The parent has room, so the insertion stops there.*
+
+<BPlusTree
+  title="Before"
+  nodes={[
+    { id: "r0", keys: [13, 17, 24] },
+    { id: "a0", keys: [2, 3, 5, 7], state: "full", note: "target leaf is full" },
+    { id: "b0", keys: [14, 16] },
+    { id: "c0", keys: [19, 20, 22, 23] },
+    { id: "d0", keys: [24, 27, 29] },
+  ]}
+  links={[
+    { parent: "r0", child: "a0" },
+    { parent: "r0", child: "b0" },
+    { parent: "r0", child: "c0" },
+    { parent: "r0", child: "d0" },
+  ]}
+/>
+
+<BPlusTree
+  title="After"
+  nodes={[
+    { id: "r1", keys: [5, 13, 17, 24] },
+    { id: "a1", keys: [2, 3] },
+    { id: "b1", keys: [5, 7, 8], state: "new", note: "new right leaf" },
+    { id: "c1", keys: [14, 16] },
+    { id: "d1", keys: [19, 20, 22, 23] },
+    { id: "e1", keys: [24, 27, 29] },
+  ]}
+  links={[
+    { parent: "r1", child: "a1" },
+    { parent: "r1", child: "b1" },
+    { parent: "r1", child: "c1" },
+    { parent: "r1", child: "d1" },
+    { parent: "r1", child: "e1" },
+  ]}
+  promote={[{ from: "b1", to: "r1", label: "copy up 5", side: "right" }]}
+/>
+
+**Root split.** When an insertion reaches an overflowing root, the DBMS splits it and creates a new root above. This is the only case where the height of a $B^+$-tree grows.
+
+Leaf splits and internal splits move keys upward in different ways, and this distinction is worth holding onto.
+
+| Case | What moves up | Reason |
+|---|---|---|
+| Leaf split | separator is **copied up** | the leaf stores real data entries, so the key must stay; the parent only needs a routing copy |
+| Internal split | middle separator is **pushed up** | internal keys are pure routing, so the promoted separator appears once, only in the parent |
+
+The rule to remember is short: a leaf split **copies up**, an internal split **pushes up**.
+
+**Example 3. Insert 21 and split to the root.**
+
+*Inserting $21$ into the full leaf $[19,20,22,23]$ splits it into $[19,20]$ and $[21,22,23]$, copying $21$ into the parent. The parent now overflows, so an internal split pushes $17$ up into a brand-new root. The tree is one level taller.*
+
+<BPlusTree
+  title="Before inserting 21"
+  nodes={[
+    { id: "r0", keys: [5, 13, 17, 24] },
+    { id: "a0", keys: [2, 3] },
+    { id: "b0", keys: [5, 7, 8] },
+    { id: "c0", keys: [14, 16] },
+    { id: "d0", keys: [19, 20, 22, 23], state: "full", note: "target leaf is full" },
+    { id: "e0", keys: [24, 27, 29] },
+  ]}
+  links={[
+    { parent: "r0", child: "a0" },
+    { parent: "r0", child: "b0" },
+    { parent: "r0", child: "c0" },
+    { parent: "r0", child: "d0" },
+    { parent: "r0", child: "e0" },
+  ]}
+/>
+
+<BPlusTree
+  title="After split propagation"
+  nodes={[
+    { id: "r1", keys: [17] },
+    { id: "i1", keys: [5, 13] },
+    { id: "i2", keys: [21, 24] },
+    { id: "a1", keys: [2, 3] },
+    { id: "b1", keys: [5, 7, 8] },
+    { id: "c1", keys: [14, 16] },
+    { id: "d1", keys: [19, 20] },
+    { id: "e1", keys: [21, 22, 23], state: "new", note: "new leaf" },
+    { id: "f1", keys: [24, 27, 29] },
+  ]}
+  links={[
+    { parent: "r1", child: "i1" },
+    { parent: "r1", child: "i2" },
+    { parent: "i1", child: "a1" },
+    { parent: "i1", child: "b1" },
+    { parent: "i1", child: "c1" },
+    { parent: "i2", child: "d1" },
+    { parent: "i2", child: "e1" },
+    { parent: "i2", child: "f1" },
+  ]}
+  promote={[
+    { from: "e1", to: "i2", label: "copy up 21", side: "right" },
+    { from: "i1", to: "r1", label: "push up 17", side: "left" },
+  ]}
+/>
+
+Redistributing entries differently could sometimes delay a root split, but most implementations use the local split rule because it is predictable and has low maintenance cost. The recurring lesson is that insertions begin locally at one leaf, yet their structural effect may travel all the way up.
+
+**Example 4. Insert 28, 6, and 25.**
+
+*Inserting $28$ fits the rightmost leaf with no split. Inserting $6$ overflows $[5,7,8,11]$ into $[5,6]$ and $[7,8,11]$, copying $7$ up. Inserting $25$ overflows $[21,22,23,28]$ into $[21,22]$ and $[23,25,28]$, copying $23$ up; the parent then overflows and an internal split pushes $13$ up, giving the final two-level tree.*
+
+<BPlusTree
+  caption="Final tree after inserting 28, 6, and 25; one local overflow forced an internal split."
+  nodes={[
+    { id: "root", keys: [13, 30] },
+    { id: "li", keys: [5, 7] },
+    { id: "ri", keys: [20, 23] },
+    { id: "l1", keys: [2, 3] },
+    { id: "l2", keys: [5, 6] },
+    { id: "l3", keys: [7, 8, 11] },
+    { id: "l4", keys: [14, 16] },
+    { id: "l5", keys: [21, 22] },
+    { id: "l6", keys: [23, 25, 28] },
+  ]}
+  links={[
+    { parent: "root", child: "li" },
+    { parent: "root", child: "ri" },
+    { parent: "li", child: "l1" },
+    { parent: "li", child: "l2" },
+    { parent: "li", child: "l3" },
+    { parent: "ri", child: "l4" },
+    { parent: "ri", child: "l5" },
+    { parent: "ri", child: "l6" },
+  ]}
+/>
+
+## Deletion
+
+**Deletion.** Remove a key from its leaf. If the leaf still meets the minimum-occupancy rule, the work is done. Otherwise the tree rebalances by redistribution or merge.
+
+The standard pattern descends to the leaf $L$ holding the entry and removes it. If $L$ is still at least half full, stop. If not, try **redistribution**: borrow an entry from a sibling under the same parent. If no sibling can spare one, **merge** $L$ with a sibling and delete the corresponding separator from the parent. An underflowing parent triggers the same logic one level up, and if the root is left with a single child, that root is removed and the tree shrinks by one level.
+
+**Example 5. Delete 19, then 20.**
+
+*Removing $19$ leaves $[20,22]$, which is legal. Removing $20$ leaves $[22]$, which underflows, so the leaf borrows from its right sibling $[24,27,29]$: the boundary shifts to give $[22,24]$ and $[27,29]$, and the parent separator updates from $24$ to $27$. A leaf-level boundary key is copied up, because leaves keep the actual entries.*
+
+<BPlusTree
+  title="After deleting 19"
+  nodes={[
+    { id: "r0", keys: [17] },
+    { id: "i0l", keys: [5, 13] },
+    { id: "i0r", keys: [24, 30] },
+    { id: "a0", keys: [2, 3] },
+    { id: "b0", keys: [5, 7, 8] },
+    { id: "c0", keys: [14, 16] },
+    { id: "d0", keys: [20, 22] },
+    { id: "e0", keys: [24, 27, 29] },
+    { id: "f0", keys: [33, 34, 38, 39] },
+  ]}
+  links={[
+    { parent: "r0", child: "i0l" },
+    { parent: "r0", child: "i0r" },
+    { parent: "i0l", child: "a0" },
+    { parent: "i0l", child: "b0" },
+    { parent: "i0l", child: "c0" },
+    { parent: "i0r", child: "d0" },
+    { parent: "i0r", child: "e0" },
+    { parent: "i0r", child: "f0" },
+  ]}
+/>
+
+<BPlusTree
+  title="After deleting 20 and redistributing"
+  nodes={[
+    { id: "r1", keys: [17] },
+    { id: "i1l", keys: [5, 13] },
+    { id: "i1r", keys: [27, 30] },
+    { id: "a1", keys: [2, 3] },
+    { id: "b1", keys: [5, 7, 8] },
+    { id: "c1", keys: [14, 16] },
+    { id: "d1", keys: [22, 24] },
+    { id: "e1", keys: [27, 29] },
+    { id: "f1", keys: [33, 34, 38, 39] },
+  ]}
+  links={[
+    { parent: "r1", child: "i1l" },
+    { parent: "r1", child: "i1r" },
+    { parent: "i1l", child: "a1" },
+    { parent: "i1l", child: "b1" },
+    { parent: "i1l", child: "c1" },
+    { parent: "i1r", child: "d1" },
+    { parent: "i1r", child: "e1" },
+    { parent: "i1r", child: "f1" },
+  ]}
+/>
+
+**Example 6. Delete 24 and shrink the tree.**
+
+*Removing $24$ turns $[22,24]$ into $[22]$. Its sibling $[27,29]$ is already at minimum, so borrowing fails and the two merge into $[22,27,29]$. The parent loses a separator and underflows, so the merge propagates up, the old root is removed, and the tree height drops by one. Deletion can do the opposite of insertion: insertion may raise the height, deletion may lower it.*
+
+<BPlusTree
+  title="Before deleting 24"
+  nodes={[
+    { id: "r0", keys: [17] },
+    { id: "i0l", keys: [5, 13] },
+    { id: "i0r", keys: [27, 30] },
+    { id: "a0", keys: [2, 3] },
+    { id: "b0", keys: [5, 7, 8] },
+    { id: "c0", keys: [14, 16] },
+    { id: "d0", keys: [22, 24], state: "full", note: "underflows after delete" },
+    { id: "e0", keys: [27, 29] },
+    { id: "f0", keys: [33, 34, 38, 39] },
+  ]}
+  links={[
+    { parent: "r0", child: "i0l" },
+    { parent: "r0", child: "i0r" },
+    { parent: "i0l", child: "a0" },
+    { parent: "i0l", child: "b0" },
+    { parent: "i0l", child: "c0" },
+    { parent: "i0r", child: "d0" },
+    { parent: "i0r", child: "e0" },
+    { parent: "i0r", child: "f0" },
+  ]}
+/>
+
+<BPlusTree
+  title="After merge and tree shrink"
+  nodes={[
+    { id: "r1", keys: [5, 13, 17, 30] },
+    { id: "a1", keys: [2, 3] },
+    { id: "b1", keys: [5, 7, 8] },
+    { id: "c1", keys: [14, 16] },
+    { id: "d1", keys: [22, 27, 29], state: "new", note: "merged leaf" },
+    { id: "e1", keys: [33, 34, 38, 39] },
+  ]}
+  links={[
+    { parent: "r1", child: "a1" },
+    { parent: "r1", child: "b1" },
+    { parent: "r1", child: "c1" },
+    { parent: "r1", child: "d1" },
+    { parent: "r1", child: "e1" },
+  ]}
+/>
+
+Redistribution is not only for leaves; internal nodes can redistribute too, but the mechanics differ. At the non-leaf level the move goes **through the parent**: one separator from the parent drops into the underfull node, one separator from the fuller sibling rises into the parent, and the child pointer travels with that separator. It is a push-through-parent rotation, not a direct sideways shift.
+
+**Example 7. Non-leaf redistribution.**
+
+*The underfull internal node receives a separator pushed down from the parent, while a separator from the richer sibling is pushed up to replace it, carrying its child pointer along.*
+
+<BPlusTree
+  title="Before non-leaf redistribution"
+  nodes={[
+    { id: "r0", keys: [22] },
+    { id: "i0l", keys: [5, 13, 17, 20] },
+    { id: "i0r", keys: [27, 30] },
+    { id: "a0", keys: [2, 3] },
+    { id: "b0", keys: [5, 7, 8] },
+    { id: "c0", keys: [14, 16] },
+    { id: "d0", keys: [17, 18] },
+    { id: "e0", keys: [20, 21] },
+    { id: "f0", keys: [22, 24] },
+    { id: "g0", keys: [27, 29] },
+    { id: "h0", keys: [33, 34, 38, 39] },
+  ]}
+  links={[
+    { parent: "r0", child: "i0l" },
+    { parent: "r0", child: "i0r" },
+    { parent: "i0l", child: "a0" },
+    { parent: "i0l", child: "b0" },
+    { parent: "i0l", child: "c0" },
+    { parent: "i0l", child: "d0" },
+    { parent: "i0l", child: "e0" },
+    { parent: "i0r", child: "f0" },
+    { parent: "i0r", child: "g0" },
+    { parent: "i0r", child: "h0" },
+  ]}
+/>
+
+<BPlusTree
+  title="After pushing through the parent"
+  nodes={[
+    { id: "r1", keys: [17] },
+    { id: "i1l", keys: [5, 13] },
+    { id: "i1r", keys: [20, 22, 30] },
+    { id: "a1", keys: [2, 3] },
+    { id: "b1", keys: [5, 7, 8] },
+    { id: "c1", keys: [14, 16] },
+    { id: "d1", keys: [17, 18] },
+    { id: "e1", keys: [20, 21] },
+    { id: "f1", keys: [22, 27, 29] },
+    { id: "g1", keys: [33, 34, 38, 39] },
+  ]}
+  links={[
+    { parent: "r1", child: "i1l" },
+    { parent: "r1", child: "i1r" },
+    { parent: "i1l", child: "a1" },
+    { parent: "i1l", child: "b1" },
+    { parent: "i1l", child: "c1" },
+    { parent: "i1r", child: "d1" },
+    { parent: "i1r", child: "e1" },
+    { parent: "i1r", child: "f1" },
+    { parent: "i1r", child: "g1" },
+  ]}
+/>
+
+## Range Scans and Clustering
+
+A $B^+$-tree shines on ordered scans because the leaf chain already holds keys in order. To read many records in key order, the DBMS descends to the leftmost relevant leaf and then follows leaf links rightward. The traversal is identical regardless of how the data sits on disk; what changes is how leaf entries map to table pages.
+
+**Clustered index.** An index whose logical order matches the physical order of the table data, so nearby entries point to nearby records. The table is stored in the sort order of one chosen key, either heap-organized but kept in that order or index-organized with the rows in the leaves. Because a file has only one physical order, a table has at most one clustered organization.
+
+With a clustered index, consecutive leaf entries land on nearby table pages, so a scan reads data pages in mostly sequential order. With an unclustered index, consecutive entries point to tuples scattered across the file, so following the leaf order can trigger many random reads.
+
+<Split cols="1.15fr 0.85fr" align="center">
+<Pane>
+
+<IndexMap
+  mode="mapping"
+  panelLayout="col"
+  panels={[
+    {
+      title: "Clustered scan",
+      scan: "scan",
+      chainTop: true,
+      topRow: [
+        { id: "c1", label: 10 },
+        { id: "c2", label: 20 },
+        { id: "c3", label: 30 },
+        { id: "c4", label: 40 },
+        { id: "c5", label: 50 },
+      ],
+      bottomRow: [
+        { id: "cp1", label: 101 },
+        { id: "cp2", label: 102 },
+        { id: "cp3", label: 103 },
+        { id: "cp4", label: 104 },
+      ],
+      links: [
+        { from: "c1", to: "cp1" },
+        { from: "c2", to: "cp1" },
+        { from: "c3", to: "cp2" },
+        { from: "c4", to: "cp3" },
+        { from: "c5", to: "cp4" },
+      ],
+      bottomNote: "leaf order and table-page order are close",
+    },
+    {
+      title: "Unclustered scan",
+      scan: "scan",
+      chainTop: true,
+      topRow: [
+        { id: "u1", label: 10 },
+        { id: "u2", label: 20 },
+        { id: "u3", label: 30 },
+        { id: "u4", label: 40 },
+        { id: "u5", label: 50 },
+      ],
+      bottomRow: [
+        { id: "up1", label: 101 },
+        { id: "up2", label: 102 },
+        { id: "up3", label: 103 },
+        { id: "up4", label: 104 },
+      ],
+      links: [
+        { from: "u1", to: "up3" },
+        { from: "u2", to: "up1" },
+        { from: "u3", to: "up4" },
+        { from: "u4", to: "up2" },
+        { from: "u5", to: "up1" },
+      ],
+      bottomNote: "leaf order points to scattered pages",
+    },
+  ]}
+  caption="A clustered index walks table pages in order; an unclustered index jumps to scattered pages (the crossing arrows)."
+/>
+
+</Pane>
+<Pane>
+
+Clustering makes ordered scans and large ranges cheap, but it costs on updates: keeping physical order may force page splits, record movement, or reorganization. Systems differ here. Some always organize a table around a clustered primary key and invent a hidden row identifier when none is declared; others keep ordinary heap files and let no index dictate the data order.
+
+For an unclustered index, a common optimization first collects the matching RIDs from the leaves, sorts them by **table page id**, then fetches pages in page order. This abandons key order during fetching but saves many random reads when many tuples qualify.
+
+</Pane>
+</Split>
+
+## Design Choices
+
+Real systems share the core $B^+$-tree but make many low-level choices, starting with node size. A larger node raises fan-out and shrinks the tree, but takes longer to search once loaded. As a rule, the slower the device, the larger the best node.
+
+| Storage medium | Typical size | Why |
+|---|---|---|
+| HDD | $\sim 1$ MB | large transfers amortize seeks and rotation |
+| SSD | $\sim 10$ KB | cheap random access needs less batching |
+| In-memory | $\sim 512$ B | cache behavior dominates, so smaller is better |
+
+These are only guidelines: long leaf scans favor larger nodes, while repeated root-to-leaf lookups favor smaller nodes that fit caches.
+
+The half-full rule is likewise a guarantee about the ideal structure, not always a strict policy after every delete. Many systems delay merging because inserts usually outnumber deletes (a sparse page may soon refill), eager merging causes extra page movement and separator churn, and average occupancy settles near $67\%$. Some prefer periodic rebuilding over aggressive merge-on-delete.
+
+Variable-length keys raise the question of how to pack them into fixed-size pages. Common answers are **pointer-based keys** that store a pointer to the real value, **variable-length nodes** that manage free space inside the page, **padding** keys to their type maximum (direct but wasteful), and **key indirection** through a small array of offsets into the key area. The trade-off is the usual one: a fixed-width layout wastes more space, while a compact layout complicates memory management.
+
+Once a node is in memory, the DBMS still has to find the right entry inside it.
+
+| Method | Idea | Attractive when |
+|---|---|---|
+| Linear | scan keys left to right | small nodes; direct and SIMD-friendly |
+| Binary | compare against the middle key | larger nodes with cheap comparisons |
+| Interpolation | estimate position from key spread | keys roughly uniformly distributed |
+
+Interpolation search estimates the landing spot rather than always probing the middle:
+
+$$
+\text{pos} \approx \text{low} + \frac{(x - \text{arr}[\text{low}])\,(\text{high} - \text{low})}{\text{arr}[\text{high}] - \text{arr}[\text{low}]}
+$$
+
+where $x$ is the search key. It works best when key values are spread fairly evenly.
+
+## Nodes and Lookup
+
+At implementation level, a node is a **sorted array** of entries inside one page. In an internal node the value beside each key is a child page reference; in a leaf it is a record pointer, a RID list, or the record itself, depending on the data-entry alternative. Leaves additionally keep **prev** and **next** links to their neighbors, which is what makes range scans efficient.
+
+<PageLayout
+  mode="node-strip"
+  nodes={[
+    {
+      title: "Internal node",
+      cells: ["P_1", "K_1", "P_2", "K_2", "P_3", "K_{q-1}", "P_q"],
+    },
+    {
+      title: "Leaf node",
+      cells: ["K_1", "ptr", "K_2", "ptr", "...", "next"],
+      nextLink: true,
+    },
+  ]}
+  footnote="internal nodes route the search; leaves store entries and are linked for range scans"
+  caption="Node anatomy: internal nodes alternate pointers and keys to route a search; leaves store entries and chain for range scans."
+/>
+
+Lookup follows the sorted structure: start at the root; while at an internal node, find the first separator that selects the correct child and follow that pointer; repeat until a leaf is reached; in the leaf, find the exact entry or the position where the key would belong. So a lookup returns either the **matching entry** or the **correct leaf position** for a key that does not yet exist. This lower-bound behavior is exactly what also makes insertions and range scans fall out naturally.
+
+## Concurrent Access
+
+Concurrency is harder in a tree than in isolated heap pages, because pages depend on one another structurally. Latching one page protects it against concurrent modification, but a split or merge also rewires parent-child relationships, so several pages must be synchronized together.
+
+**Lock coupling (latch crabbing).** During a top-down traversal, a thread latches a parent, then latches the child it is about to enter, and only then releases the parent. The traversal keeps a short, overlapping chain of latches as it descends.
+
+<Split cols="0.85fr 1.15fr" align="center">
+<Pane>
+
+<BPlusTree
+  caption="The thread holds the parent latch while acquiring the child latch, then releases the parent."
+  leafLinks={false}
+  minViewBoxWidth={190}
+  nodes={[
+    { id: "root", keys: ["Root"], note: "released" },
+    { id: "inner", keys: ["Inner"], state: "full", note: "latched" },
+    { id: "leaf", keys: ["Leaf"], state: "highlight", note: "acquiring" },
+  ]}
+  links={[
+    { parent: "root", child: "inner" },
+    { parent: "inner", child: "leaf" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+Because latches are taken in a fixed top-down order, ordinary traversals cannot deadlock. The pattern works for search and for updates that do not split or merge: latch the root, latch the next level, release the parent, and continue downward in canonical order.
+
+Inserts are trickier, because a split may propagate upward: a leaf split inserts a separator into the parent, that parent may split, and the cascade can reach the root. By then, naive coupling has already released those ancestors.
+
+The common fix is **optimistic coupling**: first attempt the insert with ordinary lock coupling; if no split propagates through inner nodes, it succeeds; otherwise release the latches and restart with a conservative strategy that keeps the needed ancestors protected, then execute on the second pass. This reduces concurrency during the rare restarted operation, but the expensive case is uncommon and correctness stays manageable.
+
+</Pane>
+</Split>
+
+## Shape in Practice
+
+In practice, $B^+$-trees are shallow. Textbooks often parameterize a tree by $d$, where an internal node has between $d$ and $2d$ children. With $d = 100$ and an average fill of about $67\%$, the average fan-out is
+
+$$
+2d \cdot 0.67 = 200 \cdot 0.67 \approx 134,
+$$
+
+which already gives enormous capacity.
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+| Height | Approximate entries |
+|---|---|
+| 3 | $134^3 \approx 2{,}406{,}104$ |
+| 4 | $134^4 \approx 322{,}417{,}936$ |
+
+A tree of height 3 or 4 covers even large relations.
+
+</Pane>
+<Pane>
+
+| Level | Size (8 KB pages) |
+|---|---|
+| 1 | $1$ page $\approx 8$ KB |
+| 2 | $134$ pages $\approx 1$ MB |
+| 3 | $17{,}956$ pages $\approx 140$ MB |
+
+The top levels are small enough to stay resident.
+
+</Pane>
+</Split>
+
+So in practice the root is almost always in memory, often one or more upper levels too, and only the lower levels need regular I/O.

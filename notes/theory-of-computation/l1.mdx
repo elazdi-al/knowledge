@@ -3,7 +3,7 @@ title: "Theory of Computation: Lecture 1"
 description: "Deterministic finite automata, languages, formal descriptions, induction proofs, and regular language operations."
 tags: ["Theory of computation"]
 created: 2026-06-06
-updated: 2026-06-06
+updated: 2026-06-10
 ---
 
 ## Finite Automata
@@ -11,10 +11,40 @@ updated: 2026-06-06
 **Finite automaton.** A finite automaton is a machine with finitely many states. It reads the input one symbol at a time and stores only its current state.
 
 - **Alphabet.** The finite set of symbols the machine may read.
-- **State.** One possible memory value of the machine. *A parity machine can use `EVEN` and `ODD`.*
-- **Transition.** A rule for moving from one state to another after reading one symbol. *Reading `M` can move `EVEN` to `ODD`.*
-- **Start state.** The state before reading any input. *Starting in `EVEN` means the machine treats the empty prefix as even.*
-- **Accepting state.** A state where the machine accepts if the input has ended. *If `EVEN` is accepting, then $\epsilon$ is accepted.*
+- **State.** One possible memory value of the machine.
+
+  *A parity machine can use `EVEN` and `ODD`.*
+- **Transition.** A rule for moving from one state to another after reading one symbol.
+
+  *Reading `M` can move `EVEN` to `ODD`.*
+- **Start state.** The state before reading any input.
+
+  *Starting in `EVEN` means the machine treats the empty prefix as even.*
+- **Accepting state.** A state where the machine accepts if the input has ended.
+
+  *If `EVEN` is accepting, then $\epsilon$ is accepted.*
+
+## Deterministic Finite Automata
+
+**Deterministic finite automaton (DFA).** A DFA is a finite automaton whose transition rule gives exactly one next state for every state-symbol pair.
+
+A DFA can be shown as a diagram or written formally as a 5-tuple. These are two descriptions of the same machine:
+
+$$
+M=(Q,\Sigma,\delta,q_0,F)
+$$
+
+| Symbol | Role |
+|---|---|
+| $Q$ | finite set of states |
+| $\Sigma$ | alphabet |
+| $\delta:Q\times\Sigma\to Q$ | transition function |
+| $q_0\in Q$ | start state |
+| $F\subseteq Q$ | accepting states |
+
+The expression $\delta(q,\sigma)$ means the next state from $q$ after reading one symbol $\sigma$. The expression $\delta(q,w)$ means the state reached after reading the whole string $w$.
+
+The accepting set may be empty. If $F=\varnothing$, the DFA accepts no strings.
 
 **Example. Even number of `M` symbols.**
 
@@ -50,32 +80,6 @@ Reading `M` flips parity. Reading `W` preserves parity.
 
 </Pane>
 </Split>
-
-## Deterministic Finite Automata
-
-**Deterministic finite automaton (DFA).** A DFA is a finite automaton where each state-symbol pair has exactly one next state.
-
-- **Unique next state.** There is no choice about the next move. *From `EVEN` on `M`, the parity DFA must go to `ODD`.*
-- **Complete transition rule.** Every state defines one transition for every alphabet symbol. *If the alphabet is $\{M,W\}$, every state has an `M` transition and a `W` transition.*
-- **Fixed memory.** The number of states is fixed before the input is read. *The parity DFA has two states no matter how long the string is.*
-
-**Formal DFA.** A DFA is written as a 5-tuple:
-
-$$
-M=(Q,\Sigma,\delta,q_0,F)
-$$
-
-| Symbol | Role |
-|---|---|
-| $Q$ | states |
-| $\Sigma$ | alphabet |
-| $\delta:Q\times\Sigma\to Q$ | transition function |
-| $q_0\in Q$ | start state |
-| $F\subseteq Q$ | accepting states |
-
-The notation $\delta(q,\sigma)$ means the next state from $q$ after one symbol $\sigma$. The notation $\delta(q,s)$ means the state reached after the whole string $s$.
-
-The accepting set may be empty. If $F=\varnothing$, the DFA accepts no strings.
 
 ## Acceptance and Languages
 
@@ -308,6 +312,18 @@ $$
 
 Here $x\sigma$ means the string $x$ followed by the symbol $\sigma$.
 
+To write a DFA proof cleanly:
+
+**1. State the claim.** Describe exactly which state the DFA reaches after every string, not only which strings it accepts.
+
+**2. Prove the base case.** Check $w=\epsilon$.
+
+**3. Prove the inductive step.** Assume the claim for $x$, then check every possible next symbol $\sigma$.
+
+**4. Conclude the language.** Use the accepting states to translate the state claim into $L(M)$.
+
+The first step is the most important. If the claim does not distinguish all relevant states, the induction may not have enough information to continue.
+
 **Example. Even number of `a` symbols.**
 
 Let $\Sigma=\{a,b\}$ and
@@ -346,9 +362,13 @@ $q_0$ means the number of `a` symbols seen so far is even. $q_1$ means it is odd
 </Pane>
 </Split>
 
-The base case is $w=\epsilon$. No symbol is read, so $\delta(q_0,\epsilon)=q_0$. Also $count(\epsilon,a)=0$, which is even.
+The proof should characterize both states:
 
-For the inductive step, assume the claim holds for $x$. Since the DFA has only $q_0$ and $q_1$, reaching $q_1$ means $count(x,a)$ is odd. Appending one symbol gives exactly four cases:
+**1. Claim.** For every string $w$, the DFA reaches $q_0$ iff $count(w,a)$ is even, and it reaches $q_1$ iff $count(w,a)$ is odd.
+
+**2. Base case.** For $w=\epsilon$, no symbol is read, so $\delta(q_0,\epsilon)=q_0$. Also $count(\epsilon,a)=0$, which is even.
+
+**3. Inductive step.** Assume the claim holds for $x$. Appending one symbol gives exactly four cases:
 
 | State after $x$ | Symbol $\sigma$ | State after $x\sigma$ | Count effect |
 |---|---|---|---|
@@ -357,7 +377,7 @@ For the inductive step, assume the claim holds for $x$. Since the DFA has only $
 | $q_1$ | $b$ | $q_1$ | odd stays odd |
 | $q_1$ | $a$ | $q_0$ | odd becomes even |
 
-The transition table and the count change agree in every case, so the claim holds for all strings.
+**4. Conclusion.** The transition table and the count update agree in every case, so the claim holds for all strings. Since $q_0$ is the only accepting state, the DFA accepts exactly the strings with an even number of `a` symbols.
 
 **Weak claim.** A weak claim states enough to identify the language, but not enough to complete the induction.
 
@@ -427,11 +447,13 @@ q_2 & \text{if } count(w,a)\ge 2.
 \end{cases}
 $$
 
-This proves the language claim because $q_2$ is the only accepting state.
+The stronger proof follows the same pattern:
 
-The base case is $w=\epsilon$. No symbol is read, so $\delta(q_0,\epsilon)=q_0$, and $count(\epsilon,a)=0$.
+**1. Claim.** For every string $w$, the reached state is the one named by the piecewise characterization.
 
-For the inductive step, assume the stronger claim holds for $x$. The transition function and the count update agree in all six possible cases:
+**2. Base case.** For $w=\epsilon$, no symbol is read, so $\delta(q_0,\epsilon)=q_0$, and $count(\epsilon,a)=0$.
+
+**3. Inductive step.** Assume the stronger claim holds for $x$. The transition function and the count update agree in all six possible cases:
 
 | State after $x$ | Count from the hypothesis | Symbol $\sigma$ | State after $x\sigma$ | Count after $x\sigma$ |
 |---|---|---|---|---|
@@ -442,7 +464,7 @@ For the inductive step, assume the stronger claim holds for $x$. The transition 
 | $q_2$ | $\ge 2$ | $b$ | $q_2$ | $\ge 2$ |
 | $q_2$ | $\ge 2$ | $a$ | $q_2$ | $\ge 3$ |
 
-The stronger claim is preserved after appending either symbol, so it holds for every string.
+**4. Conclusion.** The stronger claim is preserved after appending either symbol, so it holds for every string. Since $q_2$ is the only accepting state, the DFA accepts exactly the strings with at least two `a` symbols.
 
 ## Regular Languages
 
@@ -662,14 +684,11 @@ Regular languages are closed under concatenation, but the clean automaton constr
 
 Let $L_1=\{0,11\}$ and $L_2=\{1\}$. Then $L_1L_2=\{01,111\}$.
 
-<Mermaid
-  caption="Concatenation forms a string by choosing a left part from L1 and a right part from L2."
-  chart={`flowchart LR
-    A["0 ∈ L1"] --> C["01 ∈ L1L2"]
-    B["1 ∈ L2"] --> C
-    D["11 ∈ L1"] --> F["111 ∈ L1L2"]
-    E["1 ∈ L2"] --> F
-  `}
-/>
+The two strings come from the two possible choices of $x\in L_1$:
 
-The same right language can attach to each string in $L_1$. If $L_2$ had more strings, each left part would branch into more concatenations.
+| $x\in L_1$ | $y\in L_2$ | $xy\in L_1L_2$ |
+|---|---|---|
+| $0$ | $1$ | $01$ |
+| $11$ | $1$ | $111$ |
+
+The important idea is the split $w=xy$. For a larger $L_2$, each left string $x\in L_1$ could combine with several choices of $y\in L_2$.

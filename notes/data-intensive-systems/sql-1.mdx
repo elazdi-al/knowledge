@@ -1,0 +1,294 @@
+---
+title: "Data Intensive Systems: SQL"
+description: "SQL as a query language: schema definition, single- and multi-table queries, joins, set operations, grouping and aggregation, mapped onto the relational algebra."
+tags: ["Data intensive systems"]
+created: 2026-06-09
+updated: 2026-06-09
+---
+
+## Relational Terminology
+
+SQL is the query language for the relational model, so its vocabulary maps directly onto the formal terms. A **relation** is a **table**, a **tuple** is a **row**, and an **attribute** is a **column**.
+
+| <u>sid</u> | name | login | age | gpa |
+|---|---|---|---|---|
+| 53666 | Jones | jones@cs | 18 | 3.4 |
+| 53688 | Smith | smith@ee | 18 | 3.2 |
+| 53777 | White | white@cs | 19 | 4.0 |
+
+**Primary key (PK).** The column, or group of columns, that uniquely identifies a row. No two rows may share the same primary key. Here `sid` is the primary key, so it is underlined.
+
+## Single-Table Queries
+
+Every basic query reads from one or more tables, optionally filters rows, and returns selected columns. The smallest such query asks for everything.
+
+```sql
+SELECT * FROM Students S
+```
+
+Here `S` is an optional *alias* (range variable) for `Students`, useful for qualifying column names as `S.name`. This query returns the whole table unchanged.
+
+Naming columns instead of `*` keeps only those columns. This corresponds to the relational algebra projection $\pi$.
+
+**Projection.** Selecting specific columns from a table, dropping the rest.
+
+```sql
+SELECT S.name, S.login FROM Students S
+```
+
+*This is $\pi_{\text{name, login}}(\text{Students})$, returning two columns:*
+
+| name | login |
+|---|---|
+| Jones | jones@cs |
+| Smith | smith@ee |
+| White | white@cs |
+
+The `WHERE` clause keeps only the rows that satisfy a condition. This is the relational algebra selection $\sigma$.
+
+**Selection.** Filtering rows by a predicate, keeping every column.
+
+```sql
+SELECT * FROM Students S WHERE S.age = 18
+```
+
+*This is $\sigma_{\text{age}=18}(\text{Students})$, returning the two 18-year-olds:*
+
+| <u>sid</u> | name | login | age | gpa |
+|---|---|---|---|---|
+| 53666 | Jones | jones@cs | 18 | 3.4 |
+| 53688 | Smith | smith@ee | 18 | 3.2 |
+
+## Query Form and Evaluation
+
+These pieces combine into a single general form.
+
+```sql
+SELECT [DISTINCT] target-list FROM relation-list WHERE qualification
+```
+
+The three lists and the optional keyword are the structural parts of every basic query.
+
+- **relation-list.** Table names, each optionally followed by an alias.
+- **target-list.** Attributes drawn from the tables in *relation-list*.
+- **qualification.** Comparisons of the form `Attr op Const` or `Attr1 op Attr2`, combined with `AND`, `OR`, `NOT`.
+- **DISTINCT.** Optional keyword that eliminates duplicate rows. Without it SQL keeps duplicates, so a result is a *multiset* rather than a set.
+
+The keyword order is fixed, but the meaning is easiest to see through a conceptual evaluation order. A query behaves *as if* the engine performed these steps, even though a real optimizer reorders them.
+
+$$
+\pi_{\text{target-list}}\bigl(\sigma_{\text{qualification}}(\text{relation-list})\bigr)
+$$
+
+1. **FROM** forms the cross-product of all tables in *relation-list*.
+2. **WHERE** discards tuples that fail *qualification* (selection $\sigma$).
+3. **SELECT** keeps only the columns in *target-list* (projection $\pi$).
+4. **DISTINCT**, if present, removes duplicate rows.
+
+## Joins Across Tables
+
+To combine data from two tables, list both in `FROM` and give the matching condition in `WHERE`. Consider an `Enrolled` table beside `Students`.
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+| <u>sid</u> | name | login | age | gpa |
+|---|---|---|---|---|
+| 53666 | Jones | jones@cs | 18 | 3.4 |
+| 53688 | Smith | smith@ee | 18 | 3.2 |
+| 53777 | White | white@cs | 19 | 4.0 |
+
+</Pane>
+<Pane>
+
+| <u>sid</u> | cid | grade |
+|---|---|---|
+| 53831 | Carnatic101 | C |
+| 53831 | Reggae203 | B |
+| 53650 | Topology112 | A |
+| 53666 | History105 | B |
+
+</Pane>
+</Split>
+
+The condition `S.sid = E.sid` is the join predicate: it keeps only pairs where the two `sid` values agree. A second condition can filter further.
+
+**Example 1. Students with grade B.**
+
+```sql
+SELECT S.name, E.cid
+FROM Students S, Enrolled E
+WHERE S.sid = E.sid AND E.grade = 'B'
+```
+
+*Following the conceptual evaluation order makes the result concrete. `FROM` first builds the cross-product, pairing every student with every enrollment:*
+
+| S.sid | S.name | E.sid | E.cid | E.grade |
+|---|---|---|---|---|
+| 53666 | Jones | 53831 | Carnatic101 | C |
+| 53666 | Jones | 53831 | Reggae203 | B |
+| 53666 | Jones | 53650 | Topology112 | A |
+| 53666 | Jones | 53666 | History105 | B |
+| 53688 | Smith | 53831 | Carnatic101 | C |
+| 53688 | Smith | 53831 | Reggae203 | B |
+| 53688 | Smith | 53650 | Topology112 | A |
+| 53688 | Smith | 53666 | History105 | B |
+
+*`WHERE` keeps only rows where `S.sid = E.sid` and `E.grade = 'B'`. One row survives: Jones (sid 53666) in History105. `SELECT` then projects `S.name` and `E.cid`, giving the final result `(Jones, History105)`.*
+
+## Running Example
+
+The next examples use sailors, boats, and reservations. A reservation links a sailor to a boat on a day, so `Reserves.sid` and `Reserves.bid` are foreign keys into `Sailors` and `Boats`.
+
+<Split cols="1.1fr 1.1fr 0.9fr" align="start">
+<Pane>
+
+| <u>sid</u> | sname | rating | age |
+|---|---|---|---|
+| 22 | Dustin | 7 | 45.0 |
+| 31 | Lubber | 8 | 55.5 |
+| 95 | Bob | 3 | 63.5 |
+
+</Pane>
+<Pane>
+
+| <u>bid</u> | bname | color |
+|---|---|---|
+| 101 | Interlake | blue |
+| 102 | Interlake | red |
+| 103 | Clipper | green |
+| 104 | Marine | red |
+
+</Pane>
+<Pane>
+
+| <u>sid</u> | <u>bid</u> | day |
+|---|---|---|
+| 22 | 101 | 10/10/96 |
+| 95 | 103 | 11/12/96 |
+
+</Pane>
+</Split>
+
+## Aggregation
+
+A selection-projection query returns one output row per qualifying input row. Aggregates instead collapse a whole column into a single summary value, an extension that relational algebra does not provide.
+
+**Aggregate function.** A function over the multiset of values in a column that returns one summary value for the whole group of qualifying rows.
+
+| Function | Result |
+|---|---|
+| `COUNT(*)` | number of rows |
+| `COUNT([DISTINCT] A)` | number of (distinct) non-null values in `A` |
+| `SUM([DISTINCT] A)` | sum of (distinct) values |
+| `AVG([DISTINCT] A)` | average of (distinct) values |
+| `MAX(A)` | maximum value |
+| `MIN(A)` | minimum value |
+
+Each aggregate query applies one function to the rows that pass `WHERE`, returning a single number.
+
+**Example 2. Counting and averaging.**
+
+*The number of sailors:*
+
+```sql
+SELECT COUNT(*) FROM Sailors S
+```
+
+*The average age of sailors with rating 10:*
+
+```sql
+SELECT AVG(S.age) FROM Sailors S WHERE S.rating = 10
+```
+
+*The number of distinct ratings among sailors named Bob:*
+
+```sql
+SELECT COUNT(DISTINCT S.rating) FROM Sailors S WHERE S.sname = 'Bob'
+```
+
+An aggregate cannot be mixed with a bare column in the same `SELECT`, because the two have different cardinalities.
+
+**Example 3. Name and age of the oldest sailor.**
+
+*This query is wrong:*
+
+```sql
+SELECT S.sname, MAX(S.age) FROM Sailors S
+```
+
+*`MAX(S.age)` is a single value over the entire column, while `S.sname` has one value per row, so there is no meaningful row to pair the maximum with. The fix computes the maximum in an inner query, then retrieves every sailor whose age matches it:*
+
+```sql
+SELECT S.sname, S.age
+FROM Sailors S
+WHERE S.age = (SELECT MAX(S2.age) FROM Sailors S2)
+```
+
+**Scalar subquery.** A subquery returning exactly one row and one column. It may appear wherever a single value is expected, such as one side of a `WHERE` comparison.
+
+The two sides of the comparison are symmetric, so the subquery may equally sit on the left as `(SELECT MAX(S2.age) FROM Sailors S2) = S.age`.
+
+## Grouping
+
+The aggregates so far run over all qualifying rows at once. Often we want one aggregate *per group*, for example the youngest age at each rating level. We cannot write one query per rating, since the set of ratings is not known in advance and may be large. `GROUP BY` solves this by partitioning the rows first.
+
+**GROUP BY clause.** Partitions the qualifying tuples into groups that share the same values on the listed columns, then evaluates the aggregates independently within each group.
+
+The next examples use an extended `Sailors` table with several sailors per rating.
+
+<Split cols="1fr 1fr" align="start">
+<Pane>
+
+| <u>sid</u> | sname | rating | age |
+|---|---|---|---|
+| 22 | Dustin | 7 | 45.0 |
+| 31 | Lubber | 8 | 55.5 |
+| 95 | Bob | 3 | 63.5 |
+| 52 | Smith | 3 | 74.5 |
+| 68 | John | 7 | 56.5 |
+| 81 | Ana | 7 | 71.5 |
+
+</Pane>
+<Pane>
+
+```sql
+SELECT S.rating, MIN(S.age)
+FROM Sailors S
+GROUP BY S.rating
+```
+
+The rows split into groups by `rating` (3, 7, 8), then `MIN(S.age)` runs inside each group:
+
+| rating | MIN(age) |
+|---|---|
+| 3 | 63.5 |
+| 7 | 45.0 |
+| 8 | 55.5 |
+
+</Pane>
+</Split>
+
+Grouping constrains what the `SELECT` clause may contain.
+
+**GROUP BY semantics.** The `SELECT` list may contain only columns named in `GROUP BY` and aggregate functions applied to other columns. A bare column that is neither grouped nor aggregated has no single value per group and is an error.
+
+To keep or discard whole groups by an aggregate condition, use `HAVING`. It stands to groups as `WHERE` stands to rows: `WHERE` filters individual tuples before grouping, `HAVING` filters groups after grouping.
+
+**HAVING clause.** A filter applied after grouping, using aggregate conditions to keep or discard entire groups.
+
+**Example 4. Ratings with at least two sailors.**
+
+```sql
+SELECT S.rating, MIN(S.age)
+FROM Sailors S
+GROUP BY S.rating
+HAVING COUNT(*) > 1
+```
+
+*Rating 8 contains only Lubber, so its group fails `COUNT(*) > 1` and is dropped. Ratings 3 and 7 remain:*
+
+| rating | MIN(age) |
+|---|---|
+| 3 | 63.5 |
+| 7 | 45.0 |

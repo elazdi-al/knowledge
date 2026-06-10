@@ -1,0 +1,399 @@
+---
+title: "Data Intensive Systems: Lecture 6"
+description: "Hashing and sorting for data systems: static and dynamic hashing (chained, extendible, linear), open addressing with linear probing, and external merge sort."
+tags: ["Data intensive systems"]
+created: 2026-06-09
+updated: 2026-06-09
+---
+
+## Hash Tables
+
+**Hash table.** An unordered associative array that maps keys to values. A hash function computes where a key belongs, so the DBMS can jump directly to the right part of the structure instead of keeping keys in sorted order.
+
+The cost profile follows from this idea of computing a position rather than searching for one.
+
+- **Space.** $O(n)$ in the number of entries.
+- **Average lookup, insert, delete.** $O(1)$, because the hash function lands close to the target.
+- **Worst case.** $O(n)$, when many keys collide and the DBMS must inspect many extra slots or pages.
+
+Because the structure is unordered, it serves equality predicates well but not ordered scans or ranges. It is the natural choice when a query asks for an exact match such as `id = 42`, or when a join must repeatedly match equal key values.
+
+## Static Hash Tables
+
+A static hash file fixes the number of buckets in advance. The file is split into $N$ primary buckets, and the bucket for a key $k$ is
+
+$$
+\text{bucket}(k) = h(k) \bmod N.
+$$
+
+**Bucket.** The unit that receives every entry whose hash maps to the same bucket number. On disk, a bucket is one primary page plus, when it fills, a chain of overflow pages.
+
+The structure nests cleanly: the hash file is a collection of buckets, each bucket is a collection of pages, and keys producing the same bucket number land together.
+
+<HashDiagram
+  mode="static"
+  source="h(k)"
+  sourceNote="h(k) mod N"
+  pages={[
+    { id: "b0", title: "Bucket 0", subtitle: "primary page", rows: ["k_1, k_4", "k_7"] },
+    { id: "b1", title: "Bucket 1", subtitle: "primary page", rows: ["k_2, k_5", "k_8"], state: "full" },
+    { id: "bn", title: "Bucket N-1", subtitle: "primary page", rows: ["k_3, k_6", "k_9"] },
+  ]}
+  overflow={[
+    { id: "ov", title: "Overflow", subtitle: "extra page", rows: ["k_{10}", "k_{11}"] },
+  ]}
+  fanout={[
+    { to: "b0", label: "0" },
+    { to: "b1", label: "1" },
+    { to: "bn", label: "N-1" },
+  ]}
+  spills={[{ from: "b1", to: "ov", label: "overflow" }]}
+  caption="Static hashing: a fixed set of primary buckets, plus overflow pages when a bucket fills up."
+/>
+
+The design is *static* because $N$ is chosen up front: primary pages are allocated and placed sequentially, normally never deallocated, and overflow pages appear only when a bucket runs out of room. The weakness is that an overflowing bucket grows a long overflow chain, and once lookup, insertion, and deletion must follow those extra pages, the $O(1)$ average behavior degrades.
+
+The clean textbook picture also rests on assumptions that real workloads break. It assumes the number of elements is known in advance and stays fixed, that each key is unique, and that the hash function is perfect, meaning
+
+$$
+k_1 \neq k_2 \Rightarrow h(k_1) \neq h(k_2).
+$$
+
+In practice tables grow and shrink, search keys may be duplicated, and collisions are unavoidable because a large key space is mapped into a smaller set of buckets. Once collisions are accepted as real, hashing splits into two independent design choices: the **hash function**, which maps a large key space into a small numeric domain, and the **hashing scheme**, which stores entries and resolves collisions after two keys land together. The function must be fast yet keep the collision rate low; the scheme must decide whether to spend memory on a larger table or time on extra probing.
+
+## Hash Functions
+
+**Hash function.** A function that takes a fixed- or variable-length key and produces a fixed-size output, mapping a large key space into a much smaller numeric domain.
+
+For a record $r$, the function is applied to its search-key field in two conceptual steps: first turn the key into an integer, then reduce it to the bucket range $0,\dots,N-1$. A common pattern is
+
+$$
+h(k) = a \cdot k + b,
+\qquad
+\text{bucket}(k) = h(k) \bmod N,
+$$
+
+with constants $a$ and $b$. The modulo distributes keys over the bucket range. Good hashing does not preserve order; it spreads keys evenly while staying fast to compute and low in collisions.
+
+| Name | Typical use or property |
+|---|---|
+| CRC-64 | Widely used in networking for error detection. |
+| MurmurHash | Fast, general-purpose. |
+| CityHash | Tuned for strings; strong on short keys (under about 64 bytes). |
+| XXHash | Very fast, with good support for parallel hashing. |
+
+## Open Addressing and Linear Probing
+
+A bucket-plus-overflow file is one static scheme. The other large family is **open addressing**, also called closed hashing, where all entries live inside one array of slots and a collision sends the search along a probe sequence to another slot. A lookup scans alternative positions until it either finds the target key or reaches an unused slot, which proves the key is absent. The probe families differ only in the step they take: **linear probing** moves by a fixed step of $1$, **quadratic probing** uses displacements $1^2, 2^2, 3^2, \dots$, and **double hashing** computes the step from a second hash function.
+
+**Linear probing.** A static open-addressing scheme where, if the home slot is occupied, the DBMS checks the next slot, then the next, until it finds the key or a free slot. The probe sequence is
+
+$$
+\text{slot}_i(k) = \bigl(h(k) + i\bigr) \bmod N,
+\qquad i = 0,1,2,\dots
+$$
+
+Each slot stores the key together with its value, because the probe must compare the searched key against the keys it passes. Lookup computes the home slot, compares the stored key, and on a mismatch steps forward, stopping only at the key or at a truly empty slot.
+
+<HashDiagram
+  mode="slotArray"
+  slots={[
+    { label: "B", kind: "used" },
+    { kind: "free" },
+    { label: "A", kind: "used", top: "home" },
+    { label: "C", kind: "used" },
+    { label: "D", kind: "used" },
+    { label: "E", kind: "used" },
+    { kind: "free" },
+  ]}
+  displacements={[
+    { from: 2, to: 3, label: "C" },
+    { from: 3, to: 4, label: "D" },
+    { from: 2, to: 5, label: "E" },
+  ]}
+  secondRow={{
+    leftLabel: "after deleting C:",
+    slots: [
+      { kind: "tomb" },
+      { label: "D", kind: "used" },
+    ],
+    rightLabel: "tombstone keeps the probe chain intact",
+  }}
+  caption="Linear probing: collisions displace keys to the next free slot; deletions leave tombstones."
+/>
+
+**Example 1. Five insertions colliding at slot 2.**
+
+*Inserting in order $A,B,C,D,E$ shows how later keys are displaced forward from their home slots along the probe run.*
+
+| Key | Home | Final | What happens |
+|---|---|---|---|
+| A | 2 | 2 | Slot 2 is free, so $A$ is stored there. |
+| B | 0 | 0 | Slot 0 is free, so $B$ is stored there. |
+| C | 2 | 3 | Slot 2 holds $A$, so probe the next slot. |
+| D | 3 | 4 | Slot 3 is occupied, so move one more step. |
+| E | 2 | 5 | Slots 2, 3, 4 are occupied, so scan to slot 5. |
+
+The same probe drives all three operations: lookup stops at the key or a truly empty slot, insertion stops at the first reusable slot, and deletion finds the key first and then removes it without breaking later lookups. That last step is the subtle one.
+
+Suppose $C$, $D$, and $E$ were placed after collisions in one probe run. If deleting $C$ leaves its slot fully empty, a later lookup for $D$ may stop early at that empty slot and wrongly report $D$ as absent.
+
+**Tombstone.** A marker meaning the slot once held an entry that has been logically deleted. It is not treated as a free slot during lookup, so probing continues past it; a new insertion may reuse it.
+
+| Action | Reason |
+|---|---|
+| Delete $C$ | The slot must not become fully empty, or lookups for keys farther along the same probe run stop too early. |
+| Get $D$ | The search continues past the tombstone, because $D$ may appear later in the run. |
+| Insert $F$ | The tombstone slot is reusable, so deletion still frees space. |
+
+Tombstones preserve correctness, but too many of them lengthen probe runs, so the table needs periodic cleanup or rebuilding. Other open-addressing designs (cuckoo, hopscotch, Robin Hood, Swiss tables) solve the same problem with different trade-offs in speed, memory, probe length, and update cost.
+
+A separate concern is non-unique search keys, where one key value matches many records. The two standard answers are a **separate value list**, keeping one copy of the key in the hash structure and the matching values or RIDs in a separate list that may itself overflow, or **redundant keys**, storing one hash-table entry per matching value even when the key repeats.
+
+## Why Static Hashing Breaks Down
+
+Static hashing is fast when the size estimate is right, but its size is fixed too early. The DBMS must guess how many elements the table will hold, and if the guess is wrong, growing or shrinking usually means rebuilding the whole structure. That rebuild blocks the index during reorganization and rereads and rewrites many or all pages, while long overflow chains and probe runs slowly erode the constant-time behavior.
+
+**Dynamic hashing** schemes avoid the one-shot rebuild by resizing incrementally. Three ideas follow, each fixing a weakness of the previous one: chained hashing, extendible hashing, and linear hashing.
+
+## Chained Hashing
+
+**Chained hashing.** Each directory slot points to a bucket, and all entries hashing to that slot stay in its bucket; when a bucket fills, it continues through overflow pages linked into a chain.
+
+The structure is a directory of pointers plus, per slot, a linked list of bucket pages. Lookup hashes the key to one directory slot, follows the pointer, and scans the bucket chain until the key is found or the chain ends. As before, insertion is lookup plus placing the record in the right chain, and deletion is lookup plus removing the matching record.
+
+<HashDiagram
+  mode="chained"
+  directory={["", "", ""]}
+  directoryTitle="Bucket pointers"
+  pages={[
+    { id: "b0", title: "Bucket 0", rows: ["B | val"] },
+    { id: "b1", title: "Bucket 1", rows: ["A | val", "C | val"], state: "full" },
+    { id: "b2", title: "Bucket 2", rows: [] },
+  ]}
+  overflow={[{ id: "ov", title: "Overflow", rows: ["D | val"] }]}
+  links={[
+    { from: 0, to: "b0" },
+    { from: 1, to: "b1" },
+    { from: 2, to: "b2" },
+  ]}
+  spills={[{ from: "b1", to: "ov" }]}
+  caption="Chained hashing: each directory slot points to one bucket; collisions extend the bucket through overflow pages."
+/>
+
+This handles the fixed-size array more gracefully than open addressing, but a bucket chain can still keep growing. Long chains waste space and force pointer chasing, so lookups drift away from constant time. The fix is to stop letting one chain grow forever and instead split the overflowing bucket, which leads to extendible hashing.
+
+## Extendible Hashing
+
+**Extendible hashing.** A dynamic scheme with a directory of pointers to buckets that splits only the bucket that overflows and grows the directory only when needed.
+
+Two depths control the structure.
+
+- **Global depth.** The number of hash bits used to index the directory. At global depth $d$, the directory has $2^d$ entries.
+- **Local depth.** The number of bits all keys in one bucket share. When a bucket's local depth is below the global depth, several directory entries point to that same bucket.
+
+The course examples index the directory with the **least significant bits** of the hash. At global depth $2$, the value $h(r)=5=101_2$ goes to entry $01$ and $h(r)=7=111_2$ goes to entry $11$.
+
+<HashDiagram
+  mode="directory"
+  globalDepth="2"
+  directory={["00", "01", "10", "11"]}
+  pages={[
+    { id: "A", title: "Bucket A", depth: "2", rows: ["4   12   32   16"] },
+    { id: "B", title: "Bucket B", depth: "1", rows: ["1   5   7   13"] },
+    { id: "C", title: "Bucket C", depth: "2", rows: ["10"] },
+  ]}
+  links={[
+    { from: 0, to: "A" },
+    { from: 1, to: "B" },
+    { from: 2, to: "C" },
+    { from: 3, to: "B" },
+  ]}
+  caption="Extendible hashing: several directory entries may point to the same bucket when the local depth is below the global depth."
+/>
+
+Bucket A has local depth $2$ and is named by two final bits; bucket B has local depth $1$, so both directory entries ending in $1$ point to it; bucket C again has local depth $2$. Insertion follows a clean sequence: find the directory entry, and if the target bucket has room, insert. Otherwise split it, increment its local depth, allocate a new bucket at the same new local depth, redistribute the records, and update only the directory pointers that should now refer to the new bucket. One extra case arises when the splitting bucket already uses as many bits as the directory: if local depth would exceed global depth, double the directory and remap the affected pointers under the new bit count.
+
+This locality of data movement is the central benefit. The DBMS never rebuilds the whole table; it touches only the bucket that overflowed and the few directory pointers that reference it.
+
+**Example 2. Inserting into the current directory, with $h(x)=x$.**
+
+*Insert $21=(10101)_2$.* The last two bits are $01$, so it targets bucket B, which is full and must split. B's local depth rises from $1$ to $2$, a new bucket D is created, and the entries that previously shared B between $01$ and $11$ are separated: $7=111_2$ ends in $11$ and moves to D, while $1,5,13$ and the new $21$ end in $01$ and stay in B. No doubling is needed, because B's new local depth $2$ matches the global depth.
+
+<HashDiagram
+  mode="directory"
+  globalDepth="2"
+  directory={["00", "01", "10", "11"]}
+  pages={[
+    { id: "A", title: "Bucket A", depth: "2", rows: ["4   12   32   16"] },
+    { id: "B", title: "Bucket B", depth: "2", rows: ["1   5   13   21"], state: "full", note: "21 just inserted" },
+    { id: "C", title: "Bucket C", depth: "2", rows: ["10"] },
+    { id: "D", title: "Bucket D (new)", depth: "2", rows: ["7"], state: "new" },
+  ]}
+  links={[
+    { from: 0, to: "A" },
+    { from: 1, to: "B" },
+    { from: 2, to: "C" },
+    { from: 3, to: "D" },
+  ]}
+  caption="After inserting 21: bucket B splits into B and D; entry 11 now points to D instead of B."
+/>
+
+*Insert $19=(10011)_2$ and $15=(01111)_2$.* Both end in $11$ and go to bucket D, which still has room, so no split. *Insert $20=(10100)_2$.* The last two bits are $00$, targeting bucket A; if A is full and its local depth already equals the global depth, splitting A needs one more bit than the directory has, so the directory doubles from $2^2$ to $2^3$ entries, A splits into two image buckets, and only the pointers for that split change.
+
+A directory can be indexed by least significant bits (LSB) or most significant bits (MSB). The choice does not change the logical idea, but it changes how doubling is implemented: with LSB the new directory is a copy of the old one appended to it, whereas with MSB earlier pointer positions need more careful rewriting.
+
+## Linear Hashing
+
+**Linear hashing.** A dynamic scheme with no directory. It permits temporary overflow pages but controls them by splitting buckets gradually in a fixed round-robin order rather than splitting the bucket that overflowed.
+
+The intuition is to keep a pointer to the **next** bucket due for splitting. When any bucket overflows, split that next bucket and advance the pointer, so growth is regular and long overflow chains are steadily reduced without a directory.
+
+<HashDiagram
+  mode="bucketColumn"
+  bucketLabels={[
+    { label: "0" },
+    { label: "1" },
+    { label: "2" },
+    { label: "3" },
+    { label: "4", isNew: true },
+  ]}
+  nextIndex={1}
+  pages={[
+    { id: "b0", title: "8", note: "already split" },
+    { id: "b1", title: "5, 9, 13", state: "full" },
+    { id: "b2", title: "6" },
+    { id: "b3", title: "7, 11" },
+    { id: "b4", title: "20", state: "new", note: "new image bucket" },
+  ]}
+  overflow={[{ id: "ov", title: "17" }]}
+  spills={[{ from: "b1", to: "ov", label: "overflow" }]}
+  split={{ from: "b0", to: "b4", label: "split via h_1" }}
+  caption="Linear hashing: next marks the bucket to split; the new bucket receives entries that hash differently under the next-level function."
+/>
+
+Linear hashing uses a family of related functions, each doubling the range of the previous one:
+
+$$
+h_i(k) = h(k) \bmod \left(2^i N\right),
+$$
+
+where $N$ is the initial number of buckets, $h$ is the underlying hash, and $i$ is the current level. With $N=4$ the first functions are $h_0(k)=h(k)\bmod 4$, $h_1(k)=h(k)\bmod 8$, $h_2(k)=h(k)\bmod 16$, so each level looks at one extra low-order bit.
+
+The algorithm proceeds in rounds, with two pieces of state.
+
+- **Level.** The current round number. At level $i$, the table is moving from range $2^iN$ toward $2^{i+1}N$.
+- **Next.** The pointer to the next bucket that must be split.
+
+A round starts with $N_{\text{level}}=N\cdot 2^{\text{level}}$ buckets. Within the round, buckets $0$ to $\text{next}-1$ have already been split and use the larger hash range, while buckets $\text{next}$ to $N_{\text{level}}-1$ have not. Whenever any bucket overflows, the DBMS splits bucket $\text{next}$, redistributes its contents with the next-level range, and increments $\text{next}$. When every original bucket of the round has been split, the round ends: increase $\text{level}$ by $1$, reset $\text{next}=0$, and begin again. Extendible hashing grows through a directory and linear hashing grows without one, but both replace the static table's full rebuild with incremental work.
+
+Search uses the split pointer to pick the right function. Compute $h_{\text{level}}(r)$; if the result is $\ge \text{next}$, that bucket has not split yet this round and $r$ belongs there, but if it is $< \text{next}$, that bucket has already split and the search must recompute with $h_{\text{level}+1}(r)$. Insertion finds the bucket the same way: if it has space, insert there. If it is full, attach an overflow page for the new record, then split bucket $\text{next}$, redistribute its entries with $h_{\text{level}+1}$, and increment $\text{next}$. The bucket that overflows is usually not the bucket that splits, and because splitting moves round-robin, overflow chains do not grow forever.
+
+**Example 3. One overflow triggers a split.**
+
+*Start with $N=4$ buckets and $\text{next}=0$, holding bucket $0:\{8\}$, bucket $1:\{5,9,13\}$ (full), bucket $2:\{6\}$, bucket $3:\{7,11\}$.*
+
+Searching for $6$ gives $6\bmod 4 = 2$, and since $2\ge\text{next}$, bucket $2$ has not split, so $6$ is found there. Inserting $17$ gives $17\bmod 4=1$; bucket $1$ is full, so $17$ goes to an overflow page. That overflow triggers a split of bucket $\text{next}=0$ using the next range $k\bmod 8$: $8\bmod 8=0$ keeps $8$ in bucket $0$, and $20\bmod 8=4$ moves $20$ to a new bucket $4$. The pointer advances to $\text{next}=1$.
+
+| Bucket | Contents | Comment |
+|---|---|---|
+| 0 | $8$ | already split this round |
+| 1 | $5, 9, 13$ and overflow $17$ | not split yet |
+| 2 | $6$ | not split yet |
+| 3 | $7, 11$ | not split yet |
+| 4 | $20$ | new bucket from the split |
+
+*After the split, searching for $20$ gives $20\bmod 4=0$, but $0<\text{next}$, so bucket $0$ has split and we recompute $20\bmod 8=4$: key $20$ is found in bucket $4$. Searching for $9$ gives $9\bmod 4=1$ with $1\ge\text{next}$, so bucket $1$ has not split and we do not recompute with modulo $8$.*
+
+The split pointer eventually reaches every bucket, so even buckets that overflow at different times are reorganized in turn. Linear hashing suits data whose size changes over time: growth is gradual, rehashing is spread across many insertions, only one bucket page is reorganized at a time, and the rest of the table stays accessible meanwhile. It still depends on a good hash function, and overflow pages can lengthen lookups, so it does not reach the ideal constant-time picture.
+
+## Disk-Oriented Sorting
+
+A disk-oriented DBMS cannot assume that a table, or even a query result, fits in main memory. It runs algorithms through the buffer pool and may spill data to disk, which changes what makes an algorithm good: reading and writing in large sequential chunks, since sequential I/O is far cheaper than random I/O for a disk.
+
+Sorting matters even though the relational model stores no guaranteed order. A query may request it with `ORDER BY`, and the DBMS also sorts internally to remove duplicates for `DISTINCT`, to support `GROUP BY` aggregation, and to bulk-load a B$^+$-tree efficiently. The hard case is sorting a large file with only a small number of buffer pages, which is exactly what **external sorting** solves.
+
+<SortPasses
+  caption="External merge sort: each pass merges B-1 runs into fewer, wider runs until one fully-sorted file remains. Each pass costs 2N I/Os; the pass count is 1 plus the base-(B-1) logarithm of N/B, rounded up."
+  passes={[
+    {
+      label: "Pass 0",
+      note: "ceil(N/B) sorted runs of B pages each",
+      runs: [
+        { id: "r0" }, { id: "r1" }, { id: "r2" }, { id: "r3" },
+        { id: "r4" }, { id: "r5" }, { id: "r6" }, { id: "r7" },
+      ],
+    },
+    {
+      label: "Pass 1",
+      note: "each pass merges B-1 runs into fewer, larger runs",
+      ellipsis: true,
+      runs: [
+        { id: "m0", from: ["r0", "r1", "r2", "r3"] },
+        { id: "m1", from: ["r4", "r5", "r6", "r7"] },
+      ],
+    },
+    {
+      label: "Final",
+      runs: [
+        { id: "f", span: 8, label: "1 fully sorted file", state: "final", from: ["m0", "m1"] },
+      ],
+    },
+  ]}
+/>
+
+**Run.** A maximal sorted piece of the file produced during sorting. External sort first turns the file into many small runs and then repeatedly merges runs into longer ones until a single sorted run remains.
+
+The baseline version is the **2-way external sort**, where each merge pass merges two runs into one. With a file of $N$ pages and $B$ buffer pages available, pass $0$ reads one page, sorts it in memory, and writes it back as a one-page sorted run, repeating until the file becomes a set of one-page runs. Passes $1, 2, \dots$ then merge pairs of runs, doubling run length each time. A 2-way merge needs three buffer pages: one input for each of the two runs and one output.
+
+Each pass reads and writes every page exactly once, so a pass costs $2N$ I/Os. The number of passes is $1+\lceil\log_2 N\rceil$, giving a total of
+
+$$
+2N\left(1+\lceil\log_2 N\rceil\right)
+$$
+
+I/Os.
+
+The 2-way version uses the buffer pool conservatively. With $B$ pages, pass $0$ reads $B$ pages, sorts them, and writes one run of length $B$, producing $\lceil N/B \rceil$ initial runs. Each later pass then dedicates $B-1$ input buffers to $B-1$ runs and $1$ buffer to the output, merging $B-1$ runs at once. The number of passes drops to
+
+$$
+1+\left\lceil\\left\lceil\frac{N}{B}\right\rceil\right\rceil,
+$$
+
+and since every pass still moves all $N$ pages, the total cost is $2N$ times that count. A larger buffer pool therefore means fewer initial runs, fewer merge passes, and lower total I/O.
+
+**Example 4. Sorting $N=108$ pages with $B=5$ buffers.**
+
+| Pass | Runs after the pass | What happens |
+|---|---|---|
+| 0 | $\lceil 108/5\rceil=22$ | $22$ sorted runs of $5$ pages, except the last with $3$ pages. |
+| 1 | $\lceil 22/4\rceil=6$ | Merge $4$ runs at a time into $6$ runs; most are $20$ pages, the last is $8$. |
+| 2 | $\lceil 6/4\rceil=2$ | Merge again into $2$ runs of $80$ and $28$ pages. |
+| 3 | $1$ | A final merge produces one sorted file of $108$ pages. |
+
+*The pass count is $1+\lceil\log_4 22\rceil = 1+3 = 4$, matching the four rows.*
+
+External sorting spends much of its time waiting on I/O, which **double buffering** reduces by prefetching the next data into a second buffer while the current buffer is being processed in memory. This overlaps CPU work with disk transfers so the CPU does not idle, lowering response time, at the cost of reserving some buffers for prefetch and output and thus reducing the effective merge fan-in. The base I/O formulas then have to be adjusted for that smaller number of merge buffers.
+
+## Sorting with a B$^+$-Tree
+
+When the table already has a B$^+$-tree index on the sort attribute, the DBMS can sometimes skip external sorting and read records in index order: go to the left-most leaf page, then scan leaf pages left to right. Whether this helps depends entirely on clustering.
+
+A **clustered** B$^+$-tree stores the table itself in roughly leaf-page order, so after reaching the left-most leaf the DBMS keeps reading records in sorted order with mostly sequential I/O. There is almost no sorting work left and the access pattern is exactly what a disk-oriented DBMS wants, so using a clustered index usually beats running an external sort from scratch.
+
+An **unclustered** B$^+$-tree is the opposite. The leaf pages still yield keys in sorted order, but each entry points to a record on an unrelated page, so the DBMS follows one pointer, fetches a page, follows the next pointer, fetches another unrelated page, and so on. In the worst case this is roughly one I/O per record, which makes an unclustered index a poor way to sort a large file, often worse than external sorting.
+
+The cost of external sort falls quickly as buffers grow, since more buffers mean fewer initial runs and a wider merge fan-in.
+
+| $N$ | $B=3$ | $B=5$ | $B=9$ | $B=17$ | $B=129$ | $B=257$ |
+|---|---|---|---|---|---|---|
+| 100 | 7 | 4 | 3 | 2 | 1 | 1 |
+| 1,000 | 10 | 5 | 4 | 3 | 2 | 2 |
+| 10,000 | 13 | 7 | 5 | 4 | 2 | 2 |
+| 100,000 | 17 | 9 | 6 | 5 | 3 | 3 |
+| 1,000,000 | 20 | 10 | 7 | 5 | 3 | 3 |
+| 10,000,000 | 23 | 12 | 8 | 6 | 4 | 3 |
+| 100,000,000 | 26 | 14 | 9 | 7 | 4 | 4 |
+| 1,000,000,000 | 30 | 15 | 10 | 8 | 5 | 4 |
+
+With little memory, sorting needs many passes; with more memory, the pass count drops sharply, and since each pass costs $2N$ I/Os, fewer passes means much less total I/O.

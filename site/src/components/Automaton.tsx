@@ -1,4 +1,16 @@
-import { cn } from "@/lib/cn";
+import {
+  ArrowHead,
+  COLOR,
+  DiagramFigure,
+  DiagramSvg,
+  FONT,
+  Label,
+  STROKE,
+  measureLabel,
+  r2,
+  ref,
+  stableId,
+} from "@/components/diagram";
 
 /**
  * A finite-automaton diagram in the textbook style: light-grey circular
@@ -12,10 +24,11 @@ import { cn } from "@/lib/cn";
  * we lay states out on a row and draw every edge as a single quadratic (or the
  * self-loop as one cubic), so the geometry is fully under our control.
  *
- * Rendered once on the server (no client JS, no flash). Every colour is a
- * `var(--mm-*)` reference, so it shares the diagram palette with <Mermaid> and
- * re-themes live on the light/dark switch. `currentColor` (set to --mm-fg on
- * the root) drives strokes, text and arrowheads as one ink.
+ * Rendered once on the server (no client JS, no flash). Chrome, text and
+ * palette come from the shared diagram core, so it reads as one family with
+ * the other figures and re-themes live on the light/dark switch.
+ * `currentColor` (the core sets it to the figure ink) drives strokes, text
+ * and arrowheads as one ink.
  */
 
 export interface AutoState {
@@ -47,6 +60,8 @@ interface Props {
   accepting?: string[];
   /** Centre-to-centre spacing between states, in px. */
   gap?: number;
+  /** Bold heading inside the card (e.g. "Before"). */
+  title?: string;
   caption?: string;
   className?: string;
 }
@@ -62,59 +77,7 @@ const LOOP_RISE = 36; // how far a self-loop bows above the node
 const BEND_BASE = 38; // arc bow for adjacent states
 const BEND_STEP = 28; // extra bow per skipped state
 
-const STATE_FONT = 17;
-const SUB_FONT = 11.5;
-const SUB_DY = 3.6; // baseline drop for a subscript tspan
-const EDGE_FONT = 14;
-
-const r2 = (n: number) => Math.round(n * 100) / 100;
-
-/** Small stable hash → a per-diagram marker id, so multiple automata on one
- *  page never share a DOM id (e.g. two automata with the same state names). */
-function hash(s: string): string {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(36);
-}
-
-// --- label parsing (subscripts) -------------------------------------------
-
-interface Token {
-  t: string;
-  sub: boolean;
-}
-
-/** Split a label into runs, treating `_x` / `_{xy}` as subscript tokens. */
-function parseTokens(label: string): Token[] {
-  const out: Token[] = [];
-  for (let i = 0; i < label.length; i++) {
-    const c = label[i];
-    if (c === "_") {
-      i++;
-      if (label[i] === "{") {
-        let s = "";
-        i++;
-        while (i < label.length && label[i] !== "}") s += label[i++];
-        out.push({ t: s, sub: true });
-      } else if (i < label.length) {
-        out.push({ t: label[i], sub: true });
-      }
-    } else {
-      const last = out[out.length - 1];
-      if (last && !last.sub) last.t += c;
-      else out.push({ t: c, sub: false });
-    }
-  }
-  return out;
-}
-
-/** Rough advance width of a parsed label at STATE_FONT, for ellipse sizing. */
-function labelWidth(tokens: Token[]): number {
-  return tokens.reduce((a, t) => a + t.t.length * (t.sub ? 5.6 : 8.7), 0);
-}
+const EDGE_FONT = 14; // transition labels (between note and node scale)
 
 // --- node + edge maths ----------------------------------------------------
 
@@ -124,7 +87,7 @@ interface Node extends AutoState {
   cy: number;
   rx: number;
   ry: number;
-  tokens: Token[];
+  text: string;
   isAccepting: boolean;
 }
 
@@ -144,25 +107,13 @@ const quadAt = (t: number, p0: Pt, c: Pt, p1: Pt): Pt => {
   };
 };
 
-function labelTspans(tokens: Token[]) {
-  let prevSub = false;
-  return tokens.map((tok, i) => {
-    const dy = tok.sub === prevSub ? 0 : tok.sub ? SUB_DY : -SUB_DY;
-    prevSub = tok.sub;
-    return (
-      <tspan key={i} fontSize={tok.sub ? SUB_FONT : STATE_FONT} dy={dy}>
-        {tok.t}
-      </tspan>
-    );
-  });
-}
-
 export function Automaton({
   states,
   transitions,
   start,
   accepting,
   gap = GAP,
+  title,
   caption,
   className,
 }: Props) {
@@ -172,12 +123,12 @@ export function Automaton({
   // Lay the states out on one baseline; widen the ellipse for long labels so
   // text never clips, while keeping the height (ry) uniform across the row.
   const nodes: Node[] = states.map((s, index) => {
-    const tokens = parseTokens(s.label ?? s.id);
-    const rx = Math.max(R, labelWidth(tokens) / 2 + 13);
+    const text = s.label ?? s.id;
+    const rx = Math.max(R, measureLabel(text, FONT.node) / 2 + 13);
     return {
       ...s,
       index,
-      tokens,
+      text,
       rx,
       ry: R,
       cx: 0,
@@ -222,24 +173,28 @@ export function Automaton({
     nodes.forEach((n) => (n.cy = cy));
   }
 
-  const last = nodes[nodes.length - 1];
-  const width = isManualLayout
-    ? Math.max(...nodes.map((n) => n.cx + n.rx), 0) + MARGIN
-    : (last?.cx ?? 0) + (last?.rx ?? R) + MARGIN;
-  const height = isManualLayout
-    ? Math.max(...nodes.map((n) => n.cy + n.ry), 0) + MARGIN
-    : topPad + bottomPad;
+  // Edge geometry is computed before the svg is sized, so manual layouts can
+  // include arcs and labels in the viewBox (a vertical edge's side label used
+  // to fall outside the node-extent bounds and get clipped).
+  interface EdgeLabel {
+    x: number;
+    y: number;
+    text: string;
+    anchor: "start" | "middle" | "end";
+    baseline: "central" | "baseline";
+  }
+  interface EdgeGeom {
+    key: number;
+    d: string;
+    maxX: number;
+    maxY: number;
+    label?: EdgeLabel;
+  }
 
-  // A per-instance marker id keeps multiple automata on one page valid, even
-  // when two diagrams share state names (e.g. M and M′ in a complement proof).
-  const arrowId = `aut-arrow-${hash(
-    JSON.stringify({ states, transitions, start, accepting }),
-  )}`;
-
-  const edges = transitions.map((t, i) => {
+  const edgeGeoms = transitions.flatMap((t, i): EdgeGeom[] => {
     const a = byId.get(t.from);
     const b = byId.get(t.to);
-    if (!a || !b) return null;
+    if (!a || !b) return [];
 
     if (a === b) {
       // Self-loop: one cubic bowing above the node, arrow returning on the right.
@@ -248,28 +203,23 @@ export function Automaton({
       const c0 = { x: lp.x - 11, y: lp.y - LOOP_RISE };
       const c1 = { x: rp.x + 11, y: rp.y - LOOP_RISE };
       const apexY = 0.125 * lp.y + 0.375 * c0.y + 0.375 * c1.y + 0.125 * rp.y;
-      return (
-        <g key={i}>
-          <path
-            d={`M${r2(lp.x)},${r2(lp.y)} C${r2(c0.x)},${r2(c0.y)} ${r2(c1.x)},${r2(c1.y)} ${r2(rp.x)},${r2(rp.y)}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.4}
-            markerEnd={`url(#${arrowId})`}
-          />
-          {t.label && (
-            <text
-              x={r2(a.cx)}
-              y={r2(apexY - 7)}
-              textAnchor="middle"
-              fontSize={EDGE_FONT}
-              fill="currentColor"
-            >
-              {t.label}
-            </text>
-          )}
-        </g>
-      );
+      return [
+        {
+          key: i,
+          d: `M${r2(lp.x)},${r2(lp.y)} C${r2(c0.x)},${r2(c0.y)} ${r2(c1.x)},${r2(c1.y)} ${r2(rp.x)},${r2(rp.y)}`,
+          maxX: c1.x,
+          maxY: lp.y,
+          label: t.label
+            ? {
+                x: a.cx,
+                y: apexY - 7,
+                text: t.label,
+                anchor: "middle",
+                baseline: "baseline",
+              }
+            : undefined,
+        },
+      ];
     }
 
     const dir = bendDir(t);
@@ -290,29 +240,88 @@ export function Automaton({
     const p0 = edgePoint(a, apex.x - a.cx, apex.y - a.cy);
     const p1 = edgePoint(b, apex.x - b.cx, apex.y - b.cy);
     const mid = quadAt(0.5, p0, apex, p1);
-    return (
-      <g key={i}>
-        <path
-          d={`M${r2(p0.x)},${r2(p0.y)} Q${r2(apex.x)},${r2(apex.y)} ${r2(p1.x)},${r2(p1.y)}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.4}
-          markerEnd={`url(#${arrowId})`}
-        />
-        {t.label && (
-          <text
-            x={r2(mid.x)}
-            y={r2(dir < 0 ? mid.y - 9 : mid.y + 17)}
-            textAnchor="middle"
-            fontSize={EDGE_FONT}
-            fill="currentColor"
-          >
-            {t.label}
-          </text>
-        )}
-      </g>
-    );
+
+    // Offset the label along the arc's outward normal so it clears the curve
+    // whatever its orientation (vertical edges in manual layouts used to get
+    // a vertical offset that left the text on the arc); the halo keeps it
+    // readable when the gap to the arc is tight.
+    const chordMid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+    let nx = apex.x - chordMid.x;
+    let ny = apex.y - chordMid.y;
+    const nl = Math.hypot(nx, ny) || 1;
+    nx /= nl;
+    ny /= nl;
+    const anchor = nx > 0.35 ? "start" : nx < -0.35 ? "end" : "middle";
+    return [
+      {
+        key: i,
+        d: `M${r2(p0.x)},${r2(p0.y)} Q${r2(apex.x)},${r2(apex.y)} ${r2(p1.x)},${r2(p1.y)}`,
+        maxX: mid.x,
+        maxY: mid.y,
+        label: t.label
+          ? {
+              x: mid.x + nx * 12,
+              y: mid.y + ny * 12,
+              text: t.label,
+              anchor,
+              baseline: "central",
+            }
+          : undefined,
+      },
+    ];
   });
+
+  // Right/bottom extent of a placed edge label, from real font metrics.
+  const labelMaxX = (l: EdgeLabel) => {
+    const w = measureLabel(l.text, EDGE_FONT);
+    return l.anchor === "start" ? l.x + w : l.anchor === "end" ? l.x : l.x + w / 2;
+  };
+  const labelMaxY = (l: EdgeLabel) =>
+    l.baseline === "central" ? l.y + EDGE_FONT * 0.6 : l.y;
+
+  const last = nodes[nodes.length - 1];
+  const width = isManualLayout
+    ? Math.max(
+        ...nodes.map((n) => n.cx + n.rx),
+        ...edgeGeoms.map((e) => Math.max(e.maxX, e.label ? labelMaxX(e.label) : 0)),
+        0,
+      ) + MARGIN
+    : (last?.cx ?? 0) + (last?.rx ?? R) + MARGIN;
+  const height = isManualLayout
+    ? Math.max(
+        ...nodes.map((n) => n.cy + n.ry),
+        ...edgeGeoms.map((e) => Math.max(e.maxY, e.label ? labelMaxY(e.label) : 0)),
+        0,
+      ) + MARGIN
+    : topPad + bottomPad;
+
+  // A per-instance marker id keeps multiple automata on one page valid, even
+  // when two diagrams share state names (e.g. M and M' in a complement proof).
+  const arrowId = stableId("aut-arrow", { states, transitions, start, accepting });
+
+  const edges = edgeGeoms.map((e) => (
+    <g key={e.key}>
+      <path
+        d={e.d}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={STROKE.line}
+        markerEnd={ref(arrowId)}
+      />
+      {e.label && (
+        <Label
+          x={e.label.x}
+          y={e.label.y}
+          text={e.label.text}
+          size={EDGE_FONT}
+          fill="currentColor"
+          anchor={e.label.anchor}
+          baseline={e.label.baseline}
+          halo
+        />
+      )}
+    </g>
+  ));
 
   const startNode = byId.get(startId);
   const startArrow = startNode
@@ -324,88 +333,59 @@ export function Automaton({
             d={`M${r2(tip.x - START_LEN)},${r2(y)} L${r2(tip.x)},${r2(y)}`}
             fill="none"
             stroke="currentColor"
-            strokeWidth={1.4}
-            markerEnd={`url(#${arrowId})`}
+            strokeWidth={STROKE.line}
+            markerEnd={ref(arrowId)}
           />
         );
       })()
     : null;
 
   return (
-    <figure className={cn("automaton", className)}>
-      <div className="automaton__card">
-        <div className="automaton__canvas">
-          <svg
-            width="100%"
-            viewBox={`0 0 ${r2(width)} ${r2(height)}`}
-            preserveAspectRatio="xMidYMid meet"
-            role="img"
-            aria-label={caption ?? "Finite automaton diagram"}
-            style={{ color: "var(--mm-fg)" }}
-          >
-            <defs>
-              <marker
-                id={arrowId}
-                viewBox="0 0 12 12"
-                refX="9"
-                refY="6"
-                markerWidth="11"
-                markerHeight="11"
-                markerUnits="userSpaceOnUse"
-                orient="auto"
-              >
-                <path
-                  d="M2.5,2.5 L9,6 L2.5,9.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </marker>
-            </defs>
+    <DiagramFigure title={title} caption={caption} className={className}>
+      <DiagramSvg
+        w={width}
+        h={height}
+        label={caption ?? "Finite automaton diagram"}
+      >
+        <defs>
+          <ArrowHead id={arrowId} color="currentColor" />
+        </defs>
 
-            {startArrow}
-            {edges}
+        {startArrow}
+        {edges}
 
-            {nodes.map((n) => (
-              <g key={n.id}>
-                <ellipse
-                  cx={r2(n.cx)}
-                  cy={r2(n.cy)}
-                  rx={r2(n.rx)}
-                  ry={r2(n.ry)}
-                  fill="var(--mm-node)"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                />
-                {n.isAccepting && (
-                  <ellipse
-                    cx={r2(n.cx)}
-                    cy={r2(n.cy)}
-                    rx={r2(n.rx - ACCEPT_INSET)}
-                    ry={r2(n.ry - ACCEPT_INSET)}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.3}
-                  />
-                )}
-                <text
-                  x={r2(n.cx)}
-                  y={r2(n.cy)}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize={STATE_FONT}
-                  fill="currentColor"
-                >
-                  {labelTspans(n.tokens)}
-                </text>
-              </g>
-            ))}
-          </svg>
-        </div>
-      </div>
-      {caption && <figcaption className="automaton__caption">{caption}</figcaption>}
-    </figure>
+        {nodes.map((n) => (
+          <g key={n.id}>
+            <ellipse
+              cx={r2(n.cx)}
+              cy={r2(n.cy)}
+              rx={r2(n.rx)}
+              ry={r2(n.ry)}
+              fill={COLOR.node}
+              stroke="currentColor"
+              strokeWidth={STROKE.frame}
+            />
+            {n.isAccepting && (
+              <ellipse
+                cx={r2(n.cx)}
+                cy={r2(n.cy)}
+                rx={r2(n.rx - ACCEPT_INSET)}
+                ry={r2(n.ry - ACCEPT_INSET)}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={STROKE.frame}
+              />
+            )}
+            <Label
+              x={n.cx}
+              y={n.cy}
+              text={n.text}
+              size={FONT.node}
+              fill="currentColor"
+            />
+          </g>
+        ))}
+      </DiagramSvg>
+    </DiagramFigure>
   );
 }
