@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CopyPageButton } from "@/components/CopyPageButton";
+import { Highlightable } from "@/components/Highlightable";
 import { KatexAutoFit } from "@/components/KatexAutoFit";
 import { renderMDX } from "@/lib/mdx";
 import { getAllNotes, getNoteBySlug, formatDate } from "@/lib/notes";
@@ -78,9 +79,9 @@ export default async function NotePage({
         )}
       </header>
 
-      <div className="prose min-w-0">
+      <Highlightable slug={note.slug} className="prose min-w-0">
         {content}
-      </div>
+      </Highlightable>
       <KatexAutoFit />
     </article>
   );
