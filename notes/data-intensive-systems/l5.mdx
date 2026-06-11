@@ -3,23 +3,12 @@ title: "Data Intensive Systems: Lecture 5"
 description: "B+ trees in depth: node structure and fan-out, search, insertion with leaf and internal splits, deletion with redistribution and merging, range scans over clustered vs unclustered data, and latch crabbing."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-09
+updated: 2026-06-11
 ---
 
-## Access Methods
+## Access Methods and Data Entries
 
-The execution engine reads and writes whole pages. To avoid scanning every page for every query, a DBMS adds **access methods**: physical data structures that lead it to the right page or record quickly. The two main families are hash-based indexes and tree-based indexes.
-
-**Hash-based index.** Uses a hash function $h(k)$ to send a search-key value to one bucket. Because buckets are not ordered by key, hashing is best for equality search and poor at ranges.
-
-**Tree-based index.** Keeps entries in sorted search-key order, so it answers both equality and range predicates. The standard disk-oriented form is the $B^+$-tree.
-
-| Structure | Best at | Main limitation |
-|---|---|---|
-| Hash index | equality, such as `age = 44` | no order, so ranges are poor |
-| $B^+$-tree | equality, ranges, ordered scans | small overhead for pure equality |
-
-Whatever the technique, the index must say how to reach the underlying record. That payload is the data entry.
+Access methods lead the engine to the right page instead of scanning all of them: a hash index computes a bucket and answers equality, a tree index keeps entries sorted and answers ranges and ordered scans as well. Whatever the family, the index must say how to reach the underlying record. That payload is the data entry.
 
 **Data entry ($k^*$).** The information stored in the index for a search-key value $k$. It tells the DBMS how to reach the matching record or records. There are three classic forms, and the choice is orthogonal to whether the index is a hash or a tree.
 
@@ -61,6 +50,25 @@ A $B^+$-tree is an $n$-way search tree, and its shape is pinned down by a few in
 
 Internal nodes store only separator keys and child pointers; leaves store the actual data entries and are connected left to right by sibling pointers. The tree decides *how to find* an entry; the chosen alternative decides *what the entry contains*.
 
+At implementation level a node is a **sorted array** of entries inside one page. An internal node with child pointers $P_1, \dots, P_q$ stores separator keys $K_1, \dots, K_{q-1}$, where $K_i$ separates the subtree under $P_i$ from the subtree under $P_{i+1}$. In a leaf, the value beside each key is a record pointer, a RID list, or the record itself, by the data-entry alternative, and **prev**/**next** links chain the leaves in key order.
+
+<PageLayout
+  mode="node-strip"
+  nodes={[
+    {
+      title: "Internal node",
+      cells: ["P_1", "K_1", "P_2", "K_2", "P_3", "K_{q-1}", "P_q"],
+    },
+    {
+      title: "Leaf node",
+      cells: ["K_1", "ptr", "K_2", "ptr", "...", "next"],
+      nextLink: true,
+    },
+  ]}
+  footnote="internal nodes route the search; leaves store entries and are linked for range scans"
+  caption="Node anatomy: internal nodes alternate pointers and keys to route a search; leaves store entries and chain for range scans."
+/>
+
 <BPlusTree
   caption="Internal nodes route by separator keys; leaf links preserve key order for range scans."
   roles={[
@@ -87,9 +95,11 @@ Internal nodes store only separator keys and child pointers; leaves store the ac
   ]}
 />
 
+---
+
 ## Search
 
-Search always starts at the root. At each internal node, key comparisons select one child pointer, and the descent stops at a leaf. The leaf then settles the query: the key is present, the key is absent (it would have to sit between two stored neighbors), or it is the first of a range that the sibling pointers continue.
+Search always starts at the root. At each internal node, key comparisons select one child pointer, and the descent stops at a leaf. The leaf then settles the query: the key is present, the key is absent (it would have to sit between two stored neighbors), or it is the first of a range that the sibling pointers continue. A lookup therefore returns either the matching entry or the exact leaf position where the key would belong, and this lower-bound behavior is what insertion and range scans reuse.
 
 <Split cols="1.25fr 0.75fr" align="center">
 <Pane>
@@ -181,7 +191,7 @@ Leaf splits and internal splits move keys upward in different ways, and this dis
 | Leaf split | separator is **copied up** | the leaf stores real data entries, so the key must stay; the parent only needs a routing copy |
 | Internal split | middle separator is **pushed up** | internal keys are pure routing, so the promoted separator appears once, only in the parent |
 
-The rule to remember is short: a leaf split **copies up**, an internal split **pushes up**.
+*A leaf split copies up; an internal split pushes up.*
 
 **Example 3. Insert 21 and split to the root.**
 
@@ -436,6 +446,8 @@ Redistribution is not only for leaves; internal nodes can redistribute too, but 
   ]}
 />
 
+---
+
 ## Range Scans and Clustering
 
 A $B^+$-tree shines on ordered scans because the leaf chain already holds keys in order. To read many records in key order, the DBMS descends to the leftmost relevant leaf and then follows leaf links rightward. The traversal is identical regardless of how the data sits on disk; what changes is how leaf entries map to table pages.
@@ -531,7 +543,14 @@ These are only guidelines: long leaf scans favor larger nodes, while repeated ro
 
 The half-full rule is likewise a guarantee about the ideal structure, not always a strict policy after every delete. Many systems delay merging because inserts usually outnumber deletes (a sparse page may soon refill), eager merging causes extra page movement and separator churn, and average occupancy settles near $67\%$. Some prefer periodic rebuilding over aggressive merge-on-delete.
 
-Variable-length keys raise the question of how to pack them into fixed-size pages. Common answers are **pointer-based keys** that store a pointer to the real value, **variable-length nodes** that manage free space inside the page, **padding** keys to their type maximum (direct but wasteful), and **key indirection** through a small array of offsets into the key area. The trade-off is the usual one: a fixed-width layout wastes more space, while a compact layout complicates memory management.
+Variable-length keys raise the question of how to pack them into fixed-size pages.
+
+- **Pointer-based keys.** Store a pointer to the real value instead of the value.
+- **Variable-length nodes.** Manage free space inside the page, like a slotted page.
+- **Padding.** Pad every key to its type maximum: direct but wasteful.
+- **Key indirection.** A small array of offsets into a key area inside the node.
+
+The trade-off is the usual one: a fixed-width layout wastes more space, while a compact layout complicates memory management.
 
 Once a node is in memory, the DBMS still has to find the right entry inside it.
 
@@ -548,29 +567,6 @@ $$
 $$
 
 where $x$ is the search key. It works best when key values are spread fairly evenly.
-
-## Nodes and Lookup
-
-At implementation level, a node is a **sorted array** of entries inside one page. In an internal node the value beside each key is a child page reference; in a leaf it is a record pointer, a RID list, or the record itself, depending on the data-entry alternative. Leaves additionally keep **prev** and **next** links to their neighbors, which is what makes range scans efficient.
-
-<PageLayout
-  mode="node-strip"
-  nodes={[
-    {
-      title: "Internal node",
-      cells: ["P_1", "K_1", "P_2", "K_2", "P_3", "K_{q-1}", "P_q"],
-    },
-    {
-      title: "Leaf node",
-      cells: ["K_1", "ptr", "K_2", "ptr", "...", "next"],
-      nextLink: true,
-    },
-  ]}
-  footnote="internal nodes route the search; leaves store entries and are linked for range scans"
-  caption="Node anatomy: internal nodes alternate pointers and keys to route a search; leaves store entries and chain for range scans."
-/>
-
-Lookup follows the sorted structure: start at the root; while at an internal node, find the first separator that selects the correct child and follow that pointer; repeat until a leaf is reached; in the leaf, find the exact entry or the position where the key would belong. So a lookup returns either the **matching entry** or the **correct leaf position** for a key that does not yet exist. This lower-bound behavior is exactly what also makes insertions and range scans fall out naturally.
 
 ## Concurrent Access
 

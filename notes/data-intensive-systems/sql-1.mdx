@@ -1,22 +1,20 @@
 ---
 title: "Data Intensive Systems: SQL"
-description: "SQL as a query language: schema definition, single- and multi-table queries, joins, set operations, grouping and aggregation, mapped onto the relational algebra."
+description: "SQL as a query language: vocabulary, single- and multi-table queries mapped onto relational algebra, the conceptual evaluation order, aggregation, grouping, and HAVING."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-09
+updated: 2026-06-11
 ---
 
 ## Relational Terminology
 
-SQL is the query language for the relational model, so its vocabulary maps directly onto the formal terms. A **relation** is a **table**, a **tuple** is a **row**, and an **attribute** is a **column**.
+SQL is the practical face of the relational model, so its vocabulary maps directly onto the formal terms: a **relation** is a **table**, a **tuple** is a **row**, an **attribute** is a **column**. Keys carry over unchanged; in the `Students` table below, `sid` is the primary key, underlined as always.
 
 | <u>sid</u> | name | login | age | gpa |
 |---|---|---|---|---|
 | 53666 | Jones | jones@cs | 18 | 3.4 |
 | 53688 | Smith | smith@ee | 18 | 3.2 |
 | 53777 | White | white@cs | 19 | 4.0 |
-
-**Primary key (PK).** The column, or group of columns, that uniquely identifies a row. No two rows may share the same primary key. Here `sid` is the primary key, so it is underlined.
 
 ## Single-Table Queries
 
@@ -28,9 +26,7 @@ SELECT * FROM Students S
 
 Here `S` is an optional *alias* (range variable) for `Students`, useful for qualifying column names as `S.name`. This query returns the whole table unchanged.
 
-Naming columns instead of `*` keeps only those columns. This corresponds to the relational algebra projection $\pi$.
-
-**Projection.** Selecting specific columns from a table, dropping the rest.
+Naming columns instead of `*` keeps only those columns: projection $\pi$, in SQL form.
 
 ```sql
 SELECT S.name, S.login FROM Students S
@@ -44,9 +40,7 @@ SELECT S.name, S.login FROM Students S
 | Smith | smith@ee |
 | White | white@cs |
 
-The `WHERE` clause keeps only the rows that satisfy a condition. This is the relational algebra selection $\sigma$.
-
-**Selection.** Filtering rows by a predicate, keeping every column.
+The `WHERE` clause keeps only the rows that satisfy a condition: selection $\sigma$.
 
 ```sql
 SELECT * FROM Students S WHERE S.age = 18
@@ -85,6 +79,8 @@ $$
 3. **SELECT** keeps only the columns in *target-list* (projection $\pi$).
 4. **DISTINCT**, if present, removes duplicate rows.
 
+---
+
 ## Joins Across Tables
 
 To combine data from two tables, list both in `FROM` and give the matching condition in `WHERE`. Consider an `Enrolled` table beside `Students`.
@@ -111,7 +107,7 @@ To combine data from two tables, list both in `FROM` and give the matching condi
 </Pane>
 </Split>
 
-The condition `S.sid = E.sid` is the join predicate: it keeps only pairs where the two `sid` values agree. A second condition can filter further.
+The condition `S.sid = E.sid` is the join predicate: it keeps only pairs where the two `sid` values agree, which is exactly the join $\bowtie$ written as a cross-product plus selection. A second condition can filter further.
 
 **Example 1. Students with grade B.**
 
@@ -136,9 +132,11 @@ WHERE S.sid = E.sid AND E.grade = 'B'
 
 *`WHERE` keeps only rows where `S.sid = E.sid` and `E.grade = 'B'`. One row survives: Jones (sid 53666) in History105. `SELECT` then projects `S.name` and `E.cid`, giving the final result `(Jones, History105)`.*
 
-## Running Example
+---
 
-The next examples use sailors, boats, and reservations. A reservation links a sailor to a boat on a day, so `Reserves.sid` and `Reserves.bid` are foreign keys into `Sailors` and `Boats`.
+## Aggregation
+
+The remaining examples use sailors, boats, and reservations. A reservation links a sailor to a boat on a day, so `Reserves.sid` and `Reserves.bid` are foreign keys into `Sailors` and `Boats`.
 
 <Split cols="1.1fr 1.1fr 0.9fr" align="start">
 <Pane>
@@ -169,8 +167,6 @@ The next examples use sailors, boats, and reservations. A reservation links a sa
 
 </Pane>
 </Split>
-
-## Aggregation
 
 A selection-projection query returns one output row per qualifying input row. Aggregates instead collapse a whole column into a single summary value, an extension that relational algebra does not provide.
 
@@ -207,7 +203,7 @@ SELECT AVG(S.age) FROM Sailors S WHERE S.rating = 10
 SELECT COUNT(DISTINCT S.rating) FROM Sailors S WHERE S.sname = 'Bob'
 ```
 
-An aggregate cannot be mixed with a bare column in the same `SELECT`, because the two have different cardinalities.
+An aggregate cannot be mixed with a bare column in the same `SELECT`, because the two have different cardinalities: a bare column has one value per row, an aggregate has one value in total.
 
 **Example 3. Name and age of the oldest sailor.**
 
@@ -273,9 +269,9 @@ Grouping constrains what the `SELECT` clause may contain.
 
 **GROUP BY semantics.** The `SELECT` list may contain only columns named in `GROUP BY` and aggregate functions applied to other columns. A bare column that is neither grouped nor aggregated has no single value per group and is an error.
 
-To keep or discard whole groups by an aggregate condition, use `HAVING`. It stands to groups as `WHERE` stands to rows: `WHERE` filters individual tuples before grouping, `HAVING` filters groups after grouping.
-
 **HAVING clause.** A filter applied after grouping, using aggregate conditions to keep or discard entire groups.
+
+*`HAVING` is to groups what `WHERE` is to rows: `WHERE` filters tuples before grouping, `HAVING` filters groups after.*
 
 **Example 4. Ratings with at least two sailors.**
 

@@ -1,54 +1,40 @@
 ---
 title: "Theory of Computation: Lecture 1"
-description: "Deterministic finite automata, languages, formal descriptions, induction proofs, and regular language operations."
+description: "Strings and languages, deterministic finite automata, state meanings, the state-characterization recipe for correctness proofs, and the first closure constructions."
 tags: ["Theory of computation"]
 created: 2026-06-06
-updated: 2026-06-10
+updated: 2026-06-11
 ---
+
+## Strings and Languages
+
+A finite automaton decides a yes/no question about a string while remembering only one of finitely many things at a time. Before the machines come the objects they read and classify.
+
+**Alphabet ($\Sigma$).** A finite, nonempty set of symbols. *$\{0,1\}$ and $\{a,b\}$ are the usual alphabets here; any finite set works.*
+
+**String.** A finite sequence of symbols from $\Sigma$. The length of a string $w$ is written $|w|$, and the empty string $\epsilon$ is the unique string of length $0$.
+
+**String universe ($\Sigma^*$).** The set of all finite strings over $\Sigma$, including $\epsilon$. Every string in $\Sigma^*$ has finite length, but $\Sigma^*$ itself is infinite whenever $\Sigma$ is nonempty.
+
+**Language.** Any set of strings, that is, any subset $L\subseteq\Sigma^*$.
+
+*A language is a yes/no problem in set form: "does $w$ have property $P$" becomes "is $w$ in the set of strings with property $P$", so solving the problem means deciding membership.*
 
 ## Finite Automata
 
-**Finite automaton.** A finite automaton is a machine with finitely many states. It reads the input one symbol at a time and stores only its current state.
+**Finite automaton.** A machine with finitely many states. It reads the input one symbol at a time, left to right, and stores only its current state; when the input ends, the current state alone determines the answer.
 
-- **Alphabet.** The finite set of symbols the machine may read.
-- **State.** One possible memory value of the machine.
+- **Alphabet.** The symbols the machine reads, fixed by the problem.
+- **States.** The possible memory values. Their number is fixed and independent of the input length.
+- **Transition function.** For every state and symbol, the rule giving the next state. In a diagram, the labeled arrows.
+- **Start state.** The state before any symbol is read, marked by an unlabeled incoming arrow.
+- **Accepting states.** The states that answer yes when the input ends there, drawn as double circles.
 
-  *A parity machine can use `EVEN` and `ODD`.*
-- **Transition.** A rule for moving from one state to another after reading one symbol.
+*The machine never looks back: everything it will ever use about the symbols read so far must already be packed into the current state.*
 
-  *Reading `M` can move `EVEN` to `ODD`.*
-- **Start state.** The state before reading any input.
+**Example 1. Even number of `M` symbols.**
 
-  *Starting in `EVEN` means the machine treats the empty prefix as even.*
-- **Accepting state.** A state where the machine accepts if the input has ended.
-
-  *If `EVEN` is accepting, then $\epsilon$ is accepted.*
-
-## Deterministic Finite Automata
-
-**Deterministic finite automaton (DFA).** A DFA is a finite automaton whose transition rule gives exactly one next state for every state-symbol pair.
-
-A DFA can be shown as a diagram or written formally as a 5-tuple. These are two descriptions of the same machine:
-
-$$
-M=(Q,\Sigma,\delta,q_0,F)
-$$
-
-| Symbol | Role |
-|---|---|
-| $Q$ | finite set of states |
-| $\Sigma$ | alphabet |
-| $\delta:Q\times\Sigma\to Q$ | transition function |
-| $q_0\in Q$ | start state |
-| $F\subseteq Q$ | accepting states |
-
-The expression $\delta(q,\sigma)$ means the next state from $q$ after reading one symbol $\sigma$. The expression $\delta(q,w)$ means the state reached after reading the whole string $w$.
-
-The accepting set may be empty. If $F=\varnothing$, the DFA accepts no strings.
-
-**Example. Even number of `M` symbols.**
-
-For strings over $\Sigma=\{M,W\}$, accept exactly the strings with an even number of `M` symbols. The machine only needs parity, not the full count.
+*For strings over $\Sigma=\{M,W\}$, accept exactly the strings in which `M` appears an even number of times.* Counting the `M` symbols would need unbounded memory, but the answer depends only on the count's parity, and parity is one bit.
 
 <Split cols="1.15fr 0.85fr" align="center">
 <Pane>
@@ -74,37 +60,49 @@ For strings over $\Sigma=\{M,W\}$, accept exactly the strings with an even numbe
 | `EVEN` | `ODD` | `EVEN` |
 | `ODD` | `EVEN` | `ODD` |
 
-Reading `M` flips parity. Reading `W` preserves parity.
-
-*`MWMMMW` is accepted because it has four `M` symbols. `MWMWMW` is rejected because it has three.*
+Reading `M` flips parity. Reading `W` preserves parity. Starting in `EVEN` treats the empty prefix as even, and `EVEN` is accepting, so $\epsilon$ is accepted.
 
 </Pane>
 </Split>
 
-## Acceptance and Languages
+## Deterministic Finite Automata
 
-**Acceptance.** A DFA accepts a string when its run ends in an accepting state.
+**Deterministic finite automaton (DFA).** A finite automaton whose transition rule gives exactly one next state for every state-symbol pair. A DFA is drawn as a state diagram or written as a 5-tuple; these are the same machine in two forms:
 
-- **Run.** The sequence of states visited while reading the input.
-- **Empty string.** If the input is $\epsilon$, no transition is taken, so the run starts and ends at the start state.
+$$
+M=(Q,\Sigma,\delta,q_0,F)
+$$
 
-<Split cols="0.95fr 1.05fr" align="center">
-<Pane>
+| Symbol | Role |
+|---|---|
+| $Q$ | finite set of states |
+| $\Sigma$ | alphabet |
+| $\delta:Q\times\Sigma\to Q$ | transition function |
+| $q_0\in Q$ | start state |
+| $F\subseteq Q$ | accepting states |
 
-<Automaton
-  caption="The parity DFA used as a state-tracing machine."
-  start="EVEN"
-  accepting={["EVEN"]}
-  states={[{ id: "EVEN" }, { id: "ODD" }]}
-  transitions={[
-    { from: "EVEN", to: "ODD", label: "M" },
-    { from: "ODD", to: "EVEN", label: "M" },
-    { from: "EVEN", to: "EVEN", label: "W" },
-    { from: "ODD", to: "ODD", label: "W" },
-  ]}
-/>
+The tuple settles what a picture can leave unclear. The transition function is total, so every state has exactly one outgoing arrow per symbol, never zero and never two. The accepting set may be empty; with $F=\varnothing$ the machine accepts no string at all.
 
-</Pane>
+**Extended transition function.** The same letter $\delta$ is reused on whole strings: $\delta(q,w)$ is the state reached from $q$ after reading all of $w$, one symbol at a time.
+
+$$
+\delta(q,\epsilon)=q,
+\qquad
+\delta(q,x\sigma)=\delta(\delta(q,x),\sigma)
+$$
+
+Here $x\sigma$ means the string $x$ followed by the single symbol $\sigma$.
+
+*Read the recursion as "strip the last symbol": to process $x\sigma$, first process $x$, then take one step on $\sigma$. Every induction over strings in what follows unwinds exactly this recursion.*
+
+**Acceptance.** A DFA accepts a string $w$ when its run on $w$ ends in an accepting state, that is, when $\delta(q_0,w)\in F$.
+
+- **Run.** The sequence of states visited while reading the input, starting at $q_0$.
+- **Empty input.** On $\epsilon$ no transition is taken, so the run starts and ends at $q_0$, and $\epsilon$ is accepted exactly when $q_0\in F$.
+
+Tracing the parity machine of Example 1 on two inputs shows acceptance as a pure table computation:
+
+<Split cols="1fr 1fr" align="center">
 <Pane>
 
 | Input read | start | `M` | `W` | `W` | `M` | `W` | `M` | `M` |
@@ -112,6 +110,9 @@ Reading `M` flips parity. Reading `W` preserves parity.
 | State | `E` | `O` | `O` | `O` | `E` | `E` | `O` | `E` |
 
 The final state is `E`, so `MWWMWMM` is accepted.
+
+</Pane>
+<Pane>
 
 | Input read | start | `W` | `M` | `M` | `W` | `W` | `M` |
 |---|---|---|---|---|---|---|---|
@@ -122,23 +123,19 @@ The final state is `O`, so `WMMWWM` is rejected.
 </Pane>
 </Split>
 
-**Language of a machine.** The language of a DFA $M$, written $L(M)$, is the set of all strings accepted by $M$.
+**Language of a machine.** The language of a DFA $M$, written $L(M)$, is the set of all strings $M$ accepts.
 
 $$
 L(M)=\{w\in\Sigma^* \mid \delta(q_0,w)\in F\}
 $$
 
-**Recognize.** A DFA recognizes a language $A$ if $L(M)=A$.
+**Recognize.** $M$ recognizes a language $A$ when $L(M)=A$. Every DFA recognizes exactly one language; a machine that accepts no strings still recognizes one language, namely $\varnothing$.
 
-## State Meanings
+## Reading a DFA
 
-**State meaning.** A state meaning is the property true about the input read so far whenever the machine is in that state.
+**State meaning.** The property of the input read so far that holds exactly when the machine is in that state. To read an unfamiliar DFA, trace a few short strings and name what each state remembers; the language then falls out of the accepting states. Give every state a meaning, not only the accepting ones.
 
-To find state meanings, test short strings and name exactly what each state remembers. Once the state meanings are known, the accepting states give the language.
-
-Give every state a meaning, not only the accepting states.
-
-**Example 1. Strings ending in `1`.**
+**Example 2. Strings ending in `1`.**
 
 <Split cols="1fr 1fr" align="center">
 <Pane>
@@ -174,7 +171,7 @@ $$
 </Pane>
 </Split>
 
-**Example 2. Same transitions, different accepting state.**
+**Example 3. Same transitions, different accepting state.**
 
 <Split cols="1fr 1fr" align="center">
 <Pane>
@@ -208,7 +205,7 @@ Changing $F$ can change the language even when the transitions stay the same.
 </Pane>
 </Split>
 
-**Example 3. At least one `1`, then even zeros after the last `1`.**
+**Example 4. At least one `1`, then an even number of `0`s.**
 
 <Split cols="1.1fr 0.9fr" align="center">
 <Pane>
@@ -253,30 +250,20 @@ $$
 
 *Accepted: $1$, $101$, $100$, $00100$. Rejected: $\epsilon$, $0$, $10$, $0010$.*
 
-## Formal Description
+**Formal description.** A formal description instantiates the tuple $M=(Q,\Sigma,\delta,q_0,F)$ with concrete sets and a complete transition table. For the machine of Example 4:
 
-**Formal description.** A formal description instantiates the tuple $M=(Q,\Sigma,\delta,q_0,F)$ with concrete sets and a complete transition table.
-
-For the three-state DFA:
-
-<Split cols="1fr 1fr" align="start">
+<Split cols="1fr 1fr" align="center">
 <Pane>
 
 $$
-Q=\{q_1,q_2,q_3\}
-$$
-
-$$
-\Sigma=\{0,1\}
-$$
-
-$$
-q_0=q_1
-$$
-
-$$
+Q=\{q_1,q_2,q_3\},
+\quad
+\Sigma=\{0,1\},
+\quad
 F=\{q_2\}
 $$
+
+The start state is $q_1$, and $\delta$ is the table on the right. Diagram and description carry exactly the same information.
 
 </Pane>
 <Pane>
@@ -290,47 +277,45 @@ $$
 </Pane>
 </Split>
 
-Thus:
+---
 
-$$
-L(M)=\{w \mid w \text{ contains at least one }1\text{ and has an even number of }0\text{s after the last }1\}
-$$
+## Proving a DFA Correct
 
-## Correctness Proofs
+A DFA is correct when $L(M)$ equals the intended language $L$. That is two inclusions at once:
 
-**Correctness proof.** A correctness proof shows that a DFA accepts exactly the intended language.
+- **Soundness.** Every string the machine accepts belongs to $L$.
+- **Completeness.** Every string of $L$ is accepted.
 
-- **Soundness.** Every accepted string belongs to the intended language.
-- **Completeness.** Every string in the intended language is accepted.
-- **State-based proof.** For a DFA, both directions are usually proved by describing the state reached after every possible input.
+Both directions follow from one stronger statement that pins down where every string lands, and that statement is proved by induction.
 
-**Induction on strings.** Induction on strings proves a statement about all strings by proving it for $\epsilon$, then proving it remains true after appending one symbol.
+**Induction on strings.** To prove a claim for all strings: prove it for $\epsilon$, then prove that it survives appending one symbol.
 
 - **Base case.** Prove the claim for $w=\epsilon$.
-- **Induction hypothesis.** Assume the claim holds for an arbitrary string $x$.
-- **Inductive step.** Prove the claim for $x\sigma$, where $\sigma\in\Sigma$.
+- **Induction hypothesis.** Assume the claim for an arbitrary string $x$.
+- **Inductive step.** Prove the claim for $x\sigma$, for every symbol $\sigma\in\Sigma$.
 
-Here $x\sigma$ means the string $x$ followed by the symbol $\sigma$.
+This is sound because every string is built from $\epsilon$ by finitely many appends, and it fits DFAs perfectly because the extended transition function is defined by the same last-symbol recursion.
 
-To write a DFA proof cleanly:
-
-**1. State the claim.** Describe exactly which state the DFA reaches after every string, not only which strings it accepts.
-
-**2. Prove the base case.** Check $w=\epsilon$.
-
-**3. Prove the inductive step.** Assume the claim for $x$, then check every possible next symbol $\sigma$.
-
-**4. Conclude the language.** Use the accepting states to translate the state claim into $L(M)$.
-
-The first step is the most important. If the claim does not distinguish all relevant states, the induction may not have enough information to continue.
-
-**Example. Even number of `a` symbols.**
-
-Let $\Sigma=\{a,b\}$ and
+**State characterization.** For each state $q_i$ of a DFA, the set of strings that drive the machine from the start state to $q_i$:
 
 $$
-L=\{w\mid count(w,a)\text{ is even}\}.
+T_i=\{w\in\Sigma^*\mid \delta(q_0,w)=q_i\}
 $$
+
+The sets $T_0,\dots,T_n$ partition $\Sigma^*$, since every string lands in exactly one state, and $L(M)$ is the union of the $T_i$ whose states are accepting. A characterization is the state meanings made formal.
+
+**Recipe: proving $L(M)=L$.**
+
+1. **Characterize every state.** Write a precise description of $T_i$ for each state $q_i$, accepting or not.
+2. **Match the language.** Check that $L$ is exactly the union of the $T_i$ for accepting $q_i$.
+3. **Claim.** For all strings $w$: $\delta(q_0,w)=q_i$ iff $w\in T_i$, simultaneously for every $i$.
+4. **Base case.** Check that $\epsilon$ satisfies the description of the start state and no other.
+5. **Inductive step.** Assume the claim for $x$ and prove it for $x\sigma$, by cases over the state after $x$ and the symbol $\sigma$. Each case is one application of $\delta(q_0,x\sigma)=\delta(\delta(q_0,x),\sigma)$.
+6. **Conclude.** The claim plus step 2 give $L(M)=L$.
+
+**Example 5. Even number of `a` symbols, proved correct.**
+
+*Let $\Sigma=\{a,b\}$ and $L=\{w\mid \mathrm{count}(w,a)\text{ is even}\}$, where $\mathrm{count}(w,a)$ is the number of `a` symbols in $w$.*
 
 <Split cols="1fr 1fr" align="center">
 <Pane>
@@ -351,22 +336,24 @@ $$
 </Pane>
 <Pane>
 
-The only accepting state is $q_0$, so the correctness claim is:
+The characterizations are:
 
 $$
-\delta(q_0,w)=q_0 \text{ iff } count(w,a)\text{ is even}.
+T_0=\{w\mid \mathrm{count}(w,a)\text{ even}\}
 $$
 
-$q_0$ means the number of `a` symbols seen so far is even. $q_1$ means it is odd.
+$$
+T_1=\{w\mid \mathrm{count}(w,a)\text{ odd}\}
+$$
+
+Only $q_0$ is accepting, and $L=T_0$, so steps 1 and 2 of the recipe are done.
 
 </Pane>
 </Split>
 
-The proof should characterize both states:
+**1. Claim.** For every string $w$, the DFA reaches $q_0$ iff $\mathrm{count}(w,a)$ is even, and reaches $q_1$ iff $\mathrm{count}(w,a)$ is odd.
 
-**1. Claim.** For every string $w$, the DFA reaches $q_0$ iff $count(w,a)$ is even, and it reaches $q_1$ iff $count(w,a)$ is odd.
-
-**2. Base case.** For $w=\epsilon$, no symbol is read, so $\delta(q_0,\epsilon)=q_0$. Also $count(\epsilon,a)=0$, which is even.
+**2. Base case.** For $w=\epsilon$, no symbol is read, so $\delta(q_0,\epsilon)=q_0$. Also $\mathrm{count}(\epsilon,a)=0$, which is even.
 
 **3. Inductive step.** Assume the claim holds for $x$. Appending one symbol gives exactly four cases:
 
@@ -379,19 +366,11 @@ The proof should characterize both states:
 
 **4. Conclusion.** The transition table and the count update agree in every case, so the claim holds for all strings. Since $q_0$ is the only accepting state, the DFA accepts exactly the strings with an even number of `a` symbols.
 
-**Weak claim.** A weak claim states enough to identify the language, but not enough to complete the induction.
+**Weak claim.** A claim that identifies the language but does not pin down every state. It can be true yet unprovable by direct induction, because the induction step needs to know which state the run is in after $x$, not only whether $x$ is currently accepted.
 
-This happens when the claim describes only the accepting state and ignores how the nonaccepting states differ. The induction step needs the current state after $x$, not only whether $x$ is currently accepted.
+**Example 6. At least two `a` symbols: weak versus strong claims.**
 
-**State characterization.** A state characterization gives a precise meaning to every state of a DFA.
-
-- **State set.** For a state $q_i$, define $T_i=\{w\mid \delta(q_0,w)=q_i\}$.
-- **Accepting language.** The language is the union of the state sets whose states are accepting.
-- **Strength.** A state characterization is often stronger than the language claim, because it proves where every string goes, not only whether it is accepted.
-
-**Example. At least two `a` symbols.**
-
-Let $\Sigma=\{a,b\}$. The following DFA accepts once it has seen two `a` symbols and then stays accepting.
+*Let $\Sigma=\{a,b\}$. The following DFA accepts once it has seen two `a` symbols and then stays accepting.*
 
 <Split cols="1fr 1fr" align="center">
 <Pane>
@@ -420,13 +399,13 @@ Let $\Sigma=\{a,b\}$. The following DFA accepts once it has seen two `a` symbols
 The language claim is:
 
 $$
-L(M)=\{w\mid count(w,a)\ge 2\}.
+L(M)=\{w\mid \mathrm{count}(w,a)\ge 2\}
 $$
 
 A tempting proof target is:
 
 $$
-\delta(q_0,w)=q_2 \text{ iff } count(w,a)\ge 2.
+\delta(q_0,w)=q_2 \iff \mathrm{count}(w,a)\ge 2
 $$
 
 This target is true, but it is too weak for a direct induction.
@@ -434,24 +413,24 @@ This target is true, but it is too weak for a direct induction.
 </Pane>
 </Split>
 
-The weak induction hypothesis says that if $\delta(q_0,x)\ne q_2$, then $count(x,a)<2$. It does not distinguish the case $count(x,a)=0$ from the case $count(x,a)=1$. That distinction matters, because reading `a` from $q_0$ goes to $q_1$, while reading `a` from $q_1$ goes to $q_2$.
+The weak hypothesis only says: if $\delta(q_0,x)\ne q_2$, then $\mathrm{count}(x,a)<2$. It cannot rule out the combination $\delta(q_0,x)=q_0$ with $\mathrm{count}(x,a)=1$. The real machine never produces that combination, but the induction does not know it, and on it the step breaks: $xa$ would have two `a` symbols while the machine has only reached $q_1$. The claim must distinguish $\mathrm{count}=0$ from $\mathrm{count}=1$, because reading `a` from $q_0$ gives $q_1$ while reading `a` from $q_1$ gives $q_2$.
 
 The stronger claim names all three state meanings:
 
 $$
 \delta(q_0,w)=
 \begin{cases}
-q_0 & \text{if } count(w,a)=0,\\
-q_1 & \text{if } count(w,a)=1,\\
-q_2 & \text{if } count(w,a)\ge 2.
+q_0 & \text{if } \mathrm{count}(w,a)=0,\\
+q_1 & \text{if } \mathrm{count}(w,a)=1,\\
+q_2 & \text{if } \mathrm{count}(w,a)\ge 2.
 \end{cases}
 $$
 
-The stronger proof follows the same pattern:
+*When an induction stalls, do not weaken the goal; strengthen it. The right claim names, for every state, exactly which strings lead there.*
 
 **1. Claim.** For every string $w$, the reached state is the one named by the piecewise characterization.
 
-**2. Base case.** For $w=\epsilon$, no symbol is read, so $\delta(q_0,\epsilon)=q_0$, and $count(\epsilon,a)=0$.
+**2. Base case.** For $w=\epsilon$, no symbol is read, so $\delta(q_0,\epsilon)=q_0$, and $\mathrm{count}(\epsilon,a)=0$.
 
 **3. Inductive step.** Assume the stronger claim holds for $x$. The transition function and the count update agree in all six possible cases:
 
@@ -466,26 +445,23 @@ The stronger proof follows the same pattern:
 
 **4. Conclusion.** The stronger claim is preserved after appending either symbol, so it holds for every string. Since $q_2$ is the only accepting state, the DFA accepts exactly the strings with at least two `a` symbols.
 
+---
+
 ## Regular Languages
 
-**String universe.** For an alphabet $\Sigma$, the set $\Sigma^*$ is the set of all finite strings made from symbols in $\Sigma$.
-
-- **Empty string.** $\epsilon\in\Sigma^*$ for every alphabet $\Sigma$.
-- **Finite length.** Every string in $\Sigma^*$ has finite length, although $\Sigma^*$ itself is usually infinite.
-
-A language over $\Sigma$ is any subset of $\Sigma^*$. A DFA over $\Sigma$ can only accept or reject strings from this universe.
-
-**Regular language.** A language $L\subseteq\Sigma^*$ is regular if there exists a DFA $M$ such that $L=L(M)$.
+**Regular language.** A language $L\subseteq\Sigma^*$ is regular if some DFA recognizes it, that is, if $L=L(M)$ for a DFA $M$.
 
 Regularity means finite-state recognizability. The machine may read strings of any length, but it must classify them using only finitely many states.
 
 *The language of strings over $\{0,1\}$ ending in `1` is regular. The language $\{0^n1^n\mid n\ge 0\}$ is not regular, because it needs unbounded counting.*
 
+Whether every language is regular, and how to prove that a specific one is not, is the next big question; first come the operations that build new regular languages from old ones.
+
 ## Operations on Languages
 
-Once languages are sets of strings, we can form new languages from old ones. For regular languages, the main point is not only to define the operation, but to see how a DFA can recognize the result.
+**Closure.** A class of languages is closed under an operation if applying the operation to languages in the class always produces another language in the class.
 
-**Closure.** A class of languages is closed under an operation if applying that operation to languages in the class always produces another language in the same class.
+Closure results give a second way to prove regularity. The first is direct: design a DFA and prove it correct with the recipe. The second is algebraic: write the language as a combination of known regular languages under operations that preserve regularity, and no new machine or induction is needed.
 
 **Complement.** The complement of $L$ over alphabet $\Sigma$ is the set of all strings in $\Sigma^*$ that are not in $L$.
 
@@ -493,11 +469,9 @@ $$
 \overline{L}=\{w\in\Sigma^*\mid w\notin L\}
 $$
 
-If $M=(Q,\Sigma,\delta,q_0,F)$ recognizes $L$, then $M'=(Q,\Sigma,\delta,q_0,Q\setminus F)$ recognizes $\overline{L}$.
+If $M=(Q,\Sigma,\delta,q_0,F)$ recognizes $L$, then $M'=(Q,\Sigma,\delta,q_0,Q\setminus F)$ recognizes $\overline{L}$. The construction keeps the same states, start state, and transitions, so every run ends in the same state as before; only the verdict is flipped. Regular languages are therefore closed under complement.
 
-The construction keeps the same states, start state, and transitions. Every run ends in the same state as before, but the final answer is flipped.
-
-**Example. Complement of strings ending in `1`.**
+**Example 7. Complement of strings ending in `1`.**
 
 <Split cols="1fr 1fr" align="center">
 <Pane>
@@ -536,37 +510,35 @@ The construction keeps the same states, start state, and transitions. Every run 
 
 The arrows are identical. Only the accepting states change.
 
-**Union.** The union of two languages contains strings that belong to at least one of them.
+**Union.** The union of two languages contains the strings that belong to at least one of them.
 
 $$
 L_1\cup L_2=\{w\in\Sigma^*\mid w\in L_1\text{ or }w\in L_2\}
 $$
 
-To recognize a union, run the two DFAs in parallel. A product state records both current states at once. Accept if either component accepts.
-
-**Intersection.** The intersection of two languages contains strings that belong to both of them.
+**Intersection.** The intersection of two languages contains the strings that belong to both of them.
 
 $$
 L_1\cap L_2=\{w\in\Sigma^*\mid w\in L_1\text{ and }w\in L_2\}
 $$
 
-To recognize an intersection, use the same product states and transitions as for union. Accept only if both components accept.
-
-**Product construction.** The product construction turns two DFAs over the same alphabet into one DFA whose states are ordered pairs.
-
-For DFAs $M_1=(Q_1,\Sigma,\delta_1,s_1,F_1)$ and $M_2=(Q_2,\Sigma,\delta_2,s_2,F_2)$:
+**Product construction.** The construction that recognizes both: run the two DFAs in parallel by letting one state record a pair of states, one from each machine. For DFAs $M_1=(Q_1,\Sigma,\delta_1,s_1,F_1)$ and $M_2=(Q_2,\Sigma,\delta_2,s_2,F_2)$:
 
 | Part | Product DFA |
 |---|---|
 | States | $Q_1\times Q_2$ |
 | Start state | $(s_1,s_2)$ |
 | Transition | $\delta((r,t),a)=(\delta_1(r,a),\delta_2(t,a))$ |
+| Accepting, union | $\{(r,t)\mid r\in F_1\text{ or }t\in F_2\}$ |
+| Accepting, intersection | $\{(r,t)\mid r\in F_1\text{ and }t\in F_2\}$ |
 
-If the alphabets differ, first extend both machines to the common alphabet $\Sigma=\Sigma_1\cup\Sigma_2$ by adding a rejecting dead state where needed.
+The construction lists every pair, whether or not the pair is reachable, so a product DFA is often larger than necessary but never wrong. If the alphabets differ, first extend both machines to the common alphabet $\Sigma=\Sigma_1\cup\Sigma_2$ by adding a rejecting dead state for the new symbols.
 
-**Example. Product states for union and intersection.**
+*Two finite memories running side by side are still a finite memory: the pair of current states is all the product needs to remember.*
 
-Let $A$ be the language of strings containing at least one `1`. Let $B$ be the language of strings with an even number of `0` symbols.
+**Example 8. Product states for union and intersection.**
+
+*Let $A$ be the language of strings containing at least one `1`. Let $B$ be the language of strings with an even number of `0` symbols.*
 
 <Split cols="1fr 1fr" align="center">
 <Pane>
@@ -670,25 +642,21 @@ For intersection, use the same graph but accept only `YE`, because both componen
 
 *The string `1` is in the intersection, since it contains a `1` and has zero `0`s. The string `10` is in the union but not the intersection, since it contains a `1` but has an odd number of `0`s.*
 
-**Concatenation.** The concatenation of two languages contains strings obtained by taking one string from the first language and then one string from the second.
+**Concatenation.** The concatenation of two languages contains the strings obtained by taking one string from the first language followed by one string from the second.
 
 $$
-L_1L_2=\{w\in\Sigma^*\mid w=xy,\ x\in L_1,\ y\in L_2\}
+L_1\circ L_2=\{xy\mid x\in L_1,\ y\in L_2\}
 $$
 
-A string is in $L_1L_2$ if it has some split $w=xy$ with $x\in L_1$ and $y\in L_2$. The split point is not fixed in advance.
+It is also written $L_1L_2$. A string $w$ is in $L_1\circ L_2$ if it has some split $w=xy$ with $x\in L_1$ and $y\in L_2$; the split point is not marked in the input and not fixed in advance.
 
-Regular languages are closed under concatenation, but the clean automaton construction uses nondeterminism.
+**Example 9. Concatenating finite languages.**
 
-**Example. Concatenating finite languages.**
+*Let $L_1=\{0,11\}$ and $L_2=\{1\}$. Then $L_1\circ L_2=\{01,111\}$.*
 
-Let $L_1=\{0,11\}$ and $L_2=\{1\}$. Then $L_1L_2=\{01,111\}$.
-
-The two strings come from the two possible choices of $x\in L_1$:
-
-| $x\in L_1$ | $y\in L_2$ | $xy\in L_1L_2$ |
+| $x\in L_1$ | $y\in L_2$ | $xy\in L_1\circ L_2$ |
 |---|---|---|
 | $0$ | $1$ | $01$ |
 | $11$ | $1$ | $111$ |
 
-The important idea is the split $w=xy$. For a larger $L_2$, each left string $x\in L_1$ could combine with several choices of $y\in L_2$.
+The split is the whole difficulty. A DFA reading $w$ left to right never knows whether the first part is finished, and a deterministic run cannot try all splits at once. Regular languages are closed under concatenation, but the clean automaton construction needs a machine that is allowed to guess.

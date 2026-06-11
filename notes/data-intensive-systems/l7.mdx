@@ -3,7 +3,7 @@ title: "Data Intensive Systems: Lecture 7"
 description: "Query processing with relational operators: physical plans, iterator and materialization models, access paths, selections, projections, and join algorithm costs."
 tags: ["Data intensive systems"]
 created: 2026-06-10
-updated: 2026-06-10
+updated: 2026-06-11
 ---
 
 ## Physical Query Plans
@@ -58,8 +58,6 @@ It does not yet decide the physical choices:
 </Pane>
 </Split>
 
----
-
 ## Processing Models
 
 After the DBMS has an operator tree, every edge in the tree must carry tuples from a child operator to its parent. A processing model defines how that exchange happens: one tuple at a time, or one full intermediate result at a time.
@@ -73,9 +71,7 @@ The choice can dominate runtime. If a join produces one million intermediate row
 - **Demand-driven control.** An operator does work only when its parent asks for another tuple.
 - **Operator state.** Each operator keeps enough state to resume where the previous `Next()` call stopped.
 
-In the usual Volcano form, the iterator interface is controlled by parent operators calling `Next()` on children. The plan processing direction section below names this as pull execution.
-
-The lifecycle is fixed:
+In the usual Volcano form, parents drive the work by calling `Next()` on their children. The lifecycle is fixed:
 
 1. `Open()` initializes the operator, opens its children, and allocates local state such as scan cursors, predicate state, or hash tables.
 2. `Next()` produces one output tuple if possible. It may call `Next()` on one or more children, update local state, and either return a tuple or keep searching.
@@ -157,7 +153,7 @@ Materialization moves the cost to operator boundaries. Each `Output()` call retu
 
 The weakness appears when an intermediate is large. A large filtered input, join result, or projected result must be held in memory or written to disk before the next operator can reduce it further. In analytical plans, this extra write-read cycle can dominate the cost even when the logical tree is good.
 
-**Any pipeline boundary can be replaced by a materialization boundary without changing the result, but potentially with substantial storage and I/O overhead.**
+*Any pipeline edge can be materialized without changing the result, only the cost. The iterator stores positions; materialization stores results.*
 
 **Plan processing direction.** The direction in which control moves through the plan tree. It is related to the processing model, but it names a different choice: who starts the work.
 
@@ -185,11 +181,7 @@ The purpose of these choices is not to change the query answer. They change when
 
 ## Selections
 
-**Selection ($\sigma$).** An operator that keeps the rows of a relation satisfying a predicate.
-
-Selections are where **access paths** first become visible. For `SELECT * FROM Reserves R WHERE R.rname < 'C%'`, the DBMS must decide how to reach the matching rows in `Reserves`, not only how to test the predicate after reading them.
-
-The relational-algebra form is $\sigma_{\textit{R.attr op value}}(R)$: choose rows from relation $R$ whose attribute satisfies the comparison.
+Logically, selection $\sigma$ keeps the rows satisfying a predicate; physically, the question is how to *reach* those rows. For `SELECT * FROM Reserves R WHERE R.rname < 'C%'`, the DBMS must decide how to get to the matching rows in `Reserves`, not only how to test the predicate after reading them. This is where **access paths** first become visible.
 
 **Selectivity.** The fraction of tuples expected to satisfy a predicate. If relation $R$ has $M$ pages and selectivity $s$, the result size is roughly $sM$ pages when matching tuples are clustered.
 
@@ -209,9 +201,7 @@ For a simple selection, the common cases are:
 
 With `Reserves` at 1000 pages, the unsorted scan costs 1000 I/Os. If the file is sorted on `rname`, a range such as `rname < 'C%'` costs roughly a binary search plus the matching pages, for example about 10 I/Os plus `selectivity * 1000` pages.
 
-**Clustered index.** An index whose qualifying entries point to data records stored close together on data pages. A clustered index is strong for selections because reading many matching tuples often means reading only the matching pages.
-
-**Unclustered index.** An index whose qualifying entries may point to records scattered across the file. It is useful when few tuples qualify, but it can be expensive when many records match because each RID may lead to a different page.
+For an index scan, clustering decides the data-read cost: a clustered index reads about as many pages as hold matches, while an unclustered index may read close to one page per matching tuple, since each RID can lead somewhere else.
 
 **Example 1. Clustered and unclustered index cost.**
 
@@ -284,7 +274,7 @@ Index choice depends on the index key.
 - **Does not match.** `b = 3`, because it skips `a`.
 - **Partial use only.** `a = 5 AND c = 7` can use `a = 5`, but missing `b` prevents using `c` for navigation.
 
-The rule is: a $B^+$-tree needs a **left prefix** of the indexed columns. Equalities on early columns can be followed by one range predicate on the next column.
+This is the leftmost-prefix rule at work: equalities on early columns, then at most one range predicate on the next column.
 
 **Hash index matching.** A hash index on $\langle a,b\rangle$ requires exact equality on every key column.
 
@@ -296,13 +286,9 @@ The rule is: a $B^+$-tree needs a **left prefix** of the indexed columns. Equali
 
 The rule is: a hash index needs **exact equality on every key column**. No ranges, and no partial key.
 
----
-
 ## Projection
 
-**Projection ($\pi$).** An operator that keeps selected columns and removes the rest. SQL's `SELECT DISTINCT` also removes duplicate projected tuples.
-
-Selections remove rows. Projection removes columns. Without duplicate elimination, projection is just a scan that emits fewer attributes. `DISTINCT` is harder because two tuples that differed in removed columns can become equal after projection.
+Selections remove rows; projection $\pi$ removes columns. Without duplicate elimination, projection is just a scan that emits fewer attributes. `SELECT DISTINCT` is the hard part, because two tuples that differed only in removed columns become equal after projection.
 
 For `SELECT DISTINCT R.sid, R.bid FROM Reserves R`, the DBMS must remove duplicate `(sid, bid)` pairs. Sorting solves this by making equal projected tuples adjacent.
 
@@ -338,13 +324,9 @@ which is commonly summarized as $B > \sqrt{T}$. If the partitions fit, hash proj
 
 Sort-based projection is the standard choice when the output order is useful for a later operator, or when skew makes hash partitions unreliable. Hash projection is attractive when enough memory is available and no sorted result is needed. If all projected attributes are already covered by an index, an index-only scan can avoid reading the base records.
 
----
-
 ## Joins
 
-**Join ($\bowtie$).** An operator that combines tuples from two relations when they satisfy a condition. A multiway join is usually executed as a sequence of pairwise joins, such as evaluating $R \bowtie S \bowtie T$ as $(R \bowtie S) \bowtie T$.
-
-Selections and projections are unary: they read one relation. A join reads two inputs, so the algorithm choice becomes much more important. A join can be seen as a cross product followed by a selection, but that direct implementation is usually too expensive because the intermediate product is enormous. Physical join algorithms try to avoid forming pairs that cannot match.
+Selections and projections are unary; a join $\bowtie$ reads two inputs, so the algorithm choice matters far more. A multiway join is usually executed as a sequence of pairwise joins, $R \bowtie S \bowtie T$ as $(R \bowtie S) \bowtie T$. Executing the definition literally, a cross product followed by a selection, is hopeless at scale because the intermediate product is enormous; physical join algorithms exist to avoid forming pairs that cannot match.
 
 Assume relation $R$ has $M$ pages and $p_R$ tuples per page. Relation $S$ has $N$ pages and $p_S$ tuples per page. This cost model counts reads and ignores CPU cost and the cost of writing the output.
 
@@ -382,6 +364,8 @@ $$
 
 The buffer pool usually reserves one page for the inner scan and one page for output, so $b$ is roughly the remaining number of available pages.
 
+*Every nested-loops improvement is the same move: amortize one scan of the inner relation over more of the outer.*
+
 **Example 5. Using buffers.**
 
 *With `Reserves` outer, `Sailors` inner, and block size $b=100$, the outer relation forms 10 blocks. The DBMS reads `Reserves` once and scans `Sailors` once per block, for 6000 I/Os, about one minute at 10 ms per I/O.*
@@ -400,12 +384,14 @@ The build side should normally be the smaller input, because it must fit in memo
 
 If both inputs fit in memory, the read cost is also $M+N$. This is the same one-pass cost as hash join, but the memory assumption is stronger: both relations must be available for in-memory sorting. In disk-oriented settings, sort-merge join is often a two-pass or multi-pass algorithm rather than a true one-pass algorithm.
 
-The running example gives the scale:
+The running example gives the scale.
 
-- **Simple nested loops.** Formula $M + (M p_R)N$; running example: 50,001,000 I/Os.
-- **Page nested loops.** Formula $M + MN$; running example: 501,000 I/Os.
-- **Block nested loops.** Formula $M + \lceil M/b\rceil N$; running example: 6000 I/Os for $b=100$.
-- **One-pass hash join.** Formula $M+N$; running example: 1500 I/Os if the build side fits.
-- **One-pass sort-merge join.** Formula $M+N$; running example: 1500 I/Os if both inputs fit.
+| Algorithm | I/O formula | Running example |
+|---|---|---|
+| Simple nested loops | $M + (M p_R)\,N$ | 50,001,000 I/Os |
+| Page nested loops | $M + MN$ | 501,000 I/Os |
+| Block nested loops | $M + \lceil M/b\rceil\, N$ | 6,000 I/Os ($b=100$) |
+| One-pass hash join | $M+N$ | 1,500 I/Os (build side fits) |
+| One-pass sort-merge join | $M+N$ | 1,500 I/Os (both inputs fit) |
 
 All these plans compute the same relational join, but their I/O behavior differs by orders of magnitude.
