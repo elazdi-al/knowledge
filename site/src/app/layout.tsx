@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { CommandMenu } from "@/components/CommandMenu";
 import { Header } from "@/components/Header";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "katex/dist/katex.min.css";
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <main className="pb-32">{children}</main>
         </div>
         <ThemeToggle />
+        <CommandMenu />
       </body>
     </html>
   );

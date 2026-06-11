@@ -61,6 +61,30 @@
     --mm-hi-bg: #21201c; /* highlight box fill */
     --mm-hi-fg: #ffffff; /* highlight box text */
     --mm-frame-border: var(--color-border); /* card + container ring */
+
+    /* Viewport primitives: classic units are the fallback; modern browsers
+       swap to dynamic/small units so fixed panels stay inside Safari chrome. */
+    --app-viewport-width: 100vw;
+    --app-viewport-height: 100vh;
+    --app-viewport-small-height: 100vh;
+  }
+
+  @supports (width: 100dvw) {
+    :root {
+      --app-viewport-width: 100dvw;
+    }
+  }
+
+  @supports (height: 100dvh) {
+    :root {
+      --app-viewport-height: 100dvh;
+    }
+  }
+
+  @supports (height: 100svh) {
+    :root {
+      --app-viewport-small-height: 100svh;
+    }
   }
 
   html.dark {
@@ -936,6 +960,386 @@ body::after {
   /* The library's default ink: mild-yellow #f5e6a8. */
   .highlight-popover-nib {
     fill: #f5e6a8;
+  }
+}
+
+/* Command menu (⌘K) - Base UI Dialog shell, cmdk list. Two modes: compact is
+   a single column; extended reveals a fixed-width preview pane on the right.
+   The popup keeps width: fit-content and the body grid animates its second
+   column, so the list column never reflows - the pane is a clipped curtain. */
+@layer components {
+  .cmdk-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgb(0 0 0 / 0.2);
+    transition: opacity 100ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  html.dark .cmdk-backdrop {
+    background: rgb(0 0 0 / 0.5);
+  }
+
+  .cmdk-backdrop[data-starting-style],
+  .cmdk-backdrop[data-ending-style] {
+    opacity: 0;
+  }
+
+  .cmdk-backdrop[data-ending-style] {
+    transition-duration: 75ms;
+  }
+
+  .cmdk-popup {
+    --cmdk-popup-top: clamp(48px, 16vh, 170px);
+    --cmdk-menu-height: 55vh;
+    position: fixed;
+    top: var(--cmdk-popup-top);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 61;
+    width: fit-content;
+    max-width: calc(var(--app-viewport-width) - 24px);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.06),
+      0 16px 40px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    /* ⌘K is a keyboard-frequency surface: barely-there enter, faster exit. */
+    transition:
+      opacity 100ms cubic-bezier(0.23, 1, 0.32, 1),
+      transform 100ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  html.dark .cmdk-popup {
+    border-color: var(--color-border-strong);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  }
+
+  .cmdk-popup[data-starting-style],
+  .cmdk-popup[data-ending-style] {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.98);
+  }
+
+  .cmdk-popup[data-ending-style] {
+    transition-duration: 75ms;
+  }
+
+  .cmdk-popup [cmdk-root] {
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
+  }
+
+  .cmdk-input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 0.9375rem;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    outline: none;
+  }
+
+  .cmdk-input::placeholder {
+    color: var(--color-faint);
+  }
+
+  /* List column is the min() so the menu never exceeds the viewport; the
+     second column is the preview curtain, opened only in extended mode. */
+  /* The explicit row pins the menu's height: neither typing nor arrowing
+     through results (whose previews vary in length) can move the frame. */
+  .cmdk-body {
+    display: grid;
+    grid-template-columns: min(560px, calc(var(--app-viewport-width) - 26px)) 0px;
+    grid-template-rows: min(420px, var(--cmdk-menu-height));
+    transition: grid-template-columns 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .cmdk-list {
+    height: 100%;
+    padding: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: 6px;
+  }
+
+  .cmdk-list [cmdk-list-sizer] {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .cmdk-list [cmdk-group-heading] {
+    padding: 8px 10px 4px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--color-faint);
+    user-select: none;
+  }
+
+  .cmdk-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: var(--color-text);
+  }
+
+  .cmdk-item[data-selected="true"] {
+    background: var(--color-hover);
+  }
+
+  .cmdk-item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cmdk-item-label {
+    flex: none;
+    font-size: 0.75rem;
+    color: var(--color-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cmdk-empty {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    font-size: 0.875rem;
+    color: var(--color-faint);
+  }
+
+  .cmdk-preview {
+    overflow: hidden;
+    min-width: 0;
+    height: 100%;
+  }
+
+  /* Fixed inner width so the text never reflows while the curtain opens. */
+  .cmdk-preview-inner {
+    width: 421px;
+    height: 100%;
+    padding: 1rem 1.125rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-left: 1px solid var(--color-border);
+    background: var(--color-surface);
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .cmdk-preview-eyebrow {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 0.6875rem;
+    color: var(--color-faint);
+    margin-bottom: 2px;
+  }
+
+  .cmdk-preview-title {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: -0.011em;
+    color: var(--color-text);
+  }
+
+  /* The excerpt renders with the page's own typography - same ink, bold
+     leads, muted italics, code chips, "- " list markers - a miniature of
+     the note itself. */
+  .cmdk-preview-desc,
+  .cmdk-preview-p,
+  .cmdk-preview-li,
+  .cmdk-preview-math {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    margin-top: 0.65em;
+    color: var(--color-text);
+    text-wrap: pretty;
+  }
+
+  .cmdk-preview-desc {
+    font-style: italic;
+    color: var(--color-muted);
+  }
+
+  .cmdk-preview-inner strong {
+    font-weight: 600;
+  }
+
+  .cmdk-preview-inner em {
+    font-style: italic;
+    color: var(--color-muted);
+  }
+
+  .cmdk-preview-inner code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--color-gray-300);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+  }
+
+  .cmdk-preview-li {
+    position: relative;
+    margin-top: 0.35em;
+    padding-left: 1.4em;
+  }
+
+  .cmdk-preview-li::before {
+    content: "- ";
+    position: absolute;
+    left: 0.45em;
+    color: var(--color-gray-900);
+  }
+
+  .cmdk-preview-math {
+    text-align: center;
+  }
+
+  .cmdk-mark {
+    background: color-mix(in srgb, var(--color-brand) 38%, transparent);
+    color: var(--color-text);
+    border-radius: 3px;
+    padding: 0.05em 0.15em;
+    margin-inline: -0.05em;
+  }
+
+  html.dark .cmdk-mark {
+    background: color-mix(in srgb, var(--color-brand) 24%, transparent);
+  }
+
+  .cmdk-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    height: 38px;
+    padding: 0 12px;
+    border-top: 1px solid var(--color-border);
+    font-size: 0.6875rem;
+    color: var(--color-faint);
+    user-select: none;
+  }
+
+  .cmdk-footer-toggle,
+  .cmdk-footer-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .cmdk-footer-toggle {
+    display: none;
+    cursor: pointer;
+    color: inherit;
+    transition: color 120ms ease;
+  }
+
+  .cmdk-footer-toggle:hover {
+    color: var(--color-text);
+  }
+
+  .cmdk-kbd {
+    display: inline-grid;
+    place-items: center;
+    height: 16px;
+    min-width: 16px;
+    padding: 0 3px;
+    border-radius: 4px;
+    background: var(--color-gray-300);
+    color: var(--color-muted);
+    font-family: inherit;
+    font-size: 0.625rem;
+  }
+
+  /* The preview pane needs the room of a wide screen; below 1024px the menu
+     stays compact regardless of the stored mode. */
+  @media (min-width: 1024px) {
+    .cmdk--extended .cmdk-body {
+      grid-template-columns: min(560px, calc(var(--app-viewport-width) - 26px)) 421px;
+    }
+
+    .cmdk--extended .cmdk-preview-inner {
+      opacity: 1;
+      transition-delay: 60ms;
+    }
+
+    .cmdk-footer-toggle {
+      display: inline-flex;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .cmdk-popup {
+      --cmdk-popup-top: 12vh;
+      width: calc(var(--app-viewport-width) - 24px);
+    }
+
+    .cmdk-popup [cmdk-root] {
+      width: 100%;
+    }
+
+    .cmdk-body {
+      grid-template-columns: minmax(0, 1fr) 0px;
+    }
+
+    .cmdk-footer {
+      display: none;
+    }
+  }
+
+  @supports (height: 100svh) {
+    .cmdk-popup {
+      --cmdk-popup-top: clamp(48px, 16svh, 170px);
+    }
+
+    @media (max-width: 639px) {
+      .cmdk-popup {
+        --cmdk-popup-top: 12svh;
+      }
+    }
+  }
+
+  @supports (height: 100dvh) {
+    .cmdk-popup {
+      --cmdk-menu-height: 55dvh;
+    }
+  }
+}
+
+/* Concept flash - after a search jump, the concept's bold lead settles under a
+   soft grey wash for a moment so the eye lands on it, then fades to rest. */
+@layer components {
+  .concept-flash {
+    border-radius: 4px;
+    animation: concept-flash 2s ease-out both;
+  }
+
+  @keyframes concept-flash {
+    0% {
+      background: transparent;
+      box-shadow: 0 0 0 4px transparent;
+    }
+    12%,
+    55% {
+      background: var(--color-hover);
+      box-shadow: 0 0 0 4px var(--color-hover);
+    }
+    100% {
+      background: transparent;
+      box-shadow: 0 0 0 4px transparent;
+    }
   }
 }
 
