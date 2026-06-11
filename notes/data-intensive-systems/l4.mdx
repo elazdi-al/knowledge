@@ -1,16 +1,16 @@
 ---
 title: "Data Intensive Systems: Lecture 4"
-description: "Storage hardware and the buffer manager: disk geometry and access time, RAID levels, the buffer pool and page table, and replacement policies including Clock, LRU/2Q, and sequential flooding."
+description: "The memory hierarchy and storage hardware: disk geometry and access time, flash and the FTL, RAID levels, disk space management, the buffer pool and page table, and replacement policies including Clock, LRU-K/2Q, and sequential flooding."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-09
+updated: 2026-06-11
 ---
 
-## The Storage Hierarchy
+## The Memory Hierarchy
 
 A DBMS does not run on one uniform memory. Data lives across a hierarchy of storage levels with different latency, capacity, and cost, and the entire design of the storage layer follows from the gaps between those levels.
 
-**Storage hierarchy.** The ordered set of memory levels a DBMS uses, from fast volatile memory near the CPU down to slow persistent and archival storage. Going up gives lower latency but less capacity at a higher cost per byte; going down gives the opposite.
+**Memory hierarchy.** The ordered set of storage levels a DBMS uses, from fast volatile memory near the CPU down to slow persistent and archival storage. Going up gives lower latency but less capacity at a higher cost per byte; going down gives the opposite.
 
 The top levels (CPU registers, caches, DRAM) are volatile, byte-addressable, and fast. The lower levels (SSD, HDD, network storage) are persistent, block-addressable, much larger, and much slower. Main memory holds the **working set**, the data currently being processed, while persistent storage holds the full database.
 
@@ -26,9 +26,9 @@ The top levels (CPU registers, caches, DRAM) are volatile, byte-addressable, and
 
 Exact values vary by hardware, but the orders of magnitude do not: one extra I/O can cost more than millions of CPU instructions.
 
-Because the database is too large and too valuable to keep entirely in volatile DRAM, the DBMS stores it on secondary storage and pulls in only what it needs. That choice creates two expensive operations: a **read** transfers a page from disk to memory, and a **write** transfers a modified page back. Keeping everything in DRAM is impractical for general systems: production databases reach the TB or PB scale, so all-DRAM storage is costly, and conventional DRAM loses its contents on power failure while a database must survive across runs. Main-memory DBMSs remain useful for smaller or latency-critical workloads, but disks stay the default place to keep data.
+Keeping everything in DRAM is impractical for general systems: production databases reach the TB or PB scale, so all-DRAM storage is costly, and conventional DRAM loses its contents on power failure while a database must survive across runs. Main-memory DBMSs remain useful for smaller or latency-critical workloads, but disks stay the default place to keep data, and the DBMS pulls in only what it needs.
 
-**Page (disk block).** The basic unit of transfer between secondary storage and main memory. All DBMS I/O is organized around whole pages, never individual bytes.
+**Page (disk block).** The page that stores records is also the basic unit of transfer between secondary storage and main memory. All DBMS I/O is organized around whole pages, never individual bytes: a **read** moves a page from disk to memory, a **write** moves a modified page back, and both are expensive.
 
 Access cost depends on both the device and the access pattern. Magnetic disks (HDDs) offer large capacity at low cost per byte but slow random access; flash (SSDs) offer lower latency and strong random reads but stay far slower than DRAM and are more constrained on writes. Unlike RAM, page access time on these devices depends heavily on where a page sits and whether access is sequential or random.
 
@@ -65,7 +65,9 @@ To make access sequential, blocks of one file should be laid out in a sensible p
 | Random block in the same cylinder | $4 + 0.082 = 4.082$ ms | $\approx 1.03$ MB/s |
 | Next block on the same track (sequential) | $0.082$ ms | $\approx 50$ MB/s |
 
-*Good physical layout improves effective bandwidth by two orders of magnitude.* Two rules of thumb capture the whole picture: main-memory access is roughly $1000\times$ faster than disk I/O, and on magnetic disks sequential I/O is roughly $10\times$ faster than random I/O. So a DBMS keeps hot data in memory and lays out pages sequentially on disk. Buffer management builds directly on this gap.
+*Good physical layout improves effective bandwidth by two orders of magnitude.*
+
+Two ratios drive the whole storage layer: memory access is roughly $1000\times$ faster than disk I/O, and on magnetic disks sequential I/O is roughly $10\times$ faster than random I/O. So a DBMS keeps hot data in memory and lays out pages sequentially on disk.
 
 ## Flash Storage
 
@@ -92,13 +94,15 @@ The FTL exists precisely because of the no-in-place-overwrite constraint. Repeat
 
 As density rises from SLC to QLC, cost per bit falls but endurance and write performance decline. In practice the two technologies serve different goals: HDDs win when the aim is large, inexpensive capacity, and flash wins when the workload needs low latency, high IOPS, and efficient random reads.
 
+---
+
 ## RAID
 
 A storage system should ideally be fast, reliable, and affordable, but a single disk rarely optimizes all three. RAID combines several physical disks so the array beats any one of them on at least one axis.
 
 **RAID (Redundant Array of Inexpensive Disks).** A scheme that builds one logical disk from several physical disks to improve throughput, reliability, or both. It combines two ideas: **striping** spreads data across disks for higher throughput, and **redundancy** duplicates or protects data so the array can survive failures. The three canonical levels trade these ideas differently.
 
-RAID 0 is pure striping. File blocks are striped across disks with no redundancy, so the array uses the cumulative bandwidth of all disks and usable capacity is the sum of all disks. The cost is reliability: with $N$ independent disks, *any* failure breaks the array, so its mean time to failure is roughly $\tfrac{1}{N}$ of a single disk's.
+**RAID 0 (striping).** File blocks are striped across disks with no redundancy, so the array uses the cumulative bandwidth of all disks and usable capacity is the sum of all disks. The cost is reliability: with $N$ independent disks, *any* failure breaks the array, so its mean time to failure is roughly $\tfrac{1}{N}$ of a single disk's.
 
 <RAIDDiagram
   mode="striping"
@@ -110,7 +114,7 @@ RAID 0 is pure striping. File blocks are striped across disks with no redundancy
   caption="RAID 0: file blocks are striped across both disks for throughput, with no redundancy."
 />
 
-RAID 1 is mirroring. Every block is duplicated on another disk, so reads can be parallelized while each write must update all copies. Usable capacity is only that of one disk per mirror pair. It handles disk loss well but does not protect against logical corruption or a bad write mirrored to both copies. RAID 1 is reliable and mechanically straightforward, but expensive, since half the raw capacity goes to redundancy.
+**RAID 1 (mirroring).** Every block is duplicated on another disk, so reads can be parallelized while each write must update all copies. Usable capacity is only that of one disk per mirror pair. It handles disk loss well but does not protect against logical corruption or a bad write mirrored to both copies. RAID 1 is reliable and mechanically straightforward, but expensive, since half the raw capacity goes to redundancy.
 
 <RAIDDiagram
   mode="mirroring"
@@ -122,11 +126,9 @@ RAID 1 is mirroring. Every block is duplicated on another disk, so reads can be 
   caption="RAID 1: every block is mirrored to both disks; usable capacity is that of one disk."
 />
 
-RAID 5 strikes the common compromise using parity instead of full duplication.
-
 **Parity.** An extra block computed as the bitwise XOR of several data blocks. If one data block is lost, it is reconstructed from the parity block and the surviving blocks. For one stripe group, $P = S_0 \oplus S_1 \oplus \cdots \oplus S_{N-2}$.
 
-Data is striped across the disks, but the parity block rotates from disk to disk rather than living on one dedicated disk. The array can survive the loss of one disk, and usable capacity is the equivalent of $N-1$ disks out of $N$. Reads are fast, but writes are more complex because parity must be updated. RAID 5 is more affordable than mirroring and more reliable than pure striping, which is why it is widely used in servers and datacenters.
+**RAID 5 (rotating parity).** Data is striped across the disks, and the parity block rotates from disk to disk rather than living on one dedicated disk. The array survives the loss of one disk, and usable capacity is the equivalent of $N-1$ disks out of $N$. Reads are fast, but writes are more complex because parity must be updated. RAID 5 is more affordable than mirroring and more reliable than pure striping, which is why it is widely used in servers and datacenters.
 
 <RAIDDiagram
   mode="parity"
@@ -139,9 +141,15 @@ Data is striped across the disks, but the parity block rotates from disk to disk
   caption="RAID 5: data is striped across disks, and the parity block rotates diagonally from disk to disk."
 />
 
+---
+
 ## The Buffer Manager
 
-Two layers turn physical storage into clean page operations. **Disk space management** tracks free space on disk and exports page-level operations (allocate, deallocate, read, write), so higher layers request pages without managing physical layout. Its best case is a request for a *sequence* of pages satisfied by pages stored sequentially, which delivers the full benefit of sequential I/O. **Buffer management** turns in-memory page requests into page I/O.
+Two layers turn physical storage into clean page operations, the bottom two of the engine stack.
+
+**Disk space management.** The layer that tracks free space on disk and exports page-level operations: allocate, deallocate, read, write. Higher layers request pages without managing physical layout, and its best case is a request for a *sequence* of pages satisfied by pages stored sequentially, which delivers the full benefit of sequential I/O.
+
+**Buffer management** sits just above and turns in-memory page requests into page I/O.
 
 A DBMS can only process data that is currently in DRAM. The buffer manager hides the fact that most pages still live on disk, much as a hardware cache hides the gap between CPU and main memory.
 
@@ -156,7 +164,12 @@ A DBMS can only process data that is currently in DRAM. The buffer manager hides
   `}
 />
 
-The OS already provides a file system and a block cache, yet a DBMS still manages pages its own way for four reasons. It wants **custom prefetching**, because many scans are predictable; **replacement control**, to choose which pages stay resident instead of accepting a generic OS policy; **flushing control**, because recovery protocols such as **write-ahead logging (WAL)** require log records to reach disk before the dirty data pages they describe; and **scheduling control**, because OS scheduling can interfere with DBMS locking and create **convoy effects**, where one blocked worker delays many others.
+The OS already provides a file system and a block cache, yet a DBMS still manages pages its own way, for four reasons.
+
+- **Prefetching.** Many DBMS scans are predictable, so pages can be fetched ahead of the request.
+- **Replacement control.** The DBMS chooses which pages stay resident instead of accepting a generic OS policy.
+- **Flushing control.** Recovery protocols such as **write-ahead logging (WAL)** require log records to reach disk before the dirty data pages they describe.
+- **Scheduling control.** OS scheduling can interfere with DBMS locking and create **convoy effects**, where one blocked worker delays many others.
 
 The buffer manager caches pages in a fixed region of memory and remembers where each one sits.
 
@@ -227,7 +240,13 @@ The pin count is what makes a page safe or unsafe to evict.
 
 **Pinned page.** A page whose pin count is greater than zero because some operator or transaction is actively using it. Pinned pages are never eviction candidates.
 
-A page request resolves as a hit or a miss. On a **hit**, the page is already in the pool, so the DBMS returns its frame and increments the pin count. On a **miss**, it must first find a frame: use an empty frame if one exists, otherwise choose a victim by the replacement policy, considering only pages with pin count $=0$. If the victim is dirty, write it back first; then read the requested page into the frame, pin it, and return its address. When the caller finishes it must **unpin** the page and report whether it was modified. Because a page may be pinned several times, it becomes evictable only when its pin count returns to $0$. If the access pattern is predictable, the manager can pre-fetch several pages at once, and an eviction may itself trigger extra I/O when WAL forces older log records to disk ahead of a dirty page.
+A page request resolves as a hit or a miss. On a **hit**, the page is already in the pool: the DBMS returns its frame and increments the pin count. On a **miss**, the manager
+
+1. finds a frame, an empty one if available, otherwise a victim with pin count $0$ chosen by the replacement policy,
+2. writes the victim back first if it is dirty,
+3. reads the requested page into the frame, pins it, and returns its address.
+
+When the caller finishes it must **unpin** the page and report whether it was modified. Because a page may be pinned several times, it becomes evictable only when its pin count returns to $0$. If the access pattern is predictable, the manager can pre-fetch several pages at once, and an eviction may itself trigger extra I/O when WAL forces older log records to disk ahead of a dirty page.
 
 ## Replacement Policies
 

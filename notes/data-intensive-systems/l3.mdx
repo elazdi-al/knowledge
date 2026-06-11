@@ -1,14 +1,20 @@
 ---
 title: "Data Intensive Systems: Lecture 3"
-description: "Storage and access: the storage hierarchy, record and page layouts, file organizations, row vs column stores, indexing (dense, sparse, clustered, secondary, multilevel, composite), access-path cost, and index selection."
+description: "Storage and access: files, pages, and records, page and record layouts, row vs column stores, file organizations and their cost, indexing (dense, sparse, clustered, secondary, multilevel, composite), and index selection."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-09
+updated: 2026-06-11
 ---
 
-## The Storage Hierarchy
+## Files, Pages, and Records
 
-At the physical level a database is a file of records, and the DBMS reaches those records through a small set of operations: it creates and deletes files, inserts, deletes, and updates records, retrieves one record by its identifier (**point access**), retrieves all records satisfying a condition (**range access**), or reads the whole file (**scan**). How fast each of these runs is decided entirely by how the data is laid out on disk. The physical design layer makes three choices: how records sit inside pages, how pages are arranged inside a file, and which indexes exist. The metadata recording these choices lives in the *system catalog*.
+At the physical level a database is a file of records. This is where the access-methods and disk-space layers of the engine live: the DBMS creates and deletes files, inserts, deletes, and updates records, and reads them back through three access patterns.
+
+- **Point access.** Retrieve one record by its identifier.
+- **Range access.** Retrieve all records satisfying a condition.
+- **Scan.** Read the entire file.
+
+How fast each of these runs is decided entirely by how the data is laid out on disk. The physical design layer makes three choices: how records sit inside pages, how pages are arranged inside a file, and which indexes exist. The metadata recording these choices lives in the *system catalog*.
 
 **Storage hierarchy.** A database is a set of files; a file is a set of fixed-size pages (blocks); a page stores several records; a record is a sequence of fields.
 
@@ -22,7 +28,7 @@ At the physical level a database is a file of records, and the DBMS reaches thos
   caption="A database is a set of files, a file is a set of pages, a page stores records, and a record is a sequence of fields."
 />
 
-Every access path is ultimately a way of locating the right page, then the right slot inside it. We start at the bottom of the hierarchy with how a page names and stores its records.
+Every access path is ultimately a way of locating the right page, then the right slot inside it.
 
 ## Records and Pages
 
@@ -143,6 +149,8 @@ Every layout so far is a row store: a slot holds one full tuple, so all of a tup
 
 **Decomposition storage model (DSM).** A column-oriented layout that stores each attribute separately. A tuple is rebuilt by reading the value at the same logical position from each needed column.
 
+*A row store answers "give me this tuple" cheaply; a column store answers "give me this attribute of every tuple".*
+
 <PageLayout
   mode="row-column"
   columns={["Col A", "Col B", "Col C"]}
@@ -164,7 +172,9 @@ Every layout so far is a row store: a slot holds one full tuple, so all of a tup
   caption="Row store keeps a complete tuple together (the ringed row); column store keeps same-attribute values together (the ringed column)."
 />
 
-The two models make opposite trade-offs. A row store gives fast inserts, updates, and deletes and reads or rewrites whole tuples cheaply, but it wastes I/O when a scan needs only a few of many attributes, and one page mixing many value types compresses poorly. A column store reads only the attributes a query touches, gains CPU cache locality, compresses each column far better, and processes values in vectorized batches; in return, reconstructing a full tuple is expensive, updates and deletes are harder, and compressed columns may need decompression first. As a rule of thumb, **row stores fit OLTP** (transactional) workloads and **column stores fit OLAP** (analytical) workloads, and some systems are **hybrid** and support both.
+The two models make opposite trade-offs. A row store gives fast inserts, updates, and deletes and reads or rewrites whole tuples cheaply, but a scan that needs a few of many attributes still pays I/O for all of them, and one page mixing many value types compresses poorly. A column store reads only the attributes a query touches, gains CPU cache locality, compresses each column far better, and processes values in vectorized batches; in return, reconstructing a full tuple is expensive, updates and deletes are harder, and compressed columns may need decompression first.
+
+*Row stores fit OLTP, many small transactions; column stores fit OLAP, analytical scans over few attributes; hybrid systems support both.*
 
 Pure column stores split attributes across the whole file. PAX keeps the file's page structure but applies the columnar idea inside each page.
 
@@ -224,6 +234,8 @@ This buys cache-friendly scans over a few attributes without abandoning the page
 
 Each column stream compresses well, the engine can skip irrelevant columns and often whole groups, and a scan over a few attributes never touches the rest of the file.
 
+---
+
 ## File Organizations and Their Cost
 
 The next layer up is how pages are arranged inside a file. The choice is again driven by the workload: full scans and cheap inserts favor one organization, ordered reads favor another.
@@ -276,6 +288,8 @@ Let $B$ be the number of data pages. Each operation touches one record, an equal
 | Delete | $0.5\,B + 1$ | $\log_2 B + B$ |
 
 Scans cost the same either way. Sorted files win decisively on equality and range search over the ordering attribute, dropping from a linear scan to a binary search $\log_2 B$. Heap files win on inserts (a constant append instead of shifting half the file) and usually on deletes. A sorted file thus buys one excellent access path at a steep update cost, which is exactly the problem indexes solve more flexibly.
+
+---
 
 ## Indexing
 
@@ -391,7 +405,7 @@ Indexes are classified along four independent axes: **clustered vs unclustered**
   caption="Clustered keeps matching records on nearby pages (parallel arrows); unclustered scatters them across the file (crossing arrows)."
 />
 
-A clustered index keeps matching records on nearby pages, so range queries stay efficient; an unclustered index may jump to many unrelated pages, so large result sets become expensive. A file can carry many unclustered indexes but only one clustered physical order at a time. Some texts say *primary* for clustered and *secondary* for unclustered, but that vocabulary is not universal, so the physical term clustered is safer. In the clustered case, the file is ordered on `ID`, so neighbouring index entries point to neighbouring data pages.
+A clustered index keeps matching records on nearby pages, so range queries stay efficient; an unclustered index may jump to many unrelated pages, so large result sets become expensive. A file can carry many unclustered indexes but only one clustered physical order at a time. In the clustered case, the file is ordered on `ID`, so neighbouring index entries point to neighbouring data pages.
 
 <IndexMap
   mode="pages"
@@ -430,6 +444,8 @@ The second axis is how completely the index covers the data.
 **Dense index.** Has an index entry for every search-key value that appears in the data file.
 
 **Sparse index.** Has entries for only some values, typically one per data page. A sparse index uses less space and needs fewer updates, but works well only when the data file is ordered on the search key, since after reaching the right page the DBMS still searches within it.
+
+*A dense index can answer "does K exist?" on its own; a sparse index must fetch the page to know.*
 
 For range predicates the clustered/unclustered distinction grows even larger: a **clustered** index costs roughly the number of *data pages* holding matches, while an **unclustered** index costs closer to the number of *matching index entries*, because each match may lead to a different page. So a clustered index is efficient for ranges and ordered scans but expensive to maintain when updates disturb the order, whereas an unclustered index is cheap to add as an extra access path but can trigger many random I/Os on a large result.
 
@@ -645,28 +661,11 @@ Search descends level by level to the target data page, and more levels can be a
 
 A secondary index on an unsorted column must be dense; a sparse one would leave some matching records unreachable. This fixes the vocabulary: a clustered (primary) index sits on a file physically ordered on the indexing field and may be sparse or dense, while an unclustered (secondary) index sits on a file that is not so ordered, points to records or RID buckets, and must be dense. The core question is always whether the data file itself follows the search-key order.
 
-## B+-Trees, Hash Indexes, and Choosing a Key
+## Tree and Hash Index Structures
 
 Sequential dense and sparse indexes explain the ideas, but a static index degrades under updates. Real systems prefer the B+-tree because it stays balanced.
 
-**B+-tree.** A balanced search tree whose nodes are page-sized blocks. Internal nodes store separator keys and child pointers to route a search; leaf nodes store sorted entries and are linked left-to-right for range scans.
-
-- **Balance.** Every root-to-leaf path has the same length.
-- **Internal fan-out.** Each non-root internal node has between $\lceil n/2 \rceil$ and $n$ children, for a tree of order $n$.
-- **Leaf occupancy.** Each leaf holds between $\lceil (n-1)/2 \rceil$ and $n-1$ key values.
-- **Root.** If the root is not a leaf it has at least $2$ children; if it is also a leaf it holds between $0$ and $n-1$ values.
-
-<PageLayout
-  mode="node-strip"
-  nodes={[
-    { title: "Internal node", cells: ["P_1", "K_1", "P_2", "K_2", "P_3", "K_{q-1}", "P_q"] },
-    { title: "Leaf node", cells: ["K_1", "ptr", "K_2", "ptr", "...", "next"], nextLink: true },
-  ]}
-  footnote="internal nodes route the search; leaves store entries and are linked for range scans"
-  caption="B+-tree node anatomy: internal nodes alternate pointers and keys; leaves store entries and link for range scans."
-/>
-
-An internal node with child pointers $P_1, \dots, P_q$ stores separator keys $K_1, \dots, K_{q-1}$, where $K_i$ separates the subtree under $P_i$ from the subtree under $P_{i+1}$. The order $n$ controls fan-out, which controls height.
+**B+-tree.** A balanced search tree whose nodes are page-sized blocks: every root-to-leaf path has the same length, internal nodes store separator keys and child pointers that route a search, and leaf nodes store the sorted entries, linked left-to-right for range scans. The node capacity (the tree's *order*) controls fan-out, and fan-out controls height.
 
 <BPlusTree
   caption="Order 4: small fan-out, so the tree is wider and deeper."
@@ -738,7 +737,11 @@ The B+-tree is one of two index families, each tuned to a different predicate. A
   caption="Hash index: an equality lookup computes one bucket; collisions create overflow pages."
 />
 
-Hash indexes are best for equality predicates: to evaluate `age = 44` the DBMS computes $h(44)$ and reads one bucket, duplicates land in the same bucket, and inserts and deletes usually touch one bucket only. Because entries are not kept in order, hash indexes do not help range predicates such as `age > 40`: the DBMS would have to inspect nearly every bucket, which is close to a full scan. A **tree-based index**, in practice a B+-tree, keeps entries sorted, so its leaf links turn a range predicate into one descent plus a sequential walk, and the same structure also serves equality, ordered scans, and prefix lookups.
+Hash indexes are best for equality predicates: to evaluate `age = 44` the DBMS computes $h(44)$ and reads one bucket, duplicates land in the same bucket, and inserts and deletes usually touch one bucket only. Because entries are not kept in order, hash indexes do not help range predicates such as `age > 40`: the DBMS would have to inspect nearly every bucket, which is close to a full scan.
+
+A **tree-based index**, in practice a B+-tree, keeps entries sorted, so its leaf links turn a range predicate into one descent plus a sequential walk, and the same structure also serves equality, ordered scans, and prefix lookups.
+
+*Hashing trades away order for $O(1)$ equality; trees keep order and answer everything else.*
 
 This makes the index family follow directly from the predicate. For
 
@@ -751,6 +754,8 @@ WHERE E.age > 40
 `age > 40` is a range, so a tree index on `age` is the natural choice and a hash index would not help. If many tuples qualify, a *clustered* tree index beats an unclustered one; and if the predicate matches a large fraction of the relation, a plain sequential scan may still be cheaper than any index.
 
 **Selective predicate.** A predicate matching a small fraction of the relation. Indexes help most here; when most records qualify, scanning is often cheaper.
+
+## Composite Search Keys
 
 When several predicates apply, the question becomes which attribute, and in what combination, the index should cover. Consider
 
@@ -815,6 +820,8 @@ Field order is decisive. With `age = 12 AND sal = 75`, full equality, both a has
 
 **Leftmost-prefix rule.** A composite tree index on $\langle A, B, C \rangle$ can be used efficiently only when the query constrains a prefix of the key: $A$, or $A$ and $B$, or all three.
 
+*A composite index is a phone book sorted by last name, then first name: perfect for "Smith" and for "Smith, John", useless for "everyone named John".*
+
 A well-ordered composite key can also let the index answer the query by itself.
 
 ```sql
@@ -849,7 +856,7 @@ Putting the four axes together, the choice of index follows a short decision pat
 | Range, many updates | B+-tree | Unclustered | Dense |
 | Static range data | Sorted file | inherent | Sparse |
 
-**Index selection traps.**
+Several traps recur in this decision.
 
 **Clustered ≠ primary key.** Clustering means data pages are physically ordered on the indexed attribute, which may be non-unique (you can cluster on `year`). Only one clustered index per table, because physical order is a single global property.
 
@@ -864,6 +871,8 @@ Putting the four axes together, the choice of index follows a short decision pat
 **Inserts and deletes on a sorted file are expensive.** An insert is at least $2$ I/Os and degrades to $O(B)$ when shifting; a worst-case delete on a non-sort attribute scans all $B$ pages and rewrites them, $2B$ I/Os. Prefer B+-trees for dynamic data.
 
 **PAX ≠ DSM.** PAX reorganizes columns *within* a page, so the page count matches NSM; DSM decomposes into separate column files with different page counts.
+
+---
 
 ## System Catalogs
 

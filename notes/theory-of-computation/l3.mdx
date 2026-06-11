@@ -1,0 +1,235 @@
+---
+title: "Theory of Computation: Lecture 3"
+description: "Non-regular languages, the pigeonhole argument, the pumping lemma as an adversary game, closure-based reductions, and a regular surprise."
+tags: ["Theory of computation"]
+created: 2026-06-11
+updated: 2026-06-11
+---
+
+## The Edge of Finite Memory
+
+Every NFA has an equivalent DFA, so DFAs, NFAs, and all the closure constructions draw one and the same boundary: the regular languages. What sits comfortably inside that boundary:
+
+- **Pattern matching.** Fixed substrings, such as strings containing `1011011`: one waiting state per matched prefix.
+- **Modular counting.** Parity, divisibility, anything counted "modulo some number", such as strings whose number of `1` symbols is divisible by 5.
+- **Bounded position information.** Fixed prefixes, suffixes, or positions, such as strings whose second-to-last bit is `1`.
+- **Pattern shapes.** Languages like $0^*110^*=\{0^n110^m\mid n,m\ge 0\}$, and anything assembled from regular pieces by complement, union, intersection, and concatenation.
+
+The common thread is that finitely many states suffice to summarize everything relevant about the prefix read so far. The limit appears when a language needs exact unbounded memory: a finite automaton can count modulo a fixed number, but it cannot remember an arbitrary number exactly.
+
+**Non-regular language.** A language that no DFA, and equivalently no NFA, recognizes.
+
+Proving non-regularity is a statement about every machine at once. It is not enough that the language feels hard or that one design fails; the proof must show that every possible finite automaton is wrong somewhere. Three test languages calibrate where the boundary runs: $B$, the strings $0^n1^n$; $C$, the strings with as many `0`s as `1`s; and $D$, the strings with as many occurrences of `01` as of `10` as substrings. Which of the three are regular? The intuition "anything that counts is non-regular" misleads for exactly one of them.
+
+## The First Non-Regular Language
+
+Start with
+
+$$
+B=\{0^n1^n\mid n\ge 0\}
+=\{\epsilon,01,0011,000111,\ldots\}.
+$$
+
+The number of `1` symbols must match exactly the number of earlier `0` symbols, and the number to remember is unbounded. That intuition becomes a proof through the pigeonhole principle: a DFA with $p$ states cannot keep $p+1$ different prefixes apart.
+
+**Theorem.** $B$ is not regular.
+
+**1. Assumption.** Suppose, for contradiction, that a DFA $M$ with $p$ states recognizes $B$.
+
+**2. Repeated state.** Feed $M$ the $p+1$ prefixes $\epsilon,0,00,\ldots,0^p$. They land in at most $p$ states, so by the pigeonhole principle there are $i<j$ such that $0^i$ and $0^j$ end in the same state.
+
+**3. Same suffix.** A DFA is deterministic, so from one state the same suffix always produces the same verdict. Append $1^i$ to both prefixes: since $0^i1^i\in B$ the machine accepts it, and therefore it must also accept $0^j1^i$.
+
+**4. Contradiction.** Because $j>i$, the string $0^j1^i$ has more `0`s than `1`s, so it is not in $B$. Thus $M$ accepts a string outside $B$, contradicting $L(M)=B$.
+
+*Once two different prefixes share a state, the machine has forgotten their difference forever, and no suffix can restore the lost information.*
+
+The argument never used anything specific to $B$ except at the very end. Long accepted strings force a repeated state, and the input read between the two visits can be repeated or removed freely. Packaging that observation once and for all gives the central tool of the lecture.
+
+---
+
+## The Pumping Lemma
+
+**Pumping lemma for regular languages.** If $A$ is regular, then there exists a number $p$, the pumping length, such that every string $s\in A$ with $|s|\ge p$ can be written as $s=xyz$ with:
+
+1. $xy^iz\in A$ for every $i\ge 0$,
+2. $|y|\ge 1$,
+3. $|xy|\le p$.
+
+| Part | Meaning |
+|---|---|
+| $x$ | input read before entering the repeated state |
+| $y$ | nonempty input read while going around the loop |
+| $z$ | remaining suffix after the loop |
+| $xy^iz$ | the string obtained by taking the loop $i$ times |
+
+With $i=0$ the loop is removed and the string becomes $xz$; with $i=2$ the loop is taken twice and the string becomes $xyyz$. A pumping length is not unique: if $p$ works, any larger number works. And if $A$ is finite, the lemma holds vacuously, because choosing $p$ longer than every string in $A$ leaves no string with $|s|\ge p$.
+
+**Proof.** Choose a DFA $M=(Q,\Sigma,\delta,q_0,F)$ with $L(M)=A$ and let $p=|Q|$. Take any $s\in A$ with $|s|\ge p$. Reading the first $p$ symbols visits $p+1$ state positions, the start state plus one per symbol, so some state $q$ repeats; say its first two visits happen at times $j<k\le p$. Split $s$ into $x$, the first $j$ symbols, $y$, the symbols from $j+1$ through $k$, and $z$, the rest. Then $y$ is nonempty and $|xy|=k\le p$, and the accepting run has the shape
+
+$$
+q_0 \xrightarrow{\;x\;} q
+\xrightarrow{\;y\;} q
+\xrightarrow{\;z\;} r\in F.
+$$
+
+Reading $y$ returns the machine to $q$, so the loop can be taken any number of times without changing where the run ends:
+
+$$
+q_0 \xrightarrow{\;x\;} q
+\xrightarrow{\;y^i\;} q
+\xrightarrow{\;z\;} r\in F,
+$$
+
+so $xy^iz\in A$ for every $i\ge 0$.
+
+*The pumping lemma is the pigeonhole principle applied to a DFA run, stated once so that each non-regularity proof does not have to reopen the machine.*
+
+## Proving Non-Regularity
+
+The lemma gives a necessary condition for regularity, so it is used by contradiction: exhibit a string that cannot be pumped. The proof is best played as a game against an adversary who defends the (impossible) DFA.
+
+**Recipe: non-regularity via the pumping lemma.**
+
+1. **Assume** $L$ is regular. The adversary announces a pumping length $p$. You do not know $p$; treat it as a parameter.
+2. **Choose a witness.** Pick one string $s\in L$ with $|s|\ge p$, phrased in terms of $p$. This is the creative step.
+3. **Face every split.** The adversary picks the decomposition $s=xyz$ with $|xy|\le p$ and $|y|\ge 1$. Your argument must work for every such split. Use $|xy|\le p$ to pin down what $y$ can look like; with the right witness, the constraint forces $y$ into one uniform block.
+4. **Pump.** Choose one $i\ge 0$, often $i=2$ or $i=0$, and show $xy^iz\notin L$.
+5. **Conclude.** The lemma is violated, so $L$ is not regular. If instead some split survives every $i$, the witness was too weak; return to step 2 with a stronger string.
+
+*You choose the string and the pump count; the adversary chooses the length and the split. A proof is a winning strategy against every split, not one lucky play.*
+
+**Example 1. The copy language.**
+
+*Let $F=\{ww\mid w\in\{0,1\}^*\}$: strings made by writing the same string twice. In $F$: $\epsilon$, `00`, `0101`, `001001`. Not in $F$: `01`, `001`, `0110`.*
+
+Assume $F$ is regular with pumping length $p$, and pick the witness
+
+$$
+s=0^p1^p0^p1^p=ww \text{ for } w=0^p1^p.
+$$
+
+Every split $s=xyz$ with $|xy|\le p$ puts $x$ and $y$ inside the first block of zeros, so $y=0^k$ with $k>0$. Pump up once:
+
+$$
+xy^2z=0^{p+k}1^p0^p1^p.
+$$
+
+If $k$ is odd, the length is odd and the string cannot be $ww$. If $k=2h$ is even, the midpoint moves into the first block of `1`s, so the first half starts with `0` and the second half starts with `1`, and the halves differ. Either way $xy^2z\notin F$, contradiction: $F$ is not regular.
+
+The witness did the work. Choosing $s=0^p1^p0^p1^p$ forces every legal $y$ into the first zero block, so pumping damages only the first copy.
+
+**Example 2. More zeros than ones.**
+
+*Let $E=\{0^m1^n\mid m>n\}$.*
+
+Assume $E$ is regular with pumping length $p$, and pick $s=0^{p+1}1^p\in E$. Every legal split has $y=0^k$ with $k>0$. Pumping up only adds zeros and stays in $E$; the contradiction comes from pumping down with $i=0$:
+
+$$
+xy^0z=xz=0^{p+1-k}1^p.
+$$
+
+Since $k\ge 1$, the string has at most $p$ zeros against $p$ ones, so $xz\notin E$. Contradiction: $E$ is not regular. The useful pump count is not always up.
+
+**Example 3. Equal zeros and ones.**
+
+*Let $C=\{w\in\{0,1\}^*\mid w\text{ has as many }0\text{s as }1\text{s}\}$.*
+
+A first witness attempt fails instructively. The string $s=(01)^p$ is in $C$ and long enough, but the adversary answers with the split $x=\epsilon$, $y=01$: then $xy^iz=(01)^{p+i-1}$ stays in $C$ for every $i$, and that single surviving split destroys the whole attempt. A witness must lose to no split.
+
+Pick instead $s=0^p1^p$. Now every legal split has $y=0^k$ with $k>0$, and pumping up gives
+
+$$
+xy^2z=0^{p+k}1^p\notin C.
+$$
+
+Contradiction: $C$ is not regular.
+
+## Non-Regularity by Closure
+
+Knowing one non-regular language unlocks others without touching the pumping lemma again: reduce the new language to a known one through closure operations.
+
+Containment alone proves nothing. $B\subseteq C$ and $B$ non-regular does not make $C$ non-regular, just as $B\subseteq\{0,1\}^*$ does not make $\{0,1\}^*$ non-regular. The operation must transform the whole language, and intersection with a regular filter is the workhorse.
+
+**Recipe: non-regularity by closure reduction.**
+
+1. **Assume** $L$ is regular.
+2. **Combine** $L$ with known regular languages using operations under which regular languages are closed: intersection with a regular filter, complement, union.
+3. **Identify** the result as a language already known to be non-regular.
+4. **Conclude.** Closure would force that language to be regular, a contradiction, so $L$ is not regular.
+
+For $C$, filter with $R=0^*1^*=\{0^m1^n\mid m,n\ge 0\}$, which is regular: a three-state DFA checks that no `0` follows a `1`. If $C$ were regular then $C\cap R$ would be regular, because regular languages are closed under intersection. But
+
+$$
+C\cap R=\{0^n1^n\mid n\ge 0\}=B,
+$$
+
+and $B$ is not regular. Contradiction: $C$ is not regular, now proved a second way.
+
+*A closure reduction says: if this language were regular, a known non-regular language would become regular after a harmless operation. The filter strips away everything except the hard core.*
+
+---
+
+## A Regular Surprise
+
+The third test language counts, yet it is regular:
+
+$$
+D=\{w\in\{0,1\}^*\mid w\text{ has as many occurrences of }01\text{ as of }10\text{ as substrings}\}.
+$$
+
+An occurrence here is an adjacent pair of symbols, so the counts track changes from `0` to `1` and from `1` to `0`, not symbol totals.
+
+**Boundary-change characterization.** A binary string has equally many `01` and `10` substrings if and only if it is empty or its first and last symbols are equal.
+
+Scanning left to right, the changes alternate: after a `0` to `1` change, the next change can only be `1` to `0`, and conversely. The counts therefore differ by at most one, and they are equal exactly when the string ends on the same symbol value it started with. A string starting with `0` and ending with `1` has one extra `01`; starting with `1` and ending with `0`, one extra `10`.
+
+A DFA for $D$ needs to remember only the first symbol and the most recent symbol:
+
+<Split cols="1.1fr 0.9fr" align="center">
+<Pane>
+
+<Automaton
+  caption="A DFA for strings with equal numbers of 01 and 10 substrings."
+  start="q0"
+  accepting={["q0", "q1", "q2"]}
+  states={[
+    { id: "q0", label: "q_0", x: 78, y: 160 },
+    { id: "q1", label: "q_1", x: 226, y: 86 },
+    { id: "q3", label: "q_3", x: 390, y: 86 },
+    { id: "q2", label: "q_2", x: 226, y: 234 },
+    { id: "q4", label: "q_4", x: 390, y: 234 },
+  ]}
+  transitions={[
+    { from: "q0", to: "q1", label: "0" },
+    { from: "q0", to: "q2", label: "1" },
+    { from: "q1", to: "q1", label: "0" },
+    { from: "q1", to: "q3", label: "1", bend: "down" },
+    { from: "q3", to: "q1", label: "0", bend: "down" },
+    { from: "q3", to: "q3", label: "1" },
+    { from: "q2", to: "q2", label: "1" },
+    { from: "q2", to: "q4", label: "0", bend: "up" },
+    { from: "q4", to: "q2", label: "1", bend: "up" },
+    { from: "q4", to: "q4", label: "0" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+| State | Meaning |
+|---|---|
+| $q_0$ | no symbol has been read |
+| $q_1$ | first symbol `0`, last symbol `0` |
+| $q_3$ | first symbol `0`, last symbol `1` |
+| $q_2$ | first symbol `1`, last symbol `1` |
+| $q_4$ | first symbol `1`, last symbol `0` |
+
+The accepting states $q_0$, $q_1$, $q_2$ are exactly the cases where the string is empty or its first and last symbols agree.
+
+</Pane>
+</Split>
+
+*Accepted: $\epsilon$, `0`, `1`, `00`, `11`, `010`, `101`. Rejected: `01`, `10`, `001`, `110`.*
+
+$D$ looks like it compares two unbounded counts, but the difference between the counts is fully determined by the first and last symbols, and that is two bits of memory. Regularity is about how much information must be carried, not about how the language is phrased; whenever a counting language is regular, some bounded quantity secretly carries the count. Past this boundary lies computation with unbounded memory, Turing machines, where both the powers and the limits change shape.

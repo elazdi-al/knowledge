@@ -25,6 +25,13 @@ These rules describe the preferred style for course notes in this workspace.
 - Do not add study checklists, recap sections, summary sections, or final review lists.
 - Do not use callout components in notes. If the content is important, write it as normal prose, a definition, or a compact list.
 
+## Building Up Across a Course
+
+- Lectures form one progression. Define a concept at its simplest the first time the course needs it; later notes deepen it and refer back instead of redefining it cold.
+- When a later note must revisit a concept, extend or sharpen it (new components, finer distinctions), never restate the same definition.
+- Keep substance that later notes build on, even while compressing. Cut narration and fluff, never stepping stones.
+- Use numbered lists for genuinely ordered material: pipelines, layer stacks, algorithm steps, design stages. Use plain bullets only for unordered properties.
+
 ## Concept Blocks
 
 - Important concepts should follow this pattern:
@@ -61,14 +68,24 @@ These rules describe the preferred style for course notes in this workspace.
 - Avoid overly casual phrasing, but allow a little interest and movement in the prose.
 - Prefer exact sentences over vague summaries.
 
-## Examples
+## Examples and Intuition Helpers
 
 - Format examples in italics.
+- Number block examples sequentially within a note: `**Example 1. Title.**` on its own line, italic body in the next paragraph.
+- Use standalone italic lines as intuition helpers: one italicized sentence stating directly how to think about or read the concept, with no "Helper:" or "Intuition:" prefix. Place it immediately after the definition it unlocks. *Read an arrow as "at most once".*
+- A short clarifying example may stay inline at the end of a concept block; an intuition helper or reading rule gets its own line, because the line break is the signal.
 - Keep examples close to the concept they clarify.
 - Use examples to test or distinguish concepts, not to restate what was already obvious.
 - If an inline example makes a definition or property visually crowded, put the example on the next line as a short continuation paragraph.
 - If an example spans multiple lines, put the bold example title on its own line and begin the description in the next paragraph.
 - When showing accepted and rejected strings, include both sides if it improves study value.
+
+## Line Breaks and Separators
+
+- A line return carries meaning. A new paragraph signals a new thought: a concept block, an example, an intuition helper, a pivot to the next object. Never let text fall to a new line without such a reason.
+- Merge fragment paragraphs that continue the same thought. A conductor sentence may stand alone only when it pivots the note to a new object.
+- Inline math must be short enough to read inside its sentence without wrapping. Display longer or central expressions on their own line with `$$ ... $$`; a displayed equation should fit on one rendered line.
+- Use `---` separators to split the major areas of a note: groups of sections forming one act, such as foundations versus the core model, or mechanics versus design judgment. Use few; if every section gets one, none mean anything.
 
 ## Diagrams and Layout
 
@@ -88,6 +105,7 @@ These rules describe the preferred style for course notes in this workspace.
 - Keep notation consistent with the source material unless there is a good reason to rename it.
 - When a diagram and a tuple describe the same object, say so explicitly.
 - For formal proofs, use visible numbered step labels when the method matters: `**1. Claim.**`, `**2. Base case.**`, `**3. Inductive step.**`, `**4. Conclusion.**`.
+- When a proof technique recurs, state the method itself as a short recipe before the first proof that uses it, so each later proof reads as an instance of a known method. Format it as a concept block named for the goal, `**Recipe: proving X.**`, followed by numbered steps; when the method is adversarial, say explicitly who chooses what.
 - In DFA correctness proofs, prefer a state characterization that gives every state a meaning. Prove the characterization first, then derive the accepted language from the accepting states.
 
 ## Tags and Frontmatter

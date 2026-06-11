@@ -8,6 +8,8 @@ updated: 2026-06-11
 
 ## Hash Tables
 
+Hash indexes, hash joins, and hash aggregation all stand on one structure.
+
 **Hash table.** An unordered associative array that maps keys to values. A hash function computes where a key belongs, so the DBMS can jump to a small part of the structure instead of searching keys in sorted order.
 
 - **Space.** $O(n)$ in the number of entries.
@@ -192,12 +194,16 @@ Deletion is the subtle operation. If $C$, $D$, and $E$ lie in one probe run, del
 
 Tombstones preserve correctness, but too many of them lengthen probe runs, so the table needs periodic cleanup or rebuilding. Other open-addressing designs (cuckoo, hopscotch, Robin Hood, Swiss tables) solve the same problem with different trade-offs in speed, memory, probe length, and update cost.
 
+*A probe run may only ever be interrupted by a truly empty slot; everything a deletion leaves behind must look "still occupied" to lookups.*
+
 **Non-unique search key.** A key value that may match more than one record.
 
 Two storage choices are common:
 
 - **Separate value list.** Store one copy of the key in the hash structure and keep matching values or RIDs in a list.
 - **Redundant keys.** Store one hash-table entry per matching value, even when the key repeats.
+
+---
 
 ## Why Static Hashing Breaks Down
 
@@ -255,6 +261,8 @@ Two depths control the structure:
 
 - **Global depth.** The number of hash bits used to index the directory. At depth $d$, the directory has $2^d$ entries.
 - **Local depth.** The number of hash bits that identify one bucket. If a bucket's local depth is below the global depth, several directory entries point to that bucket.
+
+*The gap is the sharing: a bucket with local depth $\ell$ under global depth $d$ is pointed to by $2^{d-\ell}$ directory entries.*
 
 Assume the directory is indexed with the **least significant bits** of the hash. At global depth $2$, $h(r)=5=101_2$ goes to entry $01$, and $h(r)=7=111_2$ goes to entry $11$.
 
@@ -385,6 +393,8 @@ base buckets.
 - Buckets $\text{next},\dots,N_{\text{level}}-1$ have not split yet.
 - A round ends when `next` reaches $N_{\text{level}}$. Then `level` increases by $1$ and `next` resets to $0$.
 
+*Behind the `next` pointer the world uses one more bit; in front of it the old function is still right.*
+
 Search chooses the hash function from `next`:
 
 1. Compute $b=h_{\text{level}}(k)$.
@@ -426,6 +436,8 @@ The split uses $h_1(k)=k\bmod 8$:
 *After the split, searching for $20$ first gives $20\bmod 4=0$. Since $0<\text{next}$, bucket $0$ has split, so recompute $20\bmod 8=4$ and search bucket $4$. Searching for $9$ gives $9\bmod 4=1$, and $1\ge\text{next}$, so bucket $1$ has not split and no recomputation is needed.*
 
 The split pointer eventually reaches every bucket, so overflow chains are reduced in round-robin order. Linear hashing still depends on a good hash function, and temporary overflow pages can lengthen lookups.
+
+---
 
 ## Disk-Oriented Sorting
 
@@ -517,6 +529,8 @@ $$
 2N \cdot P.
 $$
 
+*Every pass reads and writes every page exactly once, so the cost is always $2N$ per pass; all sorting optimization is about reducing the number of passes.*
+
 A larger buffer pool creates fewer initial runs and gives each merge pass a larger fan-in.
 
 **Example 4. Sorting $N=108$ pages with $B=5$ buffers.**
@@ -534,22 +548,7 @@ A larger buffer pool creates fewer initial runs and gives each merge pass a larg
 
 Double buffering overlaps CPU work with disk transfer. It can reduce elapsed time, but it reserves extra buffers, so the effective merge fan-in may be smaller than $B-1$.
 
-## Sorting with a B+ Tree
-
-When a table already has a B$^+$-tree index on the sort attribute, the DBMS may avoid external sorting by scanning the index in key order.
-
-The index-order scan is:
-
-1. Go to the left-most leaf page.
-2. Scan leaf pages from left to right.
-3. Fetch records in the order given by the leaf entries.
-
-Clustering determines whether this is good:
-
-- **Clustered B$^+$-tree.** Usually strong for sorting, because records are stored close to leaf order and reads are mostly sequential.
-- **Unclustered B$^+$-tree.** Usually weak for large sorts, because leaf entries are sorted but record fetches may be random. In the worst case, the cost is close to one I/O per record.
-
-The table reports the number of external merge-sort passes $P$ for different file and buffer sizes.
+The pass count $P$ for different file and buffer sizes shows how sharply memory helps.
 
 | $N$ | $B=3$ | $B=5$ | $B=9$ | $B=17$ | $B=129$ | $B=257$ |
 |---|---|---|---|---|---|---|
@@ -563,3 +562,18 @@ The table reports the number of external merge-sort passes $P$ for different fil
 | 1,000,000,000 | 30 | 15 | 10 | 8 | 5 | 4 |
 
 With little memory, sorting needs many passes. With more memory, pass count drops sharply, and each avoided pass saves about $2N$ I/Os.
+
+## Sorting with a B+-Tree
+
+When a table already has a B$^+$-tree index on the sort attribute, the DBMS may avoid external sorting by scanning the index in key order.
+
+The index-order scan is:
+
+1. Go to the left-most leaf page.
+2. Scan leaf pages from left to right.
+3. Fetch records in the order given by the leaf entries.
+
+Clustering determines whether this is good:
+
+- **Clustered B$^+$-tree.** Usually strong for sorting, because records are stored close to leaf order and reads are mostly sequential.
+- **Unclustered B$^+$-tree.** Usually weak for large sorts, because leaf entries are sorted but record fetches may be random. In the worst case, the cost is close to one I/O per record.

@@ -1,18 +1,18 @@
 ---
 title: "Data Intensive Systems: Lecture 2"
-description: "The relational model and relational algebra: relations, schemas, keys, the core operators, and how algebra expressions become query trees that can be rewritten for efficiency."
+description: "The relational model and its algebra: tuples and instances, the key hierarchy, integrity constraints, SQL basics, the five basic operators, compound operators including join and division, and the query trees an optimizer rewrites."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-09
+updated: 2026-06-11
 ---
 
 ## The Relational Model
 
-**Relation.** A named table with rows and columns. A database is a set of such relations. Each column is an *attribute* carrying a *type* (its domain): integer, real, string, an enumeration, and so on.
+In the relational model the entire database is a set of named relations; every attribute carries a type (its *domain*), and every stored fact is a row.
 
-**Tuple.** A single row of a relation, holding one value per attribute. All tuples in a relation are distinct, and they have no inherent order.
+**Tuple.** A single row of a relation, holding one value per attribute. The tuples of a relation are distinct, and they have no inherent order.
 
-*Students* records people; *Colleges* records institutions.
+*Two running instances: `Students` records people, `Colleges` records institutions.*
 
 <Split cols="1.15fr 0.85fr" align="start">
 <Pane>
@@ -35,9 +35,11 @@ updated: 2026-06-09
 </Pane>
 </Split>
 
-**Schema.** The structural definition of a relation: its name plus each attribute name and type. *For Students: `Students(sid: string, name: string, login: string, age: integer, gpa: real)`, with `sid` underlined as the key.*
+A relation has two complementary aspects: its schema, the declared shape `Students(sid: string, name: string, login: string, age: integer, gpa: real)` with `sid` underlined as the key, and its content at a given moment.
 
-**Instance.** The actual set of tuples held in a relation at one point in time. Two numbers describe it: its **cardinality** (number of rows) and its **arity** or degree (number of attributes).
+**Instance.** The set of tuples held in a relation at one point in time. Two numbers describe it: its **cardinality**, the number of rows, and its **arity** (degree), the number of attributes.
+
+*The schema is fixed when the relation is created; the instance changes with every insert, update, and delete.*
 
 Not every value is always known. A student who has received no grades yet has no meaningful GPA, so the model needs a way to record absence.
 
@@ -45,7 +47,7 @@ Not every value is always known. A student who has received no grades yet has no
 
 ## Keys and Integrity Constraints
 
-Keys make tuples identifiable and let one relation point into another. They form a hierarchy that narrows from "enough to identify" down to "the one chosen identifier".
+A key identifies tuples and lets one relation point into another. That single idea splits into a hierarchy, narrowing from "enough to identify" down to "the one chosen identifier".
 
 **Superkey.** A set of attributes such that no two distinct tuples agree on all of them. Any superset of a superkey is again a superkey.
 
@@ -53,15 +55,21 @@ Keys make tuples identifiable and let one relation point into another. They form
 
 **Primary key.** The candidate key chosen by the database administrator (DBA) as *the* identifier of the relation.
 
+*Superkeys are sufficient, candidate keys are minimal, the primary key is chosen.*
+
 **Example 1. Keys of Students.**
 
 *In `Students(sid, name, login, age, gpa)`, both `sid` and `login` identify a student, so each alone is a candidate key. The DBA picks `sid` as the primary key. Any superset such as `{sid, name}` is a superkey but not minimal, so not a candidate key.*
+
+Key uniqueness is one instance of a broader contract between the schema and every future state of the data.
 
 **Integrity constraint (IC).** A condition that must hold on every valid instance of the database. ICs are declared with the schema and checked on every modification. Domain types, key uniqueness, and referential integrity are all ICs.
 
 **Legal instance.** An instance that satisfies every declared IC. The DBMS must reject any modification that would produce an illegal instance, which keeps stored data faithful to its real-world meaning and catches data-entry errors early.
 
-**Foreign key.** A set of attributes in one relation that references the primary key of another. The IC it carries is **referential integrity**: every foreign-key value must match an existing key in the referenced relation, so there are no dangling references.
+**Foreign key.** A set of attributes in one relation that references the *primary key* of another. The IC it carries is **referential integrity**: every foreign-key value must match an existing key in the referenced relation, so there are no dangling references.
+
+---
 
 ## SQL Basics
 
@@ -147,7 +155,7 @@ CREATE TABLE Person
 </Pane>
 </Split>
 
-A key choice encodes a real-world constraint, so it must match the intended meaning. For *Enrolled*, the rule is "for a given student and course there is a single grade", which is the composite key `(sid, cid)`.
+A key choice encodes a real-world rule. For *Enrolled*, the rule is "for a given student and course there is a single grade", which is the composite key `(sid, cid)`.
 
 ```sql
 CREATE TABLE Enrolled
@@ -157,9 +165,11 @@ CREATE TABLE Enrolled
    PRIMARY KEY(sid, cid))
 ```
 
-A wrong key states a different rule. Declaring `PRIMARY KEY(sid)` with `UNIQUE(cid, grade)` instead means "each student takes only one course, and no two students in a course get the same grade". A key is a constraint, not a label, so it must match the intended meaning.
+A wrong key states a different rule: declaring `PRIMARY KEY(sid)` with `UNIQUE(cid, grade)` instead means "each student takes only one course, and no two students in a course get the same grade".
 
-A foreign key acts as a logical pointer from one relation into another. *Enrolled.sid* references *Students.sid*, so every enrolled student must exist in *Students*.
+*A key is a constraint, not a label.*
+
+A foreign key acts as a logical pointer from one relation into another. *`Enrolled.sid` references `Students.sid`, so every enrolled student must exist in `Students`.*
 
 <Split cols="1.1fr 0.9fr" align="start">
 <Pane>
@@ -182,17 +192,22 @@ A foreign key acts as a logical pointer from one relation into another. *Enrolle
 </Pane>
 </Split>
 
-When a modification threatens referential integrity, the DBMS must react. Inserting an *Enrolled* tuple with a non-existent `sid` is rejected. Deleting a referenced *Students* tuple, or updating its primary key, offers a choice of policy: cascade the change to all referencing tuples, disallow it, set the referencing `sid` to a default, or set it to `NULL`.
+When a modification threatens referential integrity, the DBMS must react. Inserting an *Enrolled* tuple with a non-existent `sid` is simply rejected. Deleting a referenced *Students* tuple, or updating its primary key, offers a choice of policy:
+
+- **Cascade.** Propagate the change: delete or update every referencing tuple as well.
+- **Restrict.** Disallow the modification entirely.
+- **Set default.** Point the referencing tuples at a default value.
+- **Set null.** Mark the reference unknown.
+
+---
 
 ## Relational Query Languages
 
-Before SQL, two mathematical languages define what querying a relational database means. They give the model its formal power and the room for optimization.
+Underneath SQL sit two mathematical languages that define what querying a relational database means. They give the model its formal power and the room for optimization.
 
 **Query language (QL).** A language for retrieving and manipulating data. Unlike a general programming language, a QL is not Turing-complete: it is built for efficient access to large data sets, not arbitrary computation.
 
 A query is applied to relation instances, and its result is again a relation instance. The schemas of the inputs are fixed, and the language constructs determine the schema of the result, so a query can be type-checked before it ever runs. Two notations appear in practice: *positional* (convenient for formal definitions) and *named-field* (more readable); SQL uses both.
-
-Two formal QLs sit underneath SQL, differing in what they let you say.
 
 **Relational algebra.** An *operational* language: it says *how* to compute a result, step by step. This makes it the natural way to describe execution plans inside a database engine.
 
@@ -207,6 +222,7 @@ Relational algebra examples use a university database. Key attributes are underl
 | instructor | <u>ID</u>, name, dept_name, salary |
 | course | <u>course_id</u>, title, dept_name, credits |
 | teaches | <u>ID</u>, <u>course_id</u>, <u>sec_id</u>, <u>semester</u>, <u>year</u> |
+| section | <u>course_id</u>, <u>sec_id</u>, <u>semester</u>, <u>year</u>, building, room_number, time_slot_id |
 | student | <u>ID</u>, name, dept_name, tot_cred |
 | takes | <u>ID</u>, <u>course_id</u>, <u>sec_id</u>, semester, year, grade |
 
@@ -229,9 +245,7 @@ The operator examples use this *instructor* instance.
 
 ## The Five Basic Operators
 
-Relational algebra is built from five primitive operators. Because each one takes relations and returns a relation, they compose freely: the output of any operator can be the input of the next. They split into two unary operators that reshape a single relation and three binary operators that combine two.
-
-The unary operators filter along the two axes of a table. **Selection** ($\sigma$) keeps a subset of *rows*; **projection** ($\pi$) keeps a subset of *columns*. The binary operators combine relations: **cross-product** ($\times$) pairs every row of one with every row of the other, **set-difference** ($-$) keeps tuples of the first that are absent from the second, and **union** ($\cup$) keeps tuples in either.
+Relational algebra is built from five primitive operators. Each takes relations and returns a relation, so they compose freely: the output of any operator can be the input of the next. Two are unary and reshape a single relation along its two axes, rows or columns; three are binary and combine two relations. Alongside them, one bookkeeping operator manages names rather than data.
 
 ### Selection
 
@@ -299,7 +313,7 @@ This reduces 12 rows to 7 distinct department names. SQL keeps duplicates by def
 SELECT DISTINCT dept_name FROM instructor
 ```
 
-Selection and projection compose to pull specific columns from filtered rows. Order matters: $\sigma$ must run first while the selecting column is still present.
+Selection and projection compose to pull specific columns from filtered rows. Order matters: $\sigma$ must run first, while the selecting column is still present.
 
 $$
 \pi_{\textit{name}}\!\left(\sigma_{\textit{dept\_name} = \text{"Physics"}}(\textit{instructor})\right)
@@ -363,9 +377,19 @@ EXCEPT
 </Pane>
 </Split>
 
+### Cross-Product
+
+**Cross-product ($\times$).** Pairs every row of one input with every row of the other. The result schema has one field per field of each input; when both share a field name, $\rho$ disambiguates them.
+
+$$
+\textit{instructor} \times \textit{teaches}
+$$
+
 ## Compound Operators
 
 The five basic operators are complete: every query expressible in relational algebra uses only them. The compound operators add **no computational power**, since each rewrites into the basic five, but they are common enough to deserve their own notation.
+
+### Intersection
 
 **Intersection ($\cap$).** Outputs the tuples shared by two union-compatible relations.
 
@@ -377,15 +401,9 @@ $$
 (SELECT * FROM c1) INTERSECT (SELECT * FROM c2)
 ```
 
-### Cross-Product and Join
+### Join
 
-**Cross-product ($\times$).** Pairs every row of $S$ with every row of $R$. The result schema has one field per field of $S$ and $R$; when both share a field name, $\rho$ disambiguates them.
-
-$$
-\textit{instructor} \times \textit{teaches}
-$$
-
-A bare cross-product is rarely what we want: it pairs every instructor with every *teaches* row, including courses they never taught. The useful rows are kept by a selection on the matching identifier.
+A bare cross-product is rarely what we want: $\textit{instructor} \times \textit{teaches}$ pairs every instructor with every *teaches* row, including courses they never taught. The useful rows are kept by a selection on the matching identifier.
 
 $$
 \sigma_{\textit{instructor.id} = \textit{teaches.id}}(\textit{instructor} \times \textit{teaches})
@@ -405,6 +423,55 @@ When the matched columns share a name in both relations, the condition can be dr
 SELECT * FROM instructor
 JOIN teaches ON instructor.ID = teaches.ID
 ```
+
+### Division
+
+One more compound operator answers "for all" questions, such as *find every supplier that supplies every part*. These are awkward with the basic operators alone, which is why division exists as shorthand.
+
+**Division ($A / B$).** Given $A(x, y)$ and $B(y)$, the result $A / B$ is every value of $x$ such that for *every* tuple $b$ in $B$, the pair $(x, b)$ appears in $A$.
+
+The behaviour is easiest to see by varying the divisor. With $A(\textit{sno}, \textit{pno})$ on the left and three nested divisors $B_1 \subseteq B_2 \subseteq B_3$, the result shrinks as $B$ grows: more required parts means fewer suppliers qualify.
+
+<Split cols="0.5fr 1.5fr" align="start">
+<Pane>
+
+| sno | pno |
+|---|---|
+| s1 | p1 |
+| s1 | p2 |
+| s1 | p3 |
+| s1 | p4 |
+| s2 | p1 |
+| s2 | p2 |
+| s3 | p2 |
+| s4 | p2 |
+| s4 | p4 |
+
+</Pane>
+<Pane>
+
+| Divisor $B$ | $A / B$ |
+|---|---|
+| $\{\text{p2}\}$ | $\{\text{s1, s2, s3, s4}\}$ |
+| $\{\text{p2, p4}\}$ | $\{\text{s1, s4}\}$ |
+| $\{\text{p1, p2, p4}\}$ | $\{\text{s1}\}$ |
+
+Only suppliers carrying *every* part in $B$ survive. As $B$ accumulates parts, the qualifying set contracts to the single supplier s1, who stocks them all.
+
+</Pane>
+</Split>
+
+Division is not primitive: it rewrites using only $\pi$, $\times$, and $-$. The idea is to compute every $x$ that is *not* disqualified, where an $x$ is disqualified if pairing it with some $y \in B$ produces a tuple missing from $A$.
+
+$$
+A / B \;=\; \pi_x(A) \;-\; \pi_x\!\left((\pi_x(A) \times B) - A\right)
+$$
+
+**Example 2. Tracing the rewrite with $B_3 = \{\text{p1, p2, p4}\}$.**
+
+*$\pi_{\textit{sno}}(A) = \{\text{s1, s2, s3, s4}\}$ lists the candidate suppliers, and $\pi_{\textit{sno}}(A) \times B_3$ forms all $4 \times 3 = 12$ required pairs. Subtracting $A$ leaves only the missing pairs $(\text{s2, p4}), (\text{s3, p1}), (\text{s3, p4}), (\text{s4, p1})$, whose suppliers $\{\text{s2, s3, s4}\}$ are disqualified. Removing them gives $\{\text{s1, s2, s3, s4}\} - \{\text{s2, s3, s4}\} = \{\text{s1}\}$.*
+
+---
 
 ## Query Trees and Optimization
 
@@ -480,50 +547,3 @@ The first joins all three relations and only then filters; the second pushes the
 </Split>
 
 The DBMS query optimizer performs exactly this kind of rewrite automatically, pushing selections down and reordering joins, to find an efficient execution plan among the equivalent trees.
-
-## Division
-
-One more compound operator answers "for all" questions, such as *find every supplier that supplies every part*. These are awkward with the basic operators alone, which is why division exists as shorthand.
-
-**Division ($A / B$).** Given $A(x, y)$ and $B(y)$, the result $A / B$ is every value of $x$ such that for *every* tuple $b$ in $B$, the pair $(x, b)$ appears in $A$.
-
-The behaviour is easiest to see by varying the divisor. With $A(\textit{sno}, \textit{pno})$ on the left and three nested divisors $B_1 \subseteq B_2 \subseteq B_3$, the result shrinks as $B$ grows: more required parts means fewer suppliers qualify.
-
-<Split cols="0.5fr 1.5fr" align="start">
-<Pane>
-
-| sno | pno |
-|---|---|
-| s1 | p1 |
-| s1 | p2 |
-| s1 | p3 |
-| s1 | p4 |
-| s2 | p1 |
-| s2 | p2 |
-| s3 | p2 |
-| s4 | p2 |
-| s4 | p4 |
-
-</Pane>
-<Pane>
-
-| Divisor $B$ | $A / B$ |
-|---|---|
-| $\{\text{p2}\}$ | $\{\text{s1, s2, s3, s4}\}$ |
-| $\{\text{p2, p4}\}$ | $\{\text{s1, s4}\}$ |
-| $\{\text{p1, p2, p4}\}$ | $\{\text{s1}\}$ |
-
-Only suppliers carrying *every* part in $B$ survive. As $B$ accumulates parts, the qualifying set contracts to the single supplier s1, who stocks them all.
-
-</Pane>
-</Split>
-
-Division is not primitive: it rewrites using only $\pi$, $\times$, and $-$. The idea is to compute every $x$ that is *not* disqualified, where an $x$ is disqualified if pairing it with some $y \in B$ produces a tuple missing from $A$.
-
-$$
-A / B \;=\; \pi_x(A) \;-\; \pi_x\!\left((\pi_x(A) \times B) - A\right)
-$$
-
-**Example 2. Tracing the rewrite with $B_3 = \{\text{p1, p2, p4}\}$.**
-
-*$\pi_{\textit{sno}}(A) = \{\text{s1, s2, s3, s4}\}$ lists the candidate suppliers, and $\pi_{\textit{sno}}(A) \times B_3$ forms all $4 \times 3 = 12$ required pairs. Subtracting $A$ leaves only the missing pairs $(\text{s2, p4}), (\text{s3, p1}), (\text{s3, p4}), (\text{s4, p1})$, whose suppliers $\{\text{s2, s3, s4}\}$ are disqualified. Removing them gives $\{\text{s1, s2, s3, s4}\} - \{\text{s2, s3, s4}\} = \{\text{s1}\}$.*

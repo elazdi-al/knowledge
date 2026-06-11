@@ -1,76 +1,137 @@
 ---
 title: "Data Intensive Systems: Lecture 1"
-description: "Conceptual data modeling with the Entity-Relationship model: entities, relationships, attributes, keys, participation and key constraints, weak entities, ISA hierarchies, and aggregation."
+description: "Why DBMSs exist and what they guarantee, schemas and data independence, the layered DBMS architecture, and conceptual design with the ER model: entities, relationships, constraints, weak entities, ISA hierarchies, and aggregation."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-09
+updated: 2026-06-11
 ---
 
 ## From Data to a DBMS
 
 Modern software is useful only when data can be stored, shared, and queried correctly over time. The starting point is the difference between raw facts and meaning.
 
-**Data.** Raw facts used as input for reasoning and computation. Data may be useful, irrelevant, or redundant, and must be processed before it carries meaning.
+**Data.** Raw facts, used as input for reasoning and computation. Data may be useful, irrelevant, or redundant; on its own it carries no meaning.
 
-**Information.** Data that has been organized and processed so that it is relevant to a problem and actionable for a decision. The flow is $\text{data} \xrightarrow{\text{organize}+\text{process}} \text{information}$, which in turn supports knowledge and wisdom.
+**Information.** Data that has been organized and processed so that it is relevant to a problem and actionable for a decision; information in turn supports knowledge.
 
-Once facts carry meaning, they need structure. A **database** is a large, integrated, structured collection of data that models a real-world enterprise. The two things it organizes are **entities** (object types we store data about, such as a student or a course) and **relationships** (meaningful associations between entities, such as a student enrolling in a course).
+$$\text{data} \xrightarrow{\;\text{organize}+\text{process}\;} \text{information}$$
 
-A database on its own is passive, so we need software to manage it.
+Once facts carry meaning, they need structure.
 
-**Database Management System (DBMS).** A software system that stores, manages, and provides access to databases. It decomposes as $\text{DBMS} = \text{database} + \text{programs to access and manage it}$, and its core role is efficient, reliable, convenient, and safe multi-user access to massive persistent data.
+**Database.** A large, integrated, structured collection of data, modeling a real-world enterprise. It records *entities*, the kinds of objects we store data about, and *relationships*, the meaningful associations between them.
 
-That sentence packs several guarantees that a plain file system does not provide.
+*A university database stores students, courses, and professors, together with who enrolls in which course and who teaches it.*
 
-- **Persistence.** Data outlives any single process or program execution.
-- **Concurrency control.** Simultaneous operations are coordinated so outcomes stay correct.
-- **Recovery.** Failures of hardware, software, or power do not corrupt the stored data.
-- **Declarative access.** Queries are stated at a high level, with physical data independence from how bytes are laid out.
+A database on its own is passive; software has to manage it.
 
-The reason a file system is not enough is the missing contract. *If two collaborators save the same file at nearly the same time, whose changes survive is unclear; if power fails mid-write, which changes survive is unclear.* When durability, isolation, and recovery are not explicit, every application has to re-implement them, so the DBMS exists to supply these guarantees systematically. The web has the same gap in a different form: it is strong at retrieval, but its data is unstructured, completeness is not guaranteed, and consistency and freshness are weak, so serious sites place a DBMS behind the web layer rather than treat the web as one.
+**Database Management System (DBMS).** A software system that stores, manages, and provides access to databases. Its core role is efficient, reliable, convenient, and safe multi-user access to massive persistent data.
 
-**Ad-hoc query.** A query formed for a specific immediate need rather than predefined as part of a fixed workflow. Supporting ad-hoc querying, alongside concurrency control and recovery, is precisely what raises a DBMS above storage.
+$$\text{DBMS} = \text{database} + \text{programs to access and manage it}$$
 
-## Describing Data Across Levels
+That core role packs several guarantees that a plain file system does not state.
 
-The central architectural question is how to keep one coherent meaning of the data while serving many users and storing bytes efficiently. The answer is to describe data with a model and to separate that description into levels.
+- **Persistence.** Data outlives any single program execution.
+- **Concurrency control.** Simultaneous operations are coordinated so the outcome stays correct.
+- **Recovery.** Hardware, software, and power failures do not corrupt the stored data.
+- **Declarative access.** Queries state *what* data is wanted, not how to fetch it from the bytes on disk.
 
-**Data model.** A collection of concepts for describing data. A model is a high-level abstraction: it hides storage details so we can reason about structure and meaning first. The dominant family is the **relational model**, where data is a set of records organized into relations.
+To see why a file system is not enough, run two thought experiments. Two collaborators save the same file at nearly the same time: whose changes survive? Power fails halfway through a save: which changes survive? In both cases the honest answer is *unclear*, and over a platform whose promise is "unclear", every application must re-implement correctness on its own.
 
-- **Relation.** A named table with rows (tuples) and columns (attributes).
-- **Schema.** The structural definition of a relation: its attribute names, types, and organization.
+**Transactional semantics.** The guarantee that operations behave as complete, correct units of work (*transactions*), even under concurrency and failures. This is precisely the contract a file system leaves unstated; a DBMS provides it systematically.
 
-Schema is the type and data is a value following that type, the same way *string* is a type and *"hello"* is a value. A relational schema names attributes with their types explicitly.
+The web has the same gap in a different form: it is strong at retrieval, but its data is unstructured and untyped, completeness is not guaranteed, and freshness and cross-item consistency are weak. Serious websites therefore place a DBMS behind the web layer rather than treat the web as one. A language model is not a DBMS either: it can sit in front of one, but by itself it offers no schema, no transactions, and no declarative data manipulation.
 
-*Example. University schema. The relations are `Students(sid:string, name:string, login:string, age:integer, gpa:real)`, `Enrolled(sid:string, cid:string, grade:string)`, and `Courses(cid:string, cname:string, credits:integer)`. Explicit typing in the schema is the point.*
+**Ad-hoc query.** A query formed for a specific immediate need rather than predefined as part of a fixed workflow. Convenient ad-hoc querying is the most visible capability a DBMS adds on top of storage: a question does not have to be anticipated by any program to be answerable.
 
-The same database is described at three levels of abstraction, and the schema at each level can change without disturbing the level above it.
+## Schemas and Data Independence
 
-- **External schema.** User- or application-specific views, often used for access control. *Examples: `Students_Info(sid, name)` view; `Course_Enrollment(cid, #enrolled)` summary.*
-- **Logical (conceptual) schema.** The single global structure that users and application programs see. *The university relations.*
-- **Physical (internal) schema.** How data is stored: files, indexes, and layout. *Relations stored as unordered files with indexes on `Students.sid` and `Courses.cid`.*
+The central architectural question is how to keep one coherent meaning of the data while serving many users and storing bytes efficiently. The answer is to describe data with a model, and to split that description into levels.
 
-The mapping runs $\text{external schemas} \rightarrow \text{logical schema} \rightarrow \text{physical schema}$: many external views map onto one logical schema, which is then realized by physical structures.
+**Data model.** A collection of concepts for describing data. A model is a deliberate abstraction: it hides storage detail so that structure and meaning come first. The dominant family is the **relational model**, where all data lives in flat tables; nested models (hierarchies, arrays, graphs, objects) instead admit structured values directly.
 
-**Data independence.** The ability to change the schema at one level without changing the schema at the next higher level. **Logical data independence** changes the conceptual schema without touching user views; **physical data independence** changes the internal schema without touching the conceptual schema or views. This matters because storage layouts and indexes improve constantly, and applications should keep working while they do.
+**Relation.** A named table whose rows are *tuples* and whose columns are *attributes*.
 
-The relational level connects relations through their values. A **key** is an attribute (or set of attributes) whose value uniquely identifies a tuple inside a relation, and a **foreign key** is an attribute in one relation whose values reference the keys of another, linking the two.
+**Schema.** The structural description of a relation: its name, plus the name and type of every attribute.
 
-*Example. Enrolled references Students. In `Enrolled`, the column `SID` is a foreign key referencing `Students.SID`, so a row like `(53666, Carnatic101, 5)` only makes sense when `53666` also appears as a student. This is how rows in separate relations are tied together.*
+*A schema is a type and the stored data is a value of that type, the way `string` is a type and `"hello"` is a value.*
 
-Database design proceeds through requirements analysis, conceptual design, logical design, schema refinement, physical design, and security design. Conceptual design has its own modeling language.
+**Example 1. University schema.**
 
-**Conceptual design.** A high-level description of the enterprise data, independent of storage and implementation. It answers three questions: which entities and relationships exist, what information about them to store, and which integrity constraints must always hold. Its standard language is the Entity-Relationship model, and the resulting **ER diagram** maps cleanly into a relational schema.
+```
+Students(sid: string, name: string, login: string, age: integer, gpa: real)
+Enrolled(sid: string, cid: string, grade: string)
+Courses(cid: string, cname: string, credits: integer)
+```
+
+Relations connect to each other through values, not pointers.
+
+**Key.** An attribute, or minimal set of attributes, whose value uniquely identifies a tuple within its relation. *In `Students`, `sid` is a key: no two students share it.*
+
+**Foreign key.** An attribute, or set of attributes, in one relation whose values are key values of another relation, linking the two. *In `Enrolled`, `sid` is a foreign key referencing `Students.sid`: the row `(53666, Carnatic101, 5)` makes sense only if student `53666` exists.*
+
+The same database is described at three levels of abstraction, each a schema in its own right.
+
+- **External schema.** What one user or application sees: views, often used for access control. *`Students_Info(sid, name)` hides age and GPA; `Course_Enrollment(cid, #enrolled)` exposes only counts.*
+- **Logical (conceptual) schema.** The single global structure of the data that all users and programs share. *The three university relations.*
+- **Physical (internal) schema.** How the data is stored: files, indexes, and layout. *Unordered files, with indexes on `Students.sid` and `Courses.cid`.*
+
+The mapping runs
+
+$$\text{external schemas} \;\rightarrow\; \text{logical schema} \;\rightarrow\; \text{physical schema}$$
+
+with many external views onto one logical schema, realized by one physical layout.
+
+*Applications look through views at the logical schema; only the engine ever sees the physical one.*
+
+**Data independence.** The ability to change the schema at one level without changing the schema at the level above it.
+
+- **Logical data independence.** The logical schema can change without breaking the external views.
+- **Physical data independence.** The physical schema can change without breaking the logical schema or the views.
+
+This is why the levels exist: storage layouts and indexes improve constantly, and applications keep working while they do.
+
+## DBMS Architecture and Database Design
+
+Beneath the logical schema sits the engine. A query arrives in a declarative language such as SQL and descends through a stack of layers, each built only on the layer below it.
+
+1. **Query optimization and execution.** Turn a declarative query into an efficient plan and run it.
+2. **Relational operators.** Implement the plan's building blocks: selection, projection, join.
+3. **Access methods.** Organize records into files and indexes that can locate data quickly.
+4. **Buffer management.** Keep the disk pages currently in use cached in memory.
+5. **Disk space management.** Allocate, read, and write pages on disk.
+
+Transaction management and concurrency control cut across all five layers; they are how the engine delivers transactional semantics.
+
+Designing the database itself is also staged, moving from problem understanding to implementation choices.
+
+1. **Requirements analysis.** Understand what users need and what the database must support.
+2. **Conceptual design.** Describe the enterprise data at a high level, independent of storage and implementation.
+3. **Logical design.** Translate the conceptual description into the data model of the DBMS, typically relations.
+4. **Schema refinement.** Improve the relational schema, in particular by normalization.
+5. **Physical design.** Choose indexes and storage layout for the expected workload.
+6. **Security design.** Decide who may access what, typically through external views.
+
+Conceptual design is the stage with its own modeling language. It fixes three things:
+
+- which *entities* and *relationships* exist in the enterprise,
+- what information about them the database must store,
+- which *integrity constraints* must always hold.
+
+Its standard language is the **Entity-Relationship (ER) model**, and the result is an **ER diagram**, a picture of the conceptual schema that maps systematically into a relational schema.
+
+---
 
 ## Entities, Attributes, and Relationships
 
-The ER model captures entities, their attributes, relationships, and constraints before any logical or physical decision is made. The first three building blocks describe what exists.
+An ER design starts from what exists: objects, their properties, and their associations.
 
 **Entity.** A real-world object, distinguishable from every other object.
 
-**Attribute.** A property used to describe an entity, drawing its values from a **domain**, the set of values that attribute is allowed to take.
+**Attribute.** A named property describing an entity, with values drawn from a **domain**, the set of values it may take. In the basic ER model attribute values are *atomic* (no internal structure) and *single-valued* (one value per entity).
 
-**Entity set.** A collection of similar entities that share the same attributes. Its **key** is an attribute, or minimal set of attributes, that uniquely identifies the entities in the set. In an ER diagram an entity set is a rectangle, an attribute is an ellipse joined to it, and the key attribute is underlined.
+**Entity set.** A collection of similar entities that share the same attributes. Its **key** is, exactly as for a relation, a minimal set of attributes whose values uniquely identify the entities in the set.
+
+In the diagram, an entity set is a rectangle, each attribute an ellipse joined to it, and the key underlined.
 
 <ERDiagram
   caption="The entity set Employees with attributes ssn, name, lot; ssn is the key (solid underline)."
@@ -82,13 +143,15 @@ The ER model captures entities, their attributes, relationships, and constraints
   ]}
 />
 
-An **instance** of an entity set is the collection of entities currently stored in it. *For `Employees`, the instance might be `(123-22-3666, John, P1)` and `(231-31-5368, Tom, P2)`: two concrete employees, each a tuple over the declared attributes.*
+An **instance** of an entity set is the collection of entities currently stored in it. *For `Employees`: `(123-22-3666, John, P1)` and `(231-31-5368, Tom, P2)`, each a tuple over the declared attributes.*
+
+*The pattern from relations repeats: the entity set declares the shape, the instance is the current content.*
 
 Entities become useful when they are associated.
 
-**Relationship.** An association among two or more entities. A **relationship set** is a collection of similar relationships, drawn as a diamond joining the participating entity sets, and a relationship may carry its own attributes.
+**Relationship.** An association among two or more entities. A **relationship set** collects similar relationships and is drawn as a diamond joined to the participating entity sets. A relationship may carry its own *descriptive attributes*.
 
-*Example. Works_In. `Works_In` links `Employees` and `Department` and records when the assignment began through the descriptive attribute `since`, an attribute of the relationship rather than of either entity.*
+*`Works_In` associates `Employees` and `Department`; its attribute `since` records when each assignment began. `since` belongs to the association itself, not to either entity.*
 
 <ERDiagram
   caption="The Works_In relationship set between Employees and Department, with descriptive attribute since."
@@ -112,7 +175,7 @@ Entities become useful when they are associated.
   ]}
 />
 
-An **instance** of a relationship set is the set of relationship tuples currently stored between the participating entity sets. Each tuple of `Works_In(ssn, did, since)` is one row that ties an employee instance to a department instance through a date, so the relationship instance is best read as concrete links rather than as a table.
+An **instance** of a relationship set is the set of relationship tuples currently stored. Each `Works_In(ssn, did, since)` tuple ties one employee to one department through a date, so the instance is best read as concrete links between entity instances, not as a table.
 
 <ERInstanceMapping
   left={{
@@ -153,14 +216,14 @@ An **instance** of a relationship set is the set of relationship tuples currentl
     { left: "e3", mid: "w4", right: "d3" },
     { left: "e4", mid: "w5", right: "d3" },
   ]}
-  caption="Instance of Works_In(ssn, did, since): each line links an employee tuple to a department tuple via a date, so every stored relationship row is a concrete association between participating entity instances."
+  caption="Instance of Works_In(ssn, did, since): each stored relationship tuple is one concrete link from an employee, through a date, to a department."
 />
 
-A single entity set can participate in more than one relationship set, and it can even participate more than once in the same relationship set. When that happens we need a way to tell its appearances apart.
+A single entity set can participate in several relationship sets, and even several times in the same one. Its appearances then need to be told apart.
 
-**Role name.** A label identifying the function of an entity set when it appears more than once in the same relationship.
+**Role name.** A label identifying the function of an entity set that appears more than once in the same relationship set.
 
-*Example. Reports_To. In `Reports_To`, `Employees` participates twice, once as supervisor and once as subordinate, so a relationship tuple pairs one employee in each role. The same entity set still participates separately in `Works_In`.*
+*In `Reports_To`, `Employees` participates twice, as supervisor and as subordinate, so each relationship tuple pairs one employee in each role. The same entity set still participates in `Works_In` independently.*
 
 <ERDiagram
   caption="Reports_To is a self-relationship on Employees: the same entity set participates twice, under the roles supervisor and subordinate, while still taking part in Works_In."
@@ -189,11 +252,13 @@ A single entity set can participate in more than one relationship set, and it ca
   ]}
 />
 
-## Constraints on Participation
+## Key and Participation Constraints
 
-A relationship set by itself allows any entity to take part in any number of relationship instances. Constraints sharpen this into precise cardinality. The two independent dimensions are how many instances one entity may join (key constraints) and whether every entity must join at least one (participation constraints).
+By itself a relationship set lets any entity take part in any number of relationship instances. Two independent questions sharpen this into exact cardinality: may an entity appear *more than once*, and must it appear *at least once*?
 
-**Key constraint.** A restriction stating that each entity in a set participates in at most one relationship instance of a given relationship set. In the diagram it is drawn as an arrow from the entity set to the relationship. Placing arrows on neither, one, or both sides yields many-to-many, one-to-many, and one-to-one relationships.
+**Key constraint.** Each entity in the set participates in at most one relationship instance. Drawn as an arrow from the entity set into the relationship.
+
+*Read an arrow as "at most once".*
 
 <ERDiagram
   caption="Key constraints set cardinality: no arrow is many-to-many, one arrow is one-to-many, arrows on both sides are one-to-one. An arrowhead means at most one."
@@ -225,9 +290,11 @@ A relationship set by itself allows any entity to take part in any number of rel
   ]}
 />
 
-With no arrows, an employee works in many departments and a department has many employees. The arrow into `Manages` says each department has at most one manager. Arrows on both sides of `Drives` say each driver drives at most one vehicle and each vehicle has at most one driver.
+With no arrows, `Works_In` is many-to-many: an employee may work in several departments and a department has many employees. The arrow into `Manages` makes it one-to-many: each department has at most one manager. Arrows on both sides of `Drives` make it one-to-one: each driver drives at most one vehicle and each vehicle has at most one driver.
 
-**Total participation.** Every entity in the set joins at least one relationship instance; drawn with a thick line. **Partial participation** is the default thin line, where some entities may join none. Total participation answers a different question from the key constraint, so the two combine freely.
+**Total participation.** Every entity in the set participates in at least one relationship instance; drawn as a thick line. The default is **partial participation**, a thin line: an entity may participate in none.
+
+*Read a thick line as "at least once".*
 
 <ERDiagram
   caption="A thick line means total participation; a thin line is partial. The thick border and thick arrow on Manages combine total participation with a key constraint."
@@ -259,28 +326,30 @@ With no arrows, an employee works in many departments and a department has many 
   ]}
 />
 
-The four combinations of line and arrow give the full cardinality semantics.
+The two markings answer independent questions, so they combine freely into the full cardinality semantics.
 
 | Line | Arrow | Meaning |
 |---|---|---|
-| thick | none | total, many: every entity participates, possibly in several instances |
-| thick | arrow | total, at most one: every entity participates in exactly one instance |
-| thin | arrow | partial, at most one: an entity participates in zero or one instance |
-| thin | none | partial, many: an entity may or may not participate, with no upper bound |
+| thick | none | total, many: participates at least once, possibly often |
+| thick | arrow | total, at most one: participates exactly once |
+| thin | arrow | partial, at most one: participates zero or one time |
+| thin | none | partial, many: participates any number of times, possibly none |
+
+---
 
 ## Weak Entities
 
-Some entities have no key of their own and exist only relative to another entity. They are identified partly by a neighbor.
+Some entities have no key of their own and exist only relative to another entity.
 
-**Weak entity.** An entity that can be identified uniquely only by combining its own partial key with the primary key of an owner entity. Its **identifying relationship** links it to that owner, and the weak entity must have total participation in this relationship.
+**Weak entity.** An entity identified uniquely only by combining its own **partial key** with the primary key of an owner entity. The relationship linking it to the owner is its **identifying relationship**.
 
-A weak entity set obeys three structural rules.
+Three structural rules follow from "exists only through its owner".
 
-- **Ownership.** Owner and weak entity set participate in a one-to-many relationship: one owner, many weak entities.
+- **Ownership.** Owner and weak entity set are in a one-to-many relationship: one owner, many weak entities.
 - **Total participation.** The weak entity set participates totally in the identifying relationship, since no weak entity exists without an owner.
-- **Partial key.** The weak entity has only a partial key, drawn with a dashed underline, which identifies it only within the scope of one owner.
+- **Partial key.** Drawn with a dashed underline, it identifies weak entities only within the scope of one owner.
 
-The weak entity and its identifying relationship are drawn with thick borders, and the arrow from the weak entity marks the key constraint.
+The weak entity set and its identifying relationship are drawn with thick borders, and the arrow from the weak entity marks the key constraint.
 
 <ERDiagram
   caption="Dependents is a weak entity (thick border) owned by Employees through the identifying relationship Policy (thick diamond). pname is a partial key (dashed underline); the thick arrow marks total participation with a key constraint."
@@ -305,13 +374,13 @@ The weak entity and its identifying relationship are drawn with thick borders, a
   ]}
 />
 
-Here `Dependents` is owned by `Employees` through `Policy`. The partial key `pname` distinguishes dependents of the same employee but is not unique on its own, so a dependent is identified only by the pair (owner `ssn`, `pname`).
+`Dependents` is owned by `Employees` through `Policy`. *Two employees may each insure a dependent named Bob, so `pname` alone identifies nobody; the pair (owner's `ssn`, `pname`) is unique.*
 
 ## ISA Hierarchies
 
-Sometimes an entity set has subgroups that carry extra attributes or join their own relationships. ISA captures specialization while keeping shared attributes in one place.
+Some subgroups of an entity set carry extra attributes or join relationships of their own. ISA captures this specialization while keeping the shared attributes in one place.
 
-**ISA hierarchy.** A relationship between a superclass entity set and one or more subclass entity sets, where every subclass entity is also a member of the superclass and inherits all of its attributes. Declaring A **ISA** B means each A entity is a B entity and has every attribute of B, plus the specialized attributes A adds for itself.
+**ISA hierarchy.** A superclass entity set with one or more subclass entity sets, where every subclass entity *is a* superclass entity and inherits all of its attributes. Declaring A ISA B means: every A is a B, has every attribute of B, and adds the attributes declared on A.
 
 <ERDiagram
   caption="Hourly_Emps and Contract_Emps are subclasses of Employees: they inherit ssn, name, lot and add their own specialized attributes."
@@ -336,11 +405,16 @@ Sometimes an entity set has subgroups that carry extra attributes or join their 
   ]}
 />
 
-Two orthogonal constraints govern how the subclasses relate to the superclass. The **overlap constraint** asks whether an entity may belong to more than one subclass at once, defaulting to no (disjoint). The **covering constraint** asks whether every superclass entity must belong to some subclass, defaulting to no (partial coverage). We use ISA either to add descriptive attributes specific to a subclass, or to identify exactly the entities that take part in some relationship.
+Two orthogonal constraints govern membership in the subclasses.
 
-These two defaults are not fixed; a single superclass can have several specialization branches with different overlap behavior.
+- **Overlap constraint.** May an entity belong to two subclasses at once? Default no: the subclasses are *disjoint*.
+- **Covering constraint.** Must every superclass entity belong to some subclass? Default no: the coverage is *partial*.
 
-*Example. Student hierarchy. A `Student` is classified by degree (Bachelor or Post-Graduate) and by status (Full-time or Part-time) at the same time, so these are two overlapping branches off the same superclass. Within each branch the subclasses are non-overlapping: a student is a Bachelor or a Post-Graduate, not both. Post-Graduate specializes further into Master and Doctorate. Each leaf can join its own relationships, so Bachelors register for Projects and Post-Graduates register for a Thesis.*
+ISA earns its place in two situations: when a subclass needs its own descriptive attributes, and when a relationship applies to exactly one subclass rather than to the whole superclass.
+
+**Example 2. Student hierarchy.**
+
+*A `Student` is classified by degree (Bachelor or Post-Graduate) and by status (Full-time or Part-time) at the same time: two overlapping branches off the same superclass. Within each branch the subclasses are disjoint: a student is a Bachelor or a Post-Graduate, never both. Post-Graduate specializes further into Master and Doctorate, and the leaves join their own relationships: Bachelors register for Projects, Post-Graduates for a Thesis.*
 
 <ERDiagram
   caption="A deep ISA tree: Student specializes by degree and by status (two overlapping branches), Post-Graduate splits further into Master and Doctorate, and leaf subclasses join their own relationships."
@@ -393,11 +467,11 @@ These two defaults are not fixed; a single superclass can have several specializ
 
 ## Aggregation
 
-ISA relates entity sets to entity sets. Aggregation handles a different need: relating a relationship to an entity, by treating a whole relationship as if it were one entity set.
+ISA relates entity sets to entity sets. Aggregation answers a different need: letting a relationship participate in another relationship.
 
-**Aggregation.** A mechanism that treats a relationship set together with its participating entity sets as a single higher-level entity set, so the bundle can itself participate in another relationship.
+**Aggregation.** Treats a relationship set, together with its participating entity sets, as a single higher-level entity set. Drawn as a dashed box around the relationship; the box then participates in further relationships like any entity set.
 
-Aggregation is needed when a relationship must involve a relationship. *Departments sponsor projects through `Sponsors`, and an employee must monitor each sponsorship.* Modeling this as a ternary relationship among Projects, Departments, and Employees would lose the fact that monitoring applies to the sponsorship itself, not to an independent triple. Enclosing `Sponsors` in a dashed box turns it into an entity set that then participates in `Monitors`.
+*Departments sponsor projects through `Sponsors`, and an employee must monitor each sponsorship.* A ternary relationship among Projects, Departments, and Employees would lose the point: monitoring applies to the sponsorship itself, not to an independent triple. Aggregating `Sponsors` gives `Monitors` the right second participant.
 
 <ERDiagram
   caption="The Sponsors relationship together with Projects and Departments is enclosed in a dashed box and treated as a single entity set, which then participates in Monitors with an Employee."
@@ -428,12 +502,16 @@ Aggregation is needed when a relationship must involve a relationship. *Departme
   ]}
 />
 
+---
+
 ## Design Choices
 
-A correct ER schema is rarely unique. The recurring decisions are whether a concept is an entity or an attribute, whether it is an entity or a relationship, and whether a relationship should be binary, ternary, or replaced by aggregation. Each answer depends on the data's semantics and the queries the application must support.
+A correct ER schema is rarely unique. Three decisions recur, and each is settled by the semantics of the data and the queries the application must support.
 
-The entity-versus-attribute choice turns on structure and multiplicity, because attributes in the basic ER model are atomic and single-valued. An *address* must become its own entity if an employee can have several addresses, or if the address has internal structure such as city, street, and zip that the application needs to query. The same reasoning applies to relationship attributes: if `Works_In` records a period with `from` and `to`, an employee can hold only one period; to record several periods the time must be promoted into a separate `Duration` entity linked by a new relationship.
+**Entity or attribute.** Attributes are atomic and single-valued, so a concept must become an entity as soon as one entity needs several of them, or their internal structure matters. *An employee with several addresses, or an address whose city, street, and zip must be queried separately: either way, address becomes an entity.* The same reasoning applies to relationship attributes: *if `Works_In` carries `from` and `to`, an employee can work in a department over only one period; recording several periods requires a separate `Duration` entity linked by its own relationship.*
 
-The entity-versus-relationship choice turns on identity: if a concept has its own identity or participates in other relationships, make it an entity rather than a relationship. The binary-versus-ternary choice turns on decomposability: prefer binary relationships when a ternary one can be split into binaries without losing information, and keep the ternary only when some combination of pairs does not imply the triple.
+**Entity or relationship.** If a concept has its own identity, or must participate in other relationships, make it an entity rather than a relationship.
 
-Finally, the ER model captures a great deal of semantics directly, including key constraints, participation constraints, weak entities, ISA hierarchies, and aggregation, but not everything. A rule such as *a manager must also be an employee of the department they manage* cannot be expressed in an ER diagram and has to be enforced by the application or by database-level integrity constraints.
+**Binary or ternary.** Prefer binary relationships when a ternary one decomposes into binary ones without losing information. Keep the ternary only when no combination of pairwise facts implies the triple.
+
+The ER model expresses a great deal of semantics directly in the diagram: keys, participation, weak entities, ISA, aggregation. What it cannot express, such as *a manager must also work in the department they manage*, has to be enforced by the application or by database-level integrity constraints.
