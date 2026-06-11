@@ -270,6 +270,65 @@ export function HashProjectionSchema({
   );
 }
 
+export function GraceProbeSchema({
+  title,
+  caption,
+  className,
+}: {
+  title?: string;
+  caption?: string;
+  className?: string;
+}) {
+  const arrowId = stableId("grace-probe", { title, caption });
+  return (
+    <DiagramFigure
+      title={title}
+      caption={caption ?? "Grace hash join, probe phase."}
+      className={className}
+    >
+      <DiagramSvg w={660} h={264} label={caption ?? "Grace hash join probe phase"}>
+        <defs>
+          <ArrowHead id={arrowId} />
+        </defs>
+        <Label x={76} y={58} text="Partitions" weight={700} />
+        <Cylinder x={24} y={78} w={104} h={170} label={[]} />
+        <Box x={47} y={112} w={58} h={22} label="R_i" />
+        <Box x={47} y={150} w={58} h={22} label="S_i" />
+        <DotsEllipsis x={76} y={200} orient="v" />
+        <Frame x={166} y={42} w={318} h={206} title="B main-memory buffers">
+          <Box x={194} y={84} w={262} h={30} label="hash table on R_i  (h_2)" tint />
+          <Label
+            x={325}
+            y={128}
+            text="at most B-2 pages"
+            size={FONT.note}
+            fill={COLOR.caption}
+          />
+          <Box x={194} y={176} w={104} h={26} label="S_i input" />
+          <Box x={352} y={176} w={104} h={26} label="output" />
+          <Arrow
+            from={{ x: 246, y: 176 }}
+            to={{ x: 246, y: 114 }}
+            markerId={arrowId}
+            label="probe"
+          />
+          <Arrow
+            from={{ x: 404, y: 114 }}
+            to={{ x: 404, y: 176 }}
+            markerId={arrowId}
+            label="match"
+          />
+        </Frame>
+        <Arrow from={{ x: 105, y: 123 }} to={{ x: 194, y: 99 }} markerId={arrowId} label="load" />
+        <Arrow from={{ x: 105, y: 161 }} to={{ x: 194, y: 186 }} markerId={arrowId} label="stream" />
+        <Arrow from={{ x: 456, y: 189 }} to={{ x: 536, y: 168 }} markerId={arrowId} />
+        <Label x={588} y={58} text="Join result" weight={700} />
+        <Cylinder x={536} y={78} w={104} h={170} label={["⟨r, s⟩", "pairs"]} />
+      </DiagramSvg>
+    </DiagramFigure>
+  );
+}
+
 function PlanNode({
   x,
   y,
