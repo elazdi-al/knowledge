@@ -15,6 +15,7 @@ import { PageLayout } from "@/components/PageLayout";
 import { QueryTree } from "@/components/QueryTree";
 import {
   ExecutionModelSchema,
+  GraceProbeSchema,
   HashProjectionSchema,
   QueryProcessingFlow,
 } from "@/components/QueryExecutionSchemas";
@@ -45,6 +46,7 @@ export function useMDXComponents(
     PageLayout,
     Pane,
     ExecutionModelSchema,
+    GraceProbeSchema,
     HashProjectionSchema,
     QueryTree,
     QueryProcessingFlow,
