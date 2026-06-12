@@ -14,7 +14,8 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/cn";
-import type { PreviewLine, SearchIndex, SearchItem, SearchNote } from "@/lib/search-index";
+import { normalizeQuery, type ItemHit, type NoteHit, type PreviewLine } from "@/lib/search-core";
+import { useSearch, warmSearch, type SearchStatus } from "@/lib/use-search";
 
 /* ---------------------------------- store ---------------------------------- */
 
@@ -33,20 +34,6 @@ function subscribe(cb: () => void) {
   return () => {
     listeners.delete(cb);
   };
-}
-
-// The index is one static file; fetch it once and share the promise.
-let indexPromise: Promise<SearchIndex> | null = null;
-
-function loadIndex(): Promise<SearchIndex> {
-  indexPromise ??= fetch("/search-index.json").then((r) => {
-    if (!r.ok) {
-      indexPromise = null;
-      throw new Error(`search index: ${r.status}`);
-    }
-    return r.json() as Promise<SearchIndex>;
-  });
-  return indexPromise;
 }
 
 const COMMAND_MENU_KEY = "k";
@@ -88,6 +75,8 @@ export function SearchButton() {
     <button
       type="button"
       onClick={() => setOpen(true)}
+      onPointerEnter={warmSearch}
+      onFocus={warmSearch}
       aria-label="Search"
       className="flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-[color:var(--color-faint)] transition-[color,background-color,scale] duration-150 ease-out hover:bg-[color:var(--color-hover)] hover:text-[color:var(--color-text)] active:scale-[0.97]"
     >
@@ -109,70 +98,44 @@ export function SearchButton() {
   );
 }
 
-/* --------------------------------- scoring --------------------------------- */
+/* ----------------------------------- menu ---------------------------------- */
 
+type Active = { type: "note"; note: NoteHit } | { type: "item"; item: ItemHit };
+
+// Results arrive ranked from /api/search; rows only carry what rendering and
+// navigation need. cmdk runs with shouldFilter=false and keeps server order.
 interface Row {
   value: string;
   name: string;
   label?: string;
   href: string;
   active: Active;
-  // Precomputed lowercase search fields.
-  nameLower: string;
-  nameWords: string[];
-  meta: string;
-  haystack: string;
 }
 
-function plainText(lines: PreviewLine[]): string {
-  return lines
-    .map((l) => l.t)
-    .join(" ")
-    .replace(/[*`]/g, "");
+function emptyMessage(status: SearchStatus): string {
+  switch (status) {
+    case "loading":
+      return "Searching…";
+    case "rate_limited":
+      return "Too many searches — retrying…";
+    case "unavailable":
+      return "Search is unavailable.";
+    default:
+      return "No results.";
+  }
 }
-
-// Deterministic tiers instead of fuzzy scatter-matching: exact name, then
-// name prefix, then phrase-in-name, then per-word prefixes, then metadata,
-// then the definition text itself. Predictable beats clever here.
-function scoreRow(row: Row, search: string): number {
-  const q = search.trim().toLowerCase();
-  if (!q) return 1;
-  if (row.nameLower === q) return 1;
-  if (row.nameLower.startsWith(q)) return 0.9;
-  if (row.nameLower.includes(q)) return 0.8;
-  const tokens = q.split(/\s+/).filter(Boolean);
-  if (tokens.every((t) => row.nameWords.some((w) => w.startsWith(t)))) return 0.7;
-  if (tokens.every((t) => row.meta.includes(t))) return 0.55;
-  if (row.haystack.includes(q)) return 0.45;
-  if (tokens.every((t) => row.haystack.includes(t))) return 0.3;
-  return 0;
-}
-
-/* ----------------------------------- menu ---------------------------------- */
-
-type Active =
-  | { type: "note"; note: SearchNote }
-  | { type: "item"; item: SearchItem; note: SearchNote };
 
 export function CommandMenu() {
   const open = useSyncExternalStore(subscribe, () => isOpen, () => false);
   const router = useRouter();
-  const [index, setIndex] = useState<SearchIndex | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState("");
   const [extended, setExtended] = useState(false);
   const resetTimer = useRef<number | undefined>(undefined);
 
-  // Warm the index after first paint so the first open is instant.
-  useEffect(() => {
-    const load = () => void loadIndex().then(setIndex).catch(() => {});
-    if ("requestIdleCallback" in window) {
-      const id = requestIdleCallback(load);
-      return () => cancelIdleCallback(id);
-    }
-    const t = setTimeout(load, 1500);
-    return () => clearTimeout(t);
-  }, []);
+  const { results, status } = useSearch(query, open);
+  const q = normalizeQuery(query);
+  const searching = q.length > 0;
 
   useEffect(() => {
     try {
@@ -195,9 +158,7 @@ export function CommandMenu() {
   const handleOpenChange = useCallback((next: boolean) => {
     setOpen(next);
     window.clearTimeout(resetTimer.current);
-    if (next) {
-      void loadIndex().then(setIndex).catch(() => {});
-    } else {
+    if (!next) {
       // Clear after the exit transition so the list doesn't jump mid-fade.
       resetTimer.current = window.setTimeout(() => {
         setQuery("");
@@ -241,73 +202,42 @@ export function CommandMenu() {
     const noteRows: Row[] = [];
     const itemRows: Row[] = [];
     const lookup = new Map<string, Row>();
-    if (!index) return { noteRows, itemRows, lookup };
+    if (!results) return { noteRows, itemRows, lookup };
 
     const claim = (base: string) => {
       let v = base;
       for (let n = 2; lookup.has(v); n++) v = `${base} ${n}`;
       return v;
     };
-    const add = (
-      rows: Row[],
-      row: Omit<Row, "nameLower" | "nameWords" | "meta" | "haystack">,
-      metaExtra: string,
-      body: string,
-    ) => {
-      const nameLower = row.name.toLowerCase();
-      const meta = `${nameLower} ${metaExtra.toLowerCase()}`;
-      const full: Row = {
-        ...row,
-        nameLower,
-        nameWords: nameLower.split(/[^a-z0-9+]+/).filter(Boolean),
-        meta,
-        haystack: `${meta} ${body.toLowerCase()}`,
-      };
+    const add = (rows: Row[], row: Omit<Row, "value">, base: string) => {
+      const full: Row = { ...row, value: claim(base) };
       rows.push(full);
       lookup.set(full.value, full);
     };
 
-    index.notes.forEach((note) => {
+    results.notes.forEach((note) => {
       add(
         noteRows,
-        {
-          value: claim(note.title.toLowerCase()),
-          name: note.title,
-          href: `/notes/${note.slug}`,
-          active: { type: "note", note },
-        },
-        note.label,
-        `${note.description ?? ""} ${plainText(note.preview)}`,
+        { name: note.title, href: `/notes/${note.slug}`, active: { type: "note", note } },
+        note.title.toLowerCase(),
       );
     });
-    index.items.forEach((item) => {
-      const note = index.notes[item.note];
+    results.items.forEach((item) => {
       add(
         itemRows,
         {
-          value: claim(`${item.name} ${note.label}`.toLowerCase()),
           name: item.name,
-          label: note.label,
-          href: `/notes/${note.slug}${item.anchor ? `#${item.anchor}` : ""}`,
-          active: { type: "item", item, note },
+          label: item.noteLabel,
+          href: `/notes/${item.noteSlug}${item.anchor ? `#${item.anchor}` : ""}`,
+          active: { type: "item", item },
         },
-        `${item.section ?? ""} ${note.label}`,
-        plainText(item.preview),
+        `${item.name} ${item.noteLabel}`.toLowerCase(),
       );
     });
     return { noteRows, itemRows, lookup };
-  }, [index]);
-
-  const filter = useCallback(
-    (value: string, search: string) => {
-      const row = lookup.get(value);
-      return row ? scoreRow(row, search) : 0;
-    },
-    [lookup],
-  );
+  }, [results]);
 
   const active = lookup.get(selected);
-  const searching = query.trim().length > 0;
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
@@ -320,7 +250,7 @@ export function CommandMenu() {
           <Command
             label="Search notes and concepts"
             loop
-            filter={filter}
+            shouldFilter={false}
             value={selected}
             onValueChange={setSelected}
             onKeyDown={(e) => {
@@ -339,16 +269,18 @@ export function CommandMenu() {
             />
             <div className="cmdk-body">
               <Command.List className="cmdk-list">
-                <Command.Empty className="cmdk-empty">No results.</Command.Empty>
-                <Command.Group heading="notes">
-                  {noteRows.map((row) => (
-                    <RowItem key={row.value} row={row} onNavigate={navigate} />
-                  ))}
-                </Command.Group>
-                {searching && (
+                <Command.Empty className="cmdk-empty">{emptyMessage(status)}</Command.Empty>
+                {noteRows.length > 0 && (
+                  <Command.Group heading="notes">
+                    {noteRows.map((row) => (
+                      <RowItem key={row.value} row={row} query={q} onNavigate={navigate} />
+                    ))}
+                  </Command.Group>
+                )}
+                {searching && itemRows.length > 0 && (
                   <Command.Group heading="concepts">
                     {itemRows.map((row) => (
-                      <RowItem key={row.value} row={row} onNavigate={navigate} />
+                      <RowItem key={row.value} row={row} query={q} onNavigate={navigate} />
                     ))}
                   </Command.Group>
                 )}
@@ -378,10 +310,34 @@ export function CommandMenu() {
   );
 }
 
-function RowItem({ row, onNavigate }: { row: Row; onNavigate: (row: Row) => void }) {
+// The soft highlight from the preview pane, reused on the first occurrence
+// of the query inside a result name.
+function MarkedName({ name, query }: { name: string; query: string }) {
+  const i = query ? name.toLowerCase().indexOf(query) : -1;
+  if (i < 0) return name;
+  return (
+    <>
+      {name.slice(0, i)}
+      <mark className="cmdk-mark">{name.slice(i, i + query.length)}</mark>
+      {name.slice(i + query.length)}
+    </>
+  );
+}
+
+function RowItem({
+  row,
+  query,
+  onNavigate,
+}: {
+  row: Row;
+  query: string;
+  onNavigate: (row: Row) => void;
+}) {
   return (
     <Command.Item value={row.value} onSelect={() => onNavigate(row)} className="cmdk-item">
-      <span className="cmdk-item-name">{row.name}</span>
+      <span className="cmdk-item-name">
+        <MarkedName name={row.name} query={query} />
+      </span>
       {row.label && <span className="cmdk-item-label">{row.label}</span>}
     </Command.Item>
   );
@@ -505,11 +461,11 @@ function PreviewPane({ active }: { active: Active }) {
     );
   }
 
-  const { item, note } = active;
+  const { item } = active;
   return (
     <>
       <div className="cmdk-preview-eyebrow">
-        <span>{note.label}</span>
+        <span>{item.noteLabel}</span>
         {item.section && item.section !== item.name && <span>{item.section}</span>}
       </div>
       <div className="cmdk-preview-title">{item.name}</div>
