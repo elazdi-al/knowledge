@@ -45,7 +45,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
-        <div className="mx-auto px-6 w-full max-w-[var(--container-prose)]">
+        <div className="layout-shell mx-auto px-6 w-full max-w-[var(--container-prose)]">
           <Header />
           <main className="pb-32">{children}</main>
         </div>

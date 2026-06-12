@@ -3,10 +3,12 @@ import type { Note } from "./notes";
 /**
  * Build-time search index.
  *
- * The site is a static export, so search is a build artifact: the route
+ * The site is a static export, so the index is a build artifact: the route
  * handler at /search-index.json calls buildSearchIndex() once at build time
- * and the result ships as a static file from the CDN. The command menu
- * fetches it once and filters client-side, so every keystroke is local.
+ * and the result lands in out/. Browsers never download it - the Cloudflare
+ * Worker (worker/index.ts) hides the file behind a 404 and reads it through
+ * its ASSETS binding to answer /api/search with ranked, render-ready hits
+ * (the engine lives in lib/search-core.ts).
  *
  * Two kinds of documents come out of a note's raw MDX source:
  *   - concepts: paragraphs in the RULES.md shape `**Name.** Definition…`

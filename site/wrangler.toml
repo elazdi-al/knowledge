@@ -1,21 +1,33 @@
-# Cloudflare Pages configuration for the static-exported site.
+# Cloudflare Worker serving the static export plus the search API.
 #
-# Deploy with:
-#   bun run build           # produces out/
-#   bun run deploy          # wraps: wrangler pages deploy out
+#   bun run build      # next build → out/ (includes search-index.json)
+#   bun run deploy     # build + wrangler deploy
+#   bun run preview    # build + wrangler dev (full local parity)
 #
-# This file is also where you wire up the R2 bucket if you want a Worker
-# (separate from this site) to read/write to it. The site itself reads
-# R2 images over plain HTTPS, so no binding is strictly required.
+# The first `wrangler deploy` creates the `knowledge` Worker; if a custom
+# domain still points at the old Pages project, move it to this Worker in
+# the dashboard (Workers & Pages → knowledge → Domains & Routes).
 
 name = "knowledge"
-compatibility_date = "2025-05-01"
-pages_build_output_dir = "out"
+main = "worker/index.ts"
+# Newest date the workerd binary pinned by wrangler 4.93 supports locally.
+compatibility_date = "2026-05-25"
 
-# Optional: bind an R2 bucket for a sibling worker that uploads images.
-# Uncomment and set the bucket name once the bucket is created.
-#
-# [[r2_buckets]]
-# binding = "MEDIA"
-# bucket_name = "knowledge-media"
-# preview_bucket_name = "knowledge-media-preview"
+[assets]
+directory = "./out"
+binding = "ASSETS"
+# The static export ships out/404.html.
+not_found_handling = "404-page"
+# Only these paths invoke the Worker; every other request is served straight
+# from the CDN and never counts as a Workers invocation.
+run_worker_first = ["/api/*", "/search-index.json"]
+
+# Per-IP budget for /api/search. Debounced typing peaks around 5 req/s, so
+# 30 per 10 s window never touches a human and caps everyone else.
+[[ratelimits]]
+name = "SEARCH_LIMIT"
+namespace_id = "1001"
+simple = { limit = 30, period = 10 }
+
+[observability]
+enabled = true

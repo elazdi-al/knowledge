@@ -5,11 +5,13 @@ export default async function HomePage() {
   const notes = await getAllNotes();
 
   return (
-    <div>
+    <div className="home-pane">
       <span className="-mx-3 mb-5 block px-3 font-medium sm:-mt-3 sm:mb-1 sm:py-3">
         writing
       </span>
-      <NoteList notes={notes} />
+      <div className="home-scroller">
+        <NoteList notes={notes} />
+      </div>
     </div>
   );
 }

@@ -135,17 +135,18 @@
 
   * {
     border-color: var(--color-border);
+    /* Thin scrollbars everywhere. scrollbar-color inherits from html below,
+       but scrollbar-width does not, so it's applied here so every scroller
+       (note list, code blocks, tables, KaTeX) gets the same treatment. */
+    scrollbar-width: thin;
   }
 
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
 
-    /* Thin, themed scrollbars. Both properties inherit, so every nested
-       scroller (code blocks, tables, KaTeX) picks up the same treatment from
-       this one declaration. Track is transparent; the thumb is a mid-grey that
-       reads in both palettes. */
-    scrollbar-width: thin;
+    /* Themed scrollbars: transparent track, a mid-grey thumb that reads in
+       both palettes. Inherits into every nested scroller. */
     scrollbar-color: var(--color-gray-900) transparent;
   }
 
@@ -229,6 +230,101 @@ body::after {
   }
   to {
     opacity: 0;
+  }
+}
+
+/* Home - the page itself holds still; the note list is the only scroller.
+   The shell takes the viewport height and hands it down through <main> to
+   the list. Scoped with :has() so note pages keep native document scroll,
+   and unlayered so the <main> override outranks its utility padding. */
+html:has(.home-pane) {
+  overflow: hidden;
+}
+
+html:has(.home-pane) .layout-shell {
+  display: flex;
+  flex-direction: column;
+  height: var(--app-viewport-height);
+}
+
+html:has(.home-pane) main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+.home-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The scroller bleeds 0.75rem horizontally so the rows' -mx-3 hover pills
+   sit inside its padding box instead of tripping overflow-x. The thin themed
+   scrollbar is inherited from the html rule above. */
+.home-scroller {
+  --home-fade-size: 3rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-inline: -0.75rem;
+  padding: 0 0.75rem var(--home-fade-size);
+  scroll-padding-block: var(--home-fade-size);
+  /* Scroll-driven mask - a soft fade at whichever edge still has content
+     beyond it, driven by this element's own scroll position. The top fade
+     grows over the first 3rem of scroll, the bottom one collapses over the
+     last 3rem, so content is never dimmed where there's nothing more to
+     scroll. With no overflow the timeline is inactive, both lengths hold
+     0px, and the mask resolves to fully opaque. */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black var(--home-fade-top, 0px),
+    black calc(100% - var(--home-fade-bottom, 0px)),
+    transparent
+  );
+  animation-name: home-fade-top, home-fade-bottom;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: scroll(self block);
+  animation-range: 0 var(--home-fade-size),
+    calc(100% - var(--home-fade-size)) 100%;
+}
+
+/* Registered so the mask's fade sizes interpolate as lengths. */
+@property --home-fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --home-fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Endpoints mirror --home-fade-size; kept literal so interpolation never
+   depends on var() resolution inside keyframes. */
+@keyframes home-fade-top {
+  from {
+    --home-fade-top: 0px;
+  }
+  to {
+    --home-fade-top: 3rem;
+  }
+}
+
+@keyframes home-fade-bottom {
+  from {
+    --home-fade-bottom: 3rem;
+  }
+  to {
+    --home-fade-bottom: 0px;
   }
 }
 
@@ -1358,5 +1454,11 @@ body::after {
   body::after {
     animation: none !important;
     opacity: 0 !important;
+  }
+
+  /* Same for the home list's scroll-driven mask. */
+  .home-scroller {
+    animation: none !important;
+    mask-image: none !important;
   }
 }
