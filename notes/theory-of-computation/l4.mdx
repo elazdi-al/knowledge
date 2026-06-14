@@ -1,0 +1,202 @@
+---
+title: "Theory of Computation: Lecture 4"
+description: "Turing machines, configurations, recognizable and decidable languages, basic TM algorithm design, unary powers of two, and the Church-Turing thesis."
+tags: ["Theory of computation"]
+created: 2026-06-14
+updated: 2026-06-14
+---
+
+## From Finite Memory to Work Tape
+
+Finite automata have fixed memory: no matter how long the input is, the machine remembers only one of finitely many states. That is why languages such as
+
+$$
+C=\{w\in\{0,1\}^*\mid w\text{ has as many }0\text{s as }1\text{s}\}
+$$
+
+are not regular. The obstacle is not that the problem is impossible; an ordinary algorithm can count or pair symbols. The missing resource is memory whose used portion may grow with the input.
+
+**Unbounded work memory.** Memory with no fixed finite bound on how many cells may be used during a computation. Each input still uses only finitely many cells at any finite time, but longer inputs may require more cells.
+
+*A finite automaton has a fixed notebook with one page. A Turing machine has a finite program and as much blank paper as the computation needs.*
+
+**Single-tape encoding.** Input, work memory, and output can all be represented on one tape by using separate regions and delimiter symbols. Multi-tape pictures are often easier to understand, but they do not change which problems can be solved.
+
+---
+
+## Turing Machines
+
+**Turing machine (TM).** A finite-state control attached to an infinite tape. At each step, the machine reads the symbol under its head, writes one tape symbol, moves the head one cell left or right, and enters a new state.
+
+- **Finite control.** The program has finitely many states, independent of the input length.
+- **Tape.** A one-way infinite sequence of cells, initially holding the input followed by blanks.
+- **Head.** The pointer to the current tape cell. It can read, overwrite, and move left or right.
+- **Halting states.** The accept and reject states stop the computation immediately.
+
+Finite automata read a string once, left to right, and never change it. Turing machines may revisit earlier cells, rewrite symbols, and use blank cells as work space.
+
+*A TM can decide even-length binary palindromes by crossing off matching outer symbols and accepting only when no unmarked symbol remains.*
+
+**Formal Turing machine.** A Turing machine is a 7-tuple
+
+$$
+M=(Q,\Sigma,\Gamma,\delta,q_0,q_{\text{accept}},q_{\text{reject}})
+$$
+
+with the following parts:
+
+| Symbol | Role |
+|---|---|
+| $Q$ | finite set of states |
+| $\Sigma$ | input alphabet, not containing the blank symbol $\sqcup$ |
+| $\Gamma$ | tape alphabet, with $\sqcup\in\Gamma$ and $\Sigma\subseteq\Gamma$ |
+| $\delta$ | transition function |
+| $q_0\in Q$ | start state |
+| $q_{\text{accept}}\in Q$ | accept state |
+| $q_{\text{reject}}\in Q$ | reject state, with $q_{\text{reject}}\ne q_{\text{accept}}$ |
+
+Only non-halting states need transitions:
+
+$$
+\delta:(Q\setminus\{q_{\text{accept}},q_{\text{reject}}\})\times\Gamma
+\to Q\times\Gamma\times\{L,R\}.
+$$
+
+If $\delta(q,a)=(r,b,R)$, then in state $q$ reading $a$, the machine writes $b$, moves one cell right, and enters state $r$. The case $\delta(q,a)=(r,b,L)$ is the same except that the head moves left.
+
+*The input alphabet says what may appear in the original input. The tape alphabet says what the machine may use while computing, including marks such as $X$ and the blank symbol $\sqcup$.*
+
+## Configurations and Computation
+
+**Configuration.** A complete snapshot of a Turing machine computation: current state, current head position, and the finite visible part of the tape.
+
+The notation $uqv$, where $u,v\in\Gamma^*$ and $q\in Q$, means:
+
+- the current state is $q$,
+- the tape content shown is $uv$,
+- the head scans the first symbol of $v$,
+- all cells not shown are blank.
+
+If $u=\epsilon$, the head is on the leftmost tape cell. If $v=\epsilon$, the head scans the blank cell immediately after $u$.
+
+<TuringTape
+  state="q_7"
+  head={4}
+  cells={["1", "0", "1", "1", "0", "1", "1", "1", "1"]}
+  rightEllipsis
+  caption="A configuration where state q7 scans the next symbol after 1011."
+/>
+
+**Transition between configurations.** Suppose the current configuration is $uaq_i bv$, so the head scans $b$ and $a$ is the symbol immediately to its left.
+
+If $\delta(q_i,b)=(q_j,c,L)$, then the next configuration is
+
+$$
+uq_jacv.
+$$
+
+The machine overwrites $b$ by $c$ and moves left, so the head now scans $a$. If $\delta(q_i,b)=(q_j,c,R)$, then the next configuration is
+
+$$
+uacq_jv.
+$$
+
+At the left edge, a left move keeps the head on the first cell. At the right edge of the shown word, blank cells are added as needed.
+
+**Computation.** On input $w\in\Sigma^*$, the starting configuration is $q_0w$. The machine repeatedly applies valid transitions until it reaches $q_{\text{accept}}$, reaches $q_{\text{reject}}$, or never halts.
+
+Unlike a DFA, a Turing machine does not always produce an answer. It may run forever.
+
+An infinite computation does not have to repeat a configuration. The tape can keep changing, or the head can keep moving into fresh blank cells, so there are infinitely many possible configurations. Repetition is forced only when the computation is confined to finitely many configurations.
+
+---
+
+## Recognizers and Deciders
+
+**Turing-recognizable language.** A language $L\subseteq\Sigma^*$ recognized by some Turing machine $M$: for every input $w$,
+
+1. if $w\in L$, then $M$ accepts $w$;
+2. if $w\notin L$, then $M$ rejects $w$ or loops forever.
+
+A recognizer is allowed to fail to answer no.
+
+**Turing-decidable language.** A language $L\subseteq\Sigma^*$ decided by some Turing machine $M$: for every input $w$, the machine halts, and it accepts exactly when $w\in L$.
+
+Every decidable language is recognizable: a decider is a recognizer that also halts on all no-instances. The converse is not automatic, because looping is not the same as rejecting.
+
+| Input type | Recognizer for $L$ | Decider for $L$ |
+|---|---|---|
+| $w\in L$ | must accept | must accept and halt |
+| $w\notin L$ | may reject or loop | must reject and halt |
+
+*Recognition is a semi-answer: yes is reliable, no may never arrive. Decision is a total yes/no algorithm.*
+
+## Designing Turing-Machine Algorithms
+
+Turing machines are usually designed at a high level. A step such as "scan right until the next unmarked `1`" is valid when it can be implemented by finitely many states moving one cell at a time.
+
+**Recipe: designing a TM decider.**
+
+1. **Choose work symbols.** Add tape symbols that store progress, such as $X$ for a crossed-off input symbol.
+2. **Use sweeps.** Move left-to-right or right-to-left while a state records the small finite fact needed for the sweep.
+3. **Maintain an invariant.** State what the marks mean after each pass.
+4. **Separate halting cases.** Say exactly when the machine accepts and when it rejects.
+5. **Prove termination.** For a decider, show that every loop makes finite progress toward a halt.
+
+**Example 1. Equal numbers of `0`s and `1`s.**
+
+*The language $C=\{w\in\{0,1\}^*\mid w\text{ has as many }0\text{s as }1\text{s}\}$ is not regular, but it is decidable.*
+
+Use $X$ to mark symbols that have already been paired.
+
+1. Sweep right to find the leftmost unmarked symbol. If none exists, accept.
+2. If it is `0`, mark it $X$, sweep right for an unmarked `1`, and mark that `1` as $X$. If no such `1` exists, reject.
+3. If it is `1`, mark it $X$, sweep right for an unmarked `0`, and mark that `0` as $X$. If no such `0` exists, reject.
+4. Return to the left end of the input and repeat.
+
+<TuringTape
+  state="q_0"
+  head={2}
+  cells={["X", "X", "1", "0", "⊔"]}
+  caption="After one pairing pass on 0110, one 0 and one matching 1 have been marked."
+/>
+
+The invariant is that marked symbols form disjoint opposite-symbol pairs. If the machine accepts, every input symbol belongs to such a pair, so the numbers of `0`s and `1`s are equal. If it rejects, the leftmost remaining unmarked symbol has no opposite unmarked symbol to its right, and nothing unmarked lies to its left, so no complete pairing exists. Each successful pass marks two new symbols, so the machine halts.
+
+*The tape converts an unbounded counting problem into a bookkeeping problem: remember progress by writing on the input.*
+
+**Example 2. Unary powers of two.**
+
+Let
+
+$$
+P=\{0^{2^n}\mid n\ge 0\}.
+$$
+
+A TM can decide $P$ by repeatedly testing whether the current number of unmarked zeros is even and then deleting half of them.
+
+1. If there are no unmarked zeros, reject.
+2. Sweep left to right over the unmarked zeros, alternating between keeping one and marking the next one as deleted.
+3. If exactly one unmarked zero was seen during the pass, accept.
+4. If an odd number greater than one was seen, reject.
+5. If an even number was seen, return to the left end and repeat on the unmarked zeros.
+
+Each non-halting pass divides the number of unmarked zeros by $2$. A positive integer eventually reaches $1$ exactly when it is a power of two; otherwise, some pass reaches an odd number greater than $1$ and rejects. Because the number of unmarked zeros strictly decreases after every non-halting pass, the machine always halts.
+
+---
+
+## The Church-Turing Thesis
+
+**Algorithm.** An effective finite procedure for solving a problem. Before Turing machines and equivalent models, this was an intuitive idea rather than a formal mathematical object.
+
+**Church-Turing thesis.** The informal notion of an algorithm coincides with what a Turing machine can compute.
+
+This is not a theorem, because one side is informal. Its force comes from robustness: Turing machines, $\lambda$-calculus, recursive functions, register machines, and ordinary programming languages all define the same class of computable functions. Variants such as multi-tape Turing machines may change efficiency, but not which languages are decidable.
+
+**Diophantine equation.** A polynomial equation with integer coefficients whose solutions are required to be integers.
+
+*For example, $3x^2-2xy-y^2z-7=0$ has the integer solution $x=1$, $y=2$, $z=-2$.*
+
+Hilbert's tenth problem asked for an algorithm deciding whether an arbitrary Diophantine equation has an integer solution. Once "algorithm" had a formal meaning, the problem could be answered precisely: Matiyasevich proved in 1970, building on work of Davis, Putnam, and Robinson, that no such algorithm exists.
+
+Turing machines therefore do two jobs at once. They show that simple finite programs with unbounded work tape can decide many non-regular languages, and they provide the language needed to prove that some computational problems have no algorithm at all.
