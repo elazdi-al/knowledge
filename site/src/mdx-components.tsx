@@ -24,6 +24,7 @@ import { RAIDDiagram } from "@/components/RAIDDiagram";
 import { SortPasses } from "@/components/SortPasses";
 import { Pane, Split } from "@/components/Split";
 import { StorageHierarchy } from "@/components/StorageHierarchy";
+import { TuringTape } from "@/components/TuringTape";
 
 export function useMDXComponents(
   components: MDXComponents,
@@ -55,5 +56,6 @@ export function useMDXComponents(
     SortPasses,
     Split,
     StorageHierarchy,
+    TuringTape,
   };
 }
