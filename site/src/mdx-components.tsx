@@ -10,6 +10,7 @@ import { ERInstanceMapping } from "@/components/ERInstanceMapping";
 import { HashDiagram } from "@/components/HashDiagram";
 import { IdeaBreak } from "@/components/IdeaBreak";
 import { IndexMap } from "@/components/IndexMap";
+import { LanguageClasses } from "@/components/LanguageClasses";
 import { Mermaid } from "@/components/Mermaid";
 import { PageLayout } from "@/components/PageLayout";
 import { QueryTree } from "@/components/QueryTree";
@@ -25,6 +26,7 @@ import { SortPasses } from "@/components/SortPasses";
 import { Pane, Split } from "@/components/Split";
 import { StorageHierarchy } from "@/components/StorageHierarchy";
 import { TuringTape } from "@/components/TuringTape";
+import { TuringTrace } from "@/components/TuringTrace";
 
 export function useMDXComponents(
   components: MDXComponents,
@@ -43,6 +45,7 @@ export function useMDXComponents(
     hr: IdeaBreak,
     IdeaBreak,
     IndexMap,
+    LanguageClasses,
     Mermaid,
     PageLayout,
     Pane,
@@ -57,5 +60,6 @@ export function useMDXComponents(
     Split,
     StorageHierarchy,
     TuringTape,
+    TuringTrace,
   };
 }
