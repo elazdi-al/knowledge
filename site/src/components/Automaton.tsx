@@ -43,12 +43,25 @@ export interface AutoState {
   accepting?: boolean;
 }
 
+export type Dir = "up" | "down" | "left" | "right";
+
 export interface AutoTransition {
   from: string;
   to: string;
   label?: string;
   /** Force the arc's bow. Defaults to up for left→right, down for right→left. */
   bend?: "up" | "down";
+  /**
+   * For a self-loop (`from === to`), which side of the node it bows toward.
+   * Defaults to `"up"`. For ordinary edges this is ignored.
+   */
+  loop?: Dir;
+  /**
+   * Override the perpendicular bow of an ordinary edge, in px (0 = straight).
+   * Defaults to the automatic, span-scaled bow. Useful in manual layouts to
+   * keep a dense diagram's edges straight or to draw one long sweeping arc.
+   */
+  curve?: number;
 }
 
 interface Props {
@@ -56,6 +69,8 @@ interface Props {
   transitions: AutoTransition[];
   /** Start state id. Defaults to the first state; it should be the leftmost. */
   start?: string;
+  /** Which side the bare start arrow enters from. Defaults to `"left"`. */
+  startDir?: Dir;
   /** Accepting state ids (or set `accepting` on the state objects). */
   accepting?: string[];
   /** Centre-to-centre spacing between states, in px. */
@@ -78,6 +93,17 @@ const BEND_BASE = 38; // arc bow for adjacent states
 const BEND_STEP = 28; // extra bow per skipped state
 
 const EDGE_FONT = 14; // transition labels (between note and node scale)
+const LOOP_LABEL_OUT = 7; // gap from the loop apex to its label
+
+// Outward (`o`) and tangent (`t`) unit vectors per side. The self-loop attaches
+// at o ± 0.55·t on the node boundary and bows outward along o; `up` reproduces
+// the historical geometry exactly, so existing diagrams are untouched.
+const DIRS: Record<Dir, { o: Pt; t: Pt }> = {
+  up: { o: { x: 0, y: -1 }, t: { x: 1, y: 0 } },
+  down: { o: { x: 0, y: 1 }, t: { x: -1, y: 0 } },
+  left: { o: { x: -1, y: 0 }, t: { x: 0, y: -1 } },
+  right: { o: { x: 1, y: 0 }, t: { x: 0, y: 1 } },
+};
 
 // --- node + edge maths ----------------------------------------------------
 
@@ -111,6 +137,7 @@ export function Automaton({
   states,
   transitions,
   start,
+  startDir = "left",
   accepting,
   gap = GAP,
   title,
@@ -197,25 +224,41 @@ export function Automaton({
     if (!a || !b) return [];
 
     if (a === b) {
-      // Self-loop: one cubic bowing above the node, arrow returning on the right.
-      const lp = edgePoint(a, -0.55, -1);
-      const rp = edgePoint(a, 0.55, -1);
-      const c0 = { x: lp.x - 11, y: lp.y - LOOP_RISE };
-      const c1 = { x: rp.x + 11, y: rp.y - LOOP_RISE };
-      const apexY = 0.125 * lp.y + 0.375 * c0.y + 0.375 * c1.y + 0.125 * rp.y;
+      // Self-loop: one cubic bowing out to one side of the node, arrow
+      // returning to the boundary. `up` reproduces the original geometry.
+      const { o, t: tan } = DIRS[t.loop ?? "up"];
+      const lp = edgePoint(a, o.x - 0.55 * tan.x, o.y - 0.55 * tan.y);
+      const rp = edgePoint(a, o.x + 0.55 * tan.x, o.y + 0.55 * tan.y);
+      const c0 = {
+        x: lp.x + o.x * LOOP_RISE - tan.x * 11,
+        y: lp.y + o.y * LOOP_RISE - tan.y * 11,
+      };
+      const c1 = {
+        x: rp.x + o.x * LOOP_RISE + tan.x * 11,
+        y: rp.y + o.y * LOOP_RISE + tan.y * 11,
+      };
+      const apex = {
+        x: 0.125 * lp.x + 0.375 * c0.x + 0.375 * c1.x + 0.125 * rp.x,
+        y: 0.125 * lp.y + 0.375 * c0.y + 0.375 * c1.y + 0.125 * rp.y,
+      };
+      const horizontal = o.x !== 0;
       return [
         {
           key: i,
           d: `M${r2(lp.x)},${r2(lp.y)} C${r2(c0.x)},${r2(c0.y)} ${r2(c1.x)},${r2(c1.y)} ${r2(rp.x)},${r2(rp.y)}`,
-          maxX: c1.x,
-          maxY: lp.y,
+          maxX: Math.max(lp.x, rp.x, c0.x, c1.x),
+          maxY: Math.max(lp.y, rp.y, c0.y, c1.y),
           label: t.label
             ? {
-                x: a.cx,
-                y: apexY - 7,
+                x: apex.x + o.x * LOOP_LABEL_OUT,
+                y: apex.y + o.y * LOOP_LABEL_OUT,
                 text: t.label,
-                anchor: "middle",
-                baseline: "baseline",
+                anchor: horizontal
+                  ? o.x > 0
+                    ? "start"
+                    : "end"
+                  : "middle",
+                baseline: o.y < 0 && !horizontal ? "baseline" : "central",
               }
             : undefined,
         },
@@ -224,7 +267,7 @@ export function Automaton({
 
     const dir = bendDir(t);
     const span = Math.abs(a.index - b.index);
-    const mag = BEND_BASE + (span - 1) * BEND_STEP;
+    const mag = t.curve ?? BEND_BASE + (span - 1) * BEND_STEP;
     const apex = isManualLayout
       ? (() => {
           const dx = b.cx - a.cx;
@@ -248,7 +291,17 @@ export function Automaton({
     const chordMid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
     let nx = apex.x - chordMid.x;
     let ny = apex.y - chordMid.y;
-    const nl = Math.hypot(nx, ny) || 1;
+    let nl = Math.hypot(nx, ny);
+    if (nl < 0.5) {
+      // Straight edge (curve ≈ 0): there is no arc apex to push off, so offset
+      // the label along the chord's perpendicular, on the side `dir` chooses.
+      const cdx = p1.x - p0.x;
+      const cdy = p1.y - p0.y;
+      const cl = Math.hypot(cdx, cdy) || 1;
+      nx = (-cdy / cl) * dir;
+      ny = (cdx / cl) * dir;
+      nl = 1;
+    }
     nx /= nl;
     ny /= nl;
     const anchor = nx > 0.35 ? "start" : nx < -0.35 ? "end" : "middle";
@@ -279,11 +332,24 @@ export function Automaton({
   const labelMaxY = (l: EdgeLabel) =>
     l.baseline === "central" ? l.y + EDGE_FONT * 0.6 : l.y;
 
+  // The bare start arrow enters from `startDir`; its tail can poke past the
+  // node extents (e.g. a down-entering arrow), so size for it too.
+  const startNode = byId.get(startId);
+  const startGeom = startNode
+    ? (() => {
+        const s = DIRS[startDir].o;
+        const tip = edgePoint(startNode, s.x, s.y);
+        const tail = { x: tip.x + s.x * START_LEN, y: tip.y + s.y * START_LEN };
+        return { tip, tail };
+      })()
+    : null;
+
   const last = nodes[nodes.length - 1];
   const width = isManualLayout
     ? Math.max(
         ...nodes.map((n) => n.cx + n.rx),
         ...edgeGeoms.map((e) => Math.max(e.maxX, e.label ? labelMaxX(e.label) : 0)),
+        startGeom?.tail.x ?? 0,
         0,
       ) + MARGIN
     : (last?.cx ?? 0) + (last?.rx ?? R) + MARGIN;
@@ -291,6 +357,7 @@ export function Automaton({
     ? Math.max(
         ...nodes.map((n) => n.cy + n.ry),
         ...edgeGeoms.map((e) => Math.max(e.maxY, e.label ? labelMaxY(e.label) : 0)),
+        startGeom?.tail.y ?? 0,
         0,
       ) + MARGIN
     : topPad + bottomPad;
@@ -323,22 +390,15 @@ export function Automaton({
     </g>
   ));
 
-  const startNode = byId.get(startId);
-  const startArrow = startNode
-    ? (() => {
-        const tip = edgePoint(startNode, -1, 0);
-        const y = startNode.cy;
-        return (
-          <path
-            d={`M${r2(tip.x - START_LEN)},${r2(y)} L${r2(tip.x)},${r2(y)}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={STROKE.line}
-            markerEnd={ref(arrowId)}
-          />
-        );
-      })()
-    : null;
+  const startArrow = startGeom ? (
+    <path
+      d={`M${r2(startGeom.tail.x)},${r2(startGeom.tail.y)} L${r2(startGeom.tip.x)},${r2(startGeom.tip.y)}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={STROKE.line}
+      markerEnd={ref(arrowId)}
+    />
+  ) : null;
 
   return (
     <DiagramFigure title={title} caption={caption} className={className}>

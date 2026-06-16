@@ -1,0 +1,308 @@
+---
+title: "Theory of Computation: Lecture 5"
+description: "Encoded decision problems, decidability of DFA emptiness and equivalence, diagonalization, HALT and ATM, and the boundary between decidable, recognizable, and unrecognizable languages."
+tags: ["Theory of computation"]
+created: 2026-06-16
+updated: 2026-06-16
+---
+
+## Encoded Decision Problems
+
+Turing machines can decide languages beyond finite memory, and Hilbert's tenth problem shows that some problems have no decider at all. To map that boundary systematically, turn the machines into data and ask decision questions about automata and Turing machines themselves. A Turing machine receives ordinary strings as input, but these questions are about structured objects: automata, graphs, pairs of machines, or a machine together with its input. To ask them with a Turing machine, the objects must first be written as strings.
+
+**Encoding.** A finite representation of an object as a string. The notation $\langle O\rangle$ means "the encoding of object $O$". For pairs, $\langle O_1,O_2\rangle$ means one string encoding both objects with enough delimiters to decode them.
+
+*Anything finite and discrete can be encoded as a binary string: states, transition tables, graph edges, formulas, and even Turing machines themselves.*
+
+Invalid encodings are harmless in decidability proofs. A decider may first check whether the input is a valid encoding and reject if it is not.
+
+**Decision problem.** A yes/no problem viewed as a language of encodings. The language contains exactly the encodings of instances whose answer is yes.
+
+| Problem | Language form |
+|---|---|
+| Does DFA $D$ accept no strings? | $\{\langle D\rangle\mid L(D)=\varnothing\}$ |
+| Do DFAs $D$ and $D'$ accept the same language? | $\{\langle D,D'\rangle\mid L(D)=L(D')\}$ |
+| Does TM $M$ halt on input $w$? | $\{\langle M,w\rangle\mid M\text{ halts on }w\}$ |
+
+**High-level TM description.** A finite algorithmic description that can be implemented by a Turing machine. By the Church-Turing thesis, it is enough to describe ordinary effective procedures such as parsing an encoding, simulating an automaton, or running a graph search.
+
+*The machine model is low-level; decidability proofs are usually written at the algorithm level.*
+
+---
+
+## Deciding DFA Properties
+
+The first useful decision problems ask whether an encoded DFA has a property. These are easier than they may look because a DFA is a finite graph.
+
+**DFA emptiness problem.**
+
+$$
+E_{\mathrm{DFA}}=\{\langle D\rangle\mid D\text{ is a DFA and }L(D)=\varnothing\}.
+$$
+
+A tempting algorithm enumerates all strings $\epsilon,0,1,00,01,10,11,\ldots$ and simulates $D$ on each one. If $D$ accepts some string, the algorithm rejects. But if $L(D)=\varnothing$, no accepting string is ever found, so the algorithm runs forever. It is not a decider for $E_{\mathrm{DFA}}$.
+
+The right algorithm does not search through infinitely many strings. It searches through finitely many states.
+
+**Reachability set.** For a DFA $D=(Q,\Sigma,\delta,q_0,F)$, the set $R\subseteq Q$ of states reachable from $q_0$ by following zero or more transitions.
+
+**Emptiness criterion.** A DFA has nonempty language if and only if some accepting state is reachable from $q_0$.
+
+If $q\in F$ is reachable, the path labels form a string accepted by $D$. Conversely, if $D$ accepts some string, the run on that string ends in a reachable accepting state.
+
+*Emptiness is a graph question: ignore the infinite set of possible strings and ask whether an accepting vertex is reachable.*
+
+**Recipe: deciding $E_{\mathrm{DFA}}$.**
+
+1. Parse the input as $\langle D\rangle$ with $D=(Q,\Sigma,\delta,q_0,F)$.
+2. Initialize $R=\{q_0\}$.
+3. While there exist $q\in R$, $a\in\Sigma$, and $q'\in Q\setminus R$ with $\delta(q,a)=q'$, add $q'$ to $R$.
+4. When no new state can be added, accept iff $R\cap F=\varnothing$.
+
+The loop halts because $Q$ is finite and each successful iteration adds a new state.
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
+
+<Automaton
+  caption="Nonempty: q2 is reachable from q0, so the DFA is rejected by E_DFA."
+  start="q0"
+  accepting={["q2"]}
+  states={[
+    { id: "q0", label: "q_0", x: 92, y: 158 },
+    { id: "q1", label: "q_1", x: 252, y: 158 },
+    { id: "q2", label: "q_2", x: 412, y: 158 },
+  ]}
+  transitions={[
+    { from: "q0", to: "q1", label: "0" },
+    { from: "q0", to: "q0", label: "1" },
+    { from: "q1", to: "q2", label: "0" },
+    { from: "q1", to: "q0", label: "1", bend: "up" },
+    { from: "q2", to: "q2", label: "0,1" },
+  ]}
+/>
+
+</Pane>
+<Pane>
+
+<Automaton
+  caption="Empty: the only accepting state is unreachable, so the DFA is accepted by E_DFA."
+  start="q0"
+  accepting={["q2"]}
+  states={[
+    { id: "q0", label: "q_0", x: 92, y: 158 },
+    { id: "q1", label: "q_1", x: 252, y: 158 },
+    { id: "q2", label: "q_2", x: 412, y: 158 },
+  ]}
+  transitions={[
+    { from: "q0", to: "q1", label: "0", bend: "up" },
+    { from: "q1", to: "q0", label: "0", bend: "up" },
+    { from: "q0", to: "q0", label: "1" },
+    { from: "q1", to: "q1", label: "1" },
+    { from: "q2", to: "q2", label: "0,1" },
+  ]}
+/>
+
+</Pane>
+</Split>
+
+**DFA equivalence problem.**
+
+$$
+EQ_{\mathrm{DFA}}=\{\langle D,D'\rangle\mid L(D)=L(D')\}.
+$$
+
+Two DFAs differ exactly on the strings in the symmetric difference of their languages.
+
+**Symmetric difference.** For languages $A$ and $B$ over the same alphabet,
+
+$$
+A\oplus B=(A\cap\overline{B})\cup(\overline{A}\cap B).
+$$
+
+It contains exactly the strings that belong to one language but not the other. Therefore:
+
+$$
+L(D)=L(D')\quad\Longleftrightarrow\quad L(D)\oplus L(D')=\varnothing.
+$$
+
+Regular languages are closed under complement, union, and intersection, so $L(D)\oplus L(D')$ is regular. More concretely, for $D=(Q,\Sigma,\delta,q_0,F)$ and $D'=(Q',\Sigma,\delta',q_0',F')$ the product construction from Lecture 1 builds a DFA $D^\oplus$ with states $Q\times Q'$, start state $(q_0,q_0')$, and transition $\delta^\oplus((q,q'),a)=(\delta(q,a),\delta'(q',a))$. Only the accepting set is new, the disagreement pairs where exactly one side accepts:
+
+$$
+\big(F\times(Q'\setminus F')\big)\cup\big((Q\setminus F)\times F'\big).
+$$
+
+*If $D$ accepts the strings ending in `0` and $D'$ accepts the even-length strings, then `0` lies in their symmetric difference, so a disagreement pair is reachable and the two DFAs are not equivalent.*
+
+**Recipe: deciding $EQ_{\mathrm{DFA}}$.**
+
+1. Parse the input as $\langle D,D'\rangle$.
+2. Build the product DFA $D^\oplus$ for $L(D)\oplus L(D')$.
+3. Run the decider for $E_{\mathrm{DFA}}$ on $\langle D^\oplus\rangle$.
+4. Accept iff $L(D^\oplus)=\varnothing$.
+
+<Mermaid
+  caption="DFA equivalence reduces to DFA emptiness by checking whether the disagreement language is empty."
+  chart={`flowchart LR
+    P["pair of DFAs"] --> X["build D_xor"]
+    X --> E["run E_DFA"]
+    E --> A["empty: accept"]
+    E --> R["nonempty: reject"]
+  `}
+/>
+
+*A decider may call another decider as a subroutine. The only obligation is that every subroutine call halts.*
+
+---
+
+## Diagonalization
+
+Decidable languages are not all languages. The reason is already visible at the level of size: there are only countably many machines but uncountably many languages.
+
+**Bijection.** A function that is both injective and surjective. It pairs the elements of two sets with no duplicates and no omissions.
+
+**Countable set.** A set that is finite or can be listed as $a_1,a_2,a_3,\ldots$. Equivalently, it has a bijection with $\mathbb{N}$.
+
+*The even numbers are countable by $n\mapsto 2n$. The positive rationals are countable by listing them in a grid and skipping duplicates.*
+
+**Diagonalization.** A proof method that assumes a complete list and constructs an object that differs from the $i$-th listed object at position $i$. The constructed object cannot appear anywhere in the list.
+
+Cantor's diagonal argument shows that the real numbers are uncountable: given a supposed list of decimal expansions, choose a new number whose $i$-th digit differs from the $i$-th digit of the $i$-th listed real.
+
+The same idea applies to languages. Fix an order
+
+$$
+\Sigma^*=\{s_1,s_2,s_3,\ldots\}.
+$$
+
+Every language $L\subseteq\Sigma^*$ has a characteristic sequence $\chi_L\in\{0,1\}^{\mathbb{N}}$, where the $i$-th bit is $1$ iff $s_i\in L$. The same diagonal argument makes these sequences uncountable: given any list of them, flip the $i$-th bit of the $i$-th sequence to get one that is missing. So the set of all languages is uncountable.
+
+Turing machines are countable because every machine has a finite encoding, and all finite strings can be listed by length. Since each TM recognizes at most one language, some languages are not Turing-recognizable.
+
+*There are more yes/no string problems than there are programs.*
+
+**Diagonal language.** List $\Sigma^*$ by length and read each string as a Turing machine, treating any string that is not a valid encoding as a fixed machine that rejects everything. This enumerates all Turing machines as $M_1,M_2,M_3,\ldots$, and every machine appears as some $M_i$. Define
+
+$$
+\mathrm{DIAG}=\{\langle M_i\rangle\mid M_i\text{ does not accept }\langle M_i\rangle\}.
+$$
+
+Here "does not accept" means either rejects or loops forever.
+
+| Machine on input | $\langle M_1\rangle$ | $\langle M_2\rangle$ | $\langle M_3\rangle$ | $\langle M_4\rangle$ | $\cdots$ |
+|---|---|---|---|---|---|
+| $M_1$ | **A** | $\infty$ | R | A | $\cdots$ |
+| $M_2$ | R | **R** | A | A | $\cdots$ |
+| $M_3$ | R | $\infty$ | **A** | $\infty$ | $\cdots$ |
+| $M_4$ | A | $\infty$ | R | **R** | $\cdots$ |
+| $\vdots$ | $\vdots$ | $\vdots$ | $\vdots$ | $\vdots$ | $\ddots$ |
+
+The diagonal entries describe each machine on its own encoding. $\mathrm{DIAG}$ contains exactly the encodings whose diagonal entry is not A.
+
+**Theorem: $\mathrm{DIAG}$ is undecidable.**
+
+**1. Assumption.** Suppose some TM $M$ decides $\mathrm{DIAG}$.
+
+**2. Self-reference.** Since the list contains every TM, $M=M_i$ for some $i$. Because $M$ decides $\mathrm{DIAG}$, $L(M_i)=\mathrm{DIAG}$.
+
+**3. Diagonal question.** Ask whether $\langle M_i\rangle\in L(M_i)$.
+
+If $\langle M_i\rangle\in L(M_i)$, then $\langle M_i\rangle\in\mathrm{DIAG}$, so by definition $M_i$ does not accept $\langle M_i\rangle$, contradiction.
+
+If $\langle M_i\rangle\notin L(M_i)$, then $M_i$ does not accept $\langle M_i\rangle$, so $\langle M_i\rangle\in\mathrm{DIAG}=L(M_i)$, contradiction.
+
+**4. Conclusion.** No decider for $\mathrm{DIAG}$ exists.
+
+*The impossible machine would have to answer the opposite of its own answer on its own encoding.*
+
+---
+
+## The Halting and Acceptance Problems
+
+The diagonal language is artificial, but it is useful because it can be used to prove natural machine-input problems undecidable.
+
+**Recipe: proving a language undecidable.**
+
+1. **Assume a decider.** Suppose a TM decides the target language $L$.
+2. **Reduce from a known case.** Use it as a subroutine to build a decider for a language already known to be undecidable, such as $\mathrm{DIAG}$.
+3. **Derive the contradiction.** That language has no decider, so the assumed decider for $L$ cannot exist.
+
+**Halting problem.**
+
+$$
+\mathrm{HALT}=\{\langle M,w\rangle\mid M\text{ is a TM and }M\text{ halts on input }w\}.
+$$
+
+**Universal simulation.** A TM can simulate another encoded TM step by step on an encoded input. Thus $\mathrm{HALT}$ is recognizable:
+
+1. On input $\langle M,w\rangle$, simulate $M$ on $w$.
+2. If the simulation ever reaches $q_{\text{accept}}$ or $q_{\text{reject}}$, accept.
+
+If $M$ loops on $w$, this recognizer also loops. That is why it recognizes $\mathrm{HALT}$ but does not decide it.
+
+**Theorem: $\mathrm{HALT}$ is undecidable.**
+
+Assume, for contradiction, that $H$ decides $\mathrm{HALT}$. Build a decider $D$ for $\mathrm{DIAG}$:
+
+1. On input $\langle M\rangle$, run $H$ on $\langle M,\langle M\rangle\rangle$.
+2. If $H$ rejects, then $M$ loops on $\langle M\rangle$, so $M$ does not accept $\langle M\rangle$; accept.
+3. If $H$ accepts, simulate $M$ on $\langle M\rangle$ until it halts. If $M$ accepts, reject; if $M$ rejects, accept.
+
+$D$ halts on every input because $H$ halts, and in the third case $H$ has certified that the simulation of $M$ will halt. Moreover, $D$ accepts exactly the machines that do not accept their own encoding. Therefore $D$ decides $\mathrm{DIAG}$, contradiction.
+
+*The hard part is not noticing when a machine halts. It is proving in finite time that it never will.*
+
+**Acceptance problem.**
+
+$$
+A_{\mathrm{TM}}=\{\langle M,w\rangle\mid M\text{ is a TM and }M\text{ accepts }w\}.
+$$
+
+**Theorem: $A_{\mathrm{TM}}$ is undecidable.**
+
+Assume, for contradiction, that $H_A$ decides $A_{\mathrm{TM}}$. Build a decider $D$ for $\mathrm{DIAG}$: on input $\langle M\rangle$, run $H_A$ on $\langle M,\langle M\rangle\rangle$ and output the opposite answer. Then $D$ always halts because $H_A$ does, and $D$ accepts $\langle M\rangle$ exactly when $M$ does not accept $\langle M\rangle$, which is exactly $\langle M\rangle\in\mathrm{DIAG}$. So $D$ decides $\mathrm{DIAG}$, contradiction.
+
+Unlike the halting reduction, this one needs no re-simulation: $H_A$ reports acceptance directly, so $D$ only flips its answer.
+
+The difference between $\mathrm{HALT}$ and $A_{\mathrm{TM}}$ is the event being tested:
+
+| Language | Yes when | No when |
+|---|---|---|
+| $\mathrm{HALT}$ | $M$ accepts or rejects $w$ | $M$ loops on $w$ |
+| $A_{\mathrm{TM}}$ | $M$ accepts $w$ | $M$ rejects or loops on $w$ |
+
+---
+
+## Recognizable and Unrecognizable Languages
+
+The halting problem separates recognizability from decidability: $\mathrm{HALT}$ is recognizable but undecidable. To find a language that is not even recognizable, use complements.
+
+**Complement recognizability theorem.** A language $L$ is decidable if and only if both $L$ and $\overline{L}$ are recognizable.
+
+**1. Decidable to recognizable.** If $L$ is decidable, its decider recognizes $L$. Swapping accept and reject gives a decider, hence a recognizer, for $\overline{L}$.
+
+**2. Recognizable complements to decidable.** Suppose $M_1$ recognizes $L$ and $M_2$ recognizes $\overline{L}$. Construct a machine $M$:
+
+1. On input $w$, run $M_1$ and $M_2$ on $w$ in dovetailing fashion: one step of $M_1$, then one step of $M_2$, and repeat.
+2. If $M_1$ accepts, accept.
+3. If $M_2$ accepts, reject.
+
+For every $w$, either $w\in L$ or $w\in\overline{L}$. Therefore one of the two recognizers eventually accepts, so $M$ halts on every input and decides $L$.
+
+*Running recognizers "in parallel" means alternating finite pieces of their computations so neither one can starve the other.*
+
+**Corollary.** $\overline{\mathrm{HALT}}$ is not recognizable.
+
+$\mathrm{HALT}$ is recognizable but undecidable. If $\overline{\mathrm{HALT}}$ were recognizable too, the complement recognizability theorem would imply that $\mathrm{HALT}$ is decidable, contradiction.
+
+<LanguageClasses
+  caption="Known containment after HALT: regular languages are decidable, HALT is recognizable but not decidable, and complement HALT is not recognizable."
+/>
+
+The strict containments now known are, writing $\mathcal{P}(\Sigma^*)$ for the set of all languages:
+
+$$
+\text{Regular}\subsetneq\text{Decidable}\subsetneq\text{Recognizable}\subsetneq\mathcal{P}(\Sigma^*).
+$$
+
+Regular languages are decidable because a TM can simulate a DFA and halt. The containment is strict because languages such as equal numbers of `0`s and `1`s are decidable but not regular. Decidable languages are recognizable by definition, and the containment is strict because $\mathrm{HALT}$ is recognizable but undecidable. Finally, $\overline{\mathrm{HALT}}$ is a concrete language outside the recognizable languages.

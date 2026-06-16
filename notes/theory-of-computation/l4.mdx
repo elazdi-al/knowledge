@@ -37,7 +37,7 @@ are not regular. The problem itself is easy for an ordinary algorithm: count the
 
 Finite automata read a string once, left to right, and never change it. Turing machines may revisit earlier cells, rewrite symbols, and use blank cells as work space.
 
-*A TM can decide even-length binary palindromes by crossing off matching outer symbols and accepting only when no unmarked symbol remains.*
+*Because it can revisit and rewrite cells, a TM can compare the two ends of a string against each other, which a one-pass finite automaton cannot do.*
 
 **Formal Turing machine.** A Turing machine is a 7-tuple
 
@@ -53,9 +53,9 @@ with the following parts:
 | $\Sigma$ | input alphabet, not containing the blank symbol $\sqcup$ |
 | $\Gamma$ | tape alphabet, with $\sqcup\in\Gamma$ and $\Sigma\subseteq\Gamma$ |
 | $\delta$ | transition function |
-| $q_0\in Q$ | start state |
-| $q_{\text{accept}}\in Q$ | accept state |
-| $q_{\text{reject}}\in Q$ | reject state, with $q_{\text{reject}}\ne q_{\text{accept}}$ |
+| $q_0\in Q$ | start state, where computation begins |
+| $q_{\text{accept}}\in Q$ | accepting halting state |
+| $q_{\text{reject}}\in Q$ | rejecting halting state, with $q_{\text{reject}}\ne q_{\text{accept}}$ |
 
 Only non-halting states need transitions:
 
@@ -66,18 +66,65 @@ $$
 
 If $\delta(q,a)=(r,b,R)$, then in state $q$ reading $a$, the machine writes $b$, moves one cell right, and enters state $r$. The case $\delta(q,a)=(r,b,L)$ is the same except that the head moves left.
 
+At minimum, a TM description must make three distinguished states clear:
+
+| State | Role |
+|---|---|
+| $q_0$ | first state of the computation |
+| $q_{\text{accept}}$ | halts with answer yes |
+| $q_{\text{reject}}$ | halts with answer no |
+
+Extra states are working states used before the machine halts.
+
+**State graph of a TM.** A directed graph drawing of the transition function: the graph and the 7-tuple describe the same machine. Nodes are states, the incoming arrow marks $q_0$, and an edge label has the form
+
+$$
+a\to b,D
+$$
+
+meaning: if the head reads $a$, write $b$, move in direction $D\in\{L,R\}$, and enter the target state.
+
+A complete machine fits in a small graph. Let $M$ decide
+
+$$
+L=\{w\in\{0,1\}^*\mid w\text{ has no }1\}=0^*,
+$$
+
+the strings made only of `0`s. One working state suffices: stay in $q_0$, walking right over each `0` without changing it, until the head meets the first blank (accept, the input was all `0`s) or the first `1` (reject). The blank in this and every later figure is the tape blank $\sqcup$.
+
+<Automaton
+  caption="A complete TM for 0*: loop right over 0s, accept at the first blank, reject at the first 1."
+  start="q0"
+  accepting={["qa"]}
+  states={[
+    { id: "q0", label: "q_0", x: 108, y: 150 },
+    { id: "qa", label: "q_{accept}", x: 372, y: 70 },
+    { id: "qr", label: "q_{reject}", x: 372, y: 230 },
+  ]}
+  transitions={[
+    { from: "q0", to: "q0", label: "0->0,R" },
+    { from: "q0", to: "qa", label: "⊔->⊔,R", bend: "up" },
+    { from: "q0", to: "qr", label: "1->1,R", bend: "down" },
+  ]}
+/>
+
+| Graph feature | Meaning |
+|---|---|
+| incoming arrow | start state $q_0$ |
+| self-loop on $q_0$ | read `0`, rewrite it, keep scanning right |
+| double circle | accepting halt $q_{\text{accept}}$ |
+| node $q_{\text{reject}}$ | rejecting halt |
+| edge label $a\to b,D$ | read $a$, write $b$, move $D$ |
+
+In the graph, $q_{\text{accept}}$ and $q_{\text{reject}}$ are drawn with no outgoing edges.
+
 *The input alphabet says what may appear in the original input. The tape alphabet says what the machine may use while computing, including marks such as $X$ and the blank symbol $\sqcup$.*
 
 ## Configurations and Computation
 
 **Configuration.** A complete snapshot of a Turing machine computation: current state, current head position, and the finite visible part of the tape.
 
-The notation $uqv$, where $u,v\in\Gamma^*$ and $q\in Q$, means:
-
-- the current state is $q$,
-- the tape content shown is $uv$,
-- the head scans the first symbol of $v$,
-- all cells not shown are blank.
+The notation $uqv$, with $u,v\in\Gamma^*$ and $q\in Q$, means the state is $q$, the visible tape content is $uv$ with the head on the first symbol of $v$, and every other cell is blank.
 
 If $u=\epsilon$, the head is on the leftmost tape cell. If $v=\epsilon$, the head scans the blank cell immediately after $u$.
 
@@ -86,7 +133,7 @@ If $u=\epsilon$, the head is on the leftmost tape cell. If $v=\epsilon$, the hea
   head={4}
   cells={["1", "0", "1", "1", "0", "1", "1", "1", "1"]}
   rightEllipsis
-  caption="A configuration where state q7 scans the next symbol after 1011."
+  caption="The configuration u q7 v with u = 1011 and v = 01111: the head scans the first cell of v."
 />
 
 **Transition between configurations.** Suppose the current configuration is $uaq_i bv$, so the head scans $b$ and $a$ is the symbol immediately to its left.
@@ -105,7 +152,32 @@ $$
 
 At the left edge, a left move keeps the head on the first cell. At the right edge of the shown word, blank cells are added as needed.
 
-**Computation.** On input $w\in\Sigma^*$, the starting configuration is $q_0w$. The machine repeatedly applies valid transitions until it reaches $q_{\text{accept}}$, reaches $q_{\text{reject}}$, or never halts.
+**Computation.** On input $w\in\Sigma^*$, the starting configuration is $q_0w$. Write $C\vdash C'$ when configuration $C$ yields $C'$ in one step. The machine repeatedly applies valid transitions until it reaches $q_{\text{accept}}$, reaches $q_{\text{reject}}$, or never halts.
+
+**Resolving a run.** Take the machine $M$ for $0^*$. On input `00` every step is forced, and the run reaches $q_{\text{accept}}$ in three moves:
+
+$$
+q_0\,00\ \vdash\ 0\,q_0\,0\ \vdash\ 00\,q_0\,\sqcup\ \vdash\ 00\,\sqcup\,q_{\text{accept}}.
+$$
+
+Each `0` is rewritten as the head steps right; reading the trailing blank in $q_0$ sends $M$ to $q_{\text{accept}}$. The same run reads as one tape per configuration, the scanned cell shown inverted:
+
+<TuringTrace
+  caption="Run of M on 00: the head walks right over the 0s and halts in q_accept at the first blank."
+  rightEllipsis
+  rows={[
+    { state: "q_0", cells: ["0", "0"], head: 0, note: "read 0, write 0, step right" },
+    { state: "q_0", cells: ["0", "0"], head: 1, note: "read 0, write 0, step right" },
+    { state: "q_0", cells: ["0", "0", "⊔"], head: 2, note: "blank reached in q_0" },
+    { state: "q_{accept}", cells: ["0", "0", "⊔", "⊔"], head: 3, note: "no 1 was seen: accept" },
+  ]}
+/>
+
+A single `1` derails the run. On `01` the first `0` is consumed, but reading the `1` in $q_0$ triggers $q_{\text{reject}}$:
+
+$$
+q_0\,01\ \vdash\ 0\,q_0\,1\ \vdash\ 0\,1\,q_{\text{reject}}.
+$$
 
 Unlike a DFA, a Turing machine does not always produce an answer. It may run forever.
 
@@ -147,50 +219,76 @@ Turing machines are usually designed at a high level. A step such as "scan right
 
 **Example 1. Equal numbers of `0`s and `1`s.**
 
-*The language $C=\{w\in\{0,1\}^*\mid w\text{ has as many }0\text{s as }1\text{s}\}$ is not regular, but it is decidable.*
+*The language $C$ from the opening is not regular, yet it is decidable.*
 
-Use input alphabet $\Sigma=\{0,1\}$ and tape alphabet
+The machine pairs off one `0` with one `1` per sweep until nothing is left. It uses
 
 $$
-\Gamma=\{0,1,X,\sqcup\}.
+Q=\{q_0,q_1,q_2,q_3,q_A,q_R\},\qquad
+\Sigma=\{0,1\},\qquad
+\Gamma=\{0,1,X,\sqcup\},
 $$
 
-The symbol $X$ marks an input symbol that has already been paired. The blank $\sqcup$ marks the end of the currently relevant tape contents.
+where $q_A=q_{\text{accept}}$ and $q_R=q_{\text{reject}}$ are the halts, $X$ temporarily marks a matched symbol, and $\sqcup$ is the blank. Each edge still reads as $a\to b,D$, with two shorthands: a comma-separated read set fires on any of the listed symbols, and an omitted write leaves the cell unchanged. So $X,0\to R$ means "on $X$ or $0$, leave the cell and move right".
 
-1. Scan right, skipping $X$ symbols, until the first unmarked symbol is found.
-2. If the scan reaches $\sqcup$, accept: every input symbol has been paired.
-3. If the first unmarked symbol is `0`, overwrite it by $X$, scan right for an unmarked `1`, and overwrite that `1` by $X$. If the scan reaches $\sqcup$ first, reject.
-4. If the first unmarked symbol is `1`, overwrite it by $X$, scan right for an unmarked `0`, and overwrite that `0` by $X$. If the scan reaches $\sqcup$ first, reject.
-5. Move left back to the beginning of the input and repeat.
-
-For input `0110`, the passes are:
-
-<Split cols="1fr 1fr" align="center">
-<Pane>
-
-<TuringTape
-  title="After first pass"
-  state="q_0"
-  head={2}
-  cells={["X", "X", "1", "0", "⊔"]}
-  caption="The first 0 has been paired with the first 1 to its right."
+<Automaton
+  caption="The decider for C. Each loop through q0 erases the leftmost symbol, finds and marks its opposite, then walks back; q0 accepts when only blanks remain."
+  start="q0"
+  startDir="down"
+  accepting={["qA"]}
+  states={[
+    { id: "q0", label: "q_0", x: 175, y: 250 },
+    { id: "q1", label: "q_1", x: 300, y: 115 },
+    { id: "q2", label: "q_2", x: 300, y: 385 },
+    { id: "q3", label: "q_3", x: 425, y: 250 },
+    { id: "qA", label: "q_A", x: 95, y: 115 },
+    { id: "qR", label: "q_R", x: 520, y: 115 },
+  ]}
+  transitions={[
+    { from: "q0", to: "qA", label: "⊔->R", curve: 0, bend: "up" },
+    { from: "q0", to: "q1", label: "0->⊔,R", curve: 0, bend: "up" },
+    { from: "q0", to: "q2", label: "1->⊔,R", curve: 0, bend: "down" },
+    { from: "q0", to: "q0", label: "X->⊔,R", loop: "left" },
+    { from: "q1", to: "q1", label: "X,0->R", loop: "up" },
+    { from: "q1", to: "qR", label: "⊔->R", curve: 0, bend: "up" },
+    { from: "q1", to: "q3", label: "1->X,L", curve: 0, bend: "up" },
+    { from: "q2", to: "q2", label: "1,X->R", loop: "down" },
+    { from: "q2", to: "q3", label: "0->X,L", curve: 0, bend: "down" },
+    { from: "q2", to: "qR", label: "⊔->R", curve: 120, bend: "down" },
+    { from: "q3", to: "q3", label: "0,1,X->L", loop: "right" },
+    { from: "q3", to: "q0", label: "⊔->R", curve: 0, bend: "down" },
+  ]}
 />
 
-</Pane>
-<Pane>
+Read the diagram as one repeating loop:
 
-<TuringTape
-  title="After second pass"
-  state="q_{accept}"
-  head={4}
-  cells={["X", "X", "X", "X", "⊔"]}
-  caption="The remaining 1 has been paired with the remaining 0, so the machine accepts."
+- **$q_0$: pick the leftmost symbol.** A `0` is erased ($\sqcup$) and the machine remembers "find a 1" by entering $q_1$; a `1` is erased and it enters $q_2$ to find a `0`; a leftover $X$ is erased and skipped; a $\sqcup$ means everything is gone, so accept.
+- **$q_1$ / $q_2$: find the opposite symbol.** $q_1$ runs right over `0`s and `X`s to the first `1`, writes $X$, and turns back in $q_3$; $q_2$ is the mirror image. Hitting $\sqcup$ first means the partner is missing, so reject.
+- **$q_3$: rewind.** Walk left over everything until the blank gap on the left, then step right into $q_0$ for the next sweep.
+
+Each completed loop erases one `0` and one `1`, so the counts stay equal exactly when the tape empties cleanly into $q_A$.
+
+The run on `0110` is traced configuration by configuration, the scanned cell inverted:
+
+<TuringTrace
+  title="Run on 0110"
+  caption="The machine erases 0 with its matching 1, then the remaining 1 with its matching 0, and accepts once only blanks remain."
+  rightEllipsis
+  rows={[
+    { state: "q_0", cells: ["0", "1", "1", "0", "⊔"], head: 0, note: "leftmost is 0" },
+    { state: "q_1", cells: ["⊔", "1", "1", "0", "⊔"], head: 1, note: "erased it, hunt for a 1" },
+    { state: "q_3", cells: ["⊔", "X", "1", "0", "⊔"], head: 0, note: "marked the 1, rewind" },
+    { state: "q_0", cells: ["⊔", "X", "1", "0", "⊔"], head: 1, note: "back at the left" },
+    { state: "q_0", cells: ["⊔", "⊔", "1", "0", "⊔"], head: 2, note: "clear the X, scan on" },
+    { state: "q_2", cells: ["⊔", "⊔", "⊔", "0", "⊔"], head: 3, note: "erased a 1, hunt for a 0" },
+    { state: "q_3", cells: ["⊔", "⊔", "⊔", "X", "⊔"], head: 2, note: "marked the 0, rewind" },
+    { state: "q_0", cells: ["⊔", "⊔", "⊔", "X", "⊔"], head: 3, note: "back at the left" },
+    { state: "q_0", cells: ["⊔", "⊔", "⊔", "⊔", "⊔"], head: 4, note: "clear the X, scan on" },
+    { state: "q_A", cells: ["⊔", "⊔", "⊔", "⊔", "⊔", "⊔"], head: 5, note: "only blanks remain: accept" },
+  ]}
 />
 
-</Pane>
-</Split>
-
-The invariant is that marked symbols form disjoint opposite-symbol pairs. If the machine accepts, every input symbol belongs to such a pair, so the numbers of `0`s and `1`s are equal. If it rejects, the leftmost remaining unmarked symbol has no opposite unmarked symbol to its right, and nothing unmarked lies to its left, so no complete pairing exists. Each successful pass marks two new symbols, so the machine halts.
+The invariant is that each completed loop removes exactly one `0` and one `1` (one rewritten to $\sqcup$ in $q_0$, its partner marked $X$ and then erased on the next sweep), so the consumed symbols always hold equally many `0`s and `1`s. Accepting requires a fully blank tape, which is reachable only when the counts matched; rejecting happens the instant $q_1$ or $q_2$ runs off the end with no partner. Every loop consumes two cells, so the remaining input strictly shrinks and the machine always halts.
 
 *The tape converts an unbounded counting problem into a bookkeeping problem: remember progress by writing on the input.*
 
@@ -211,6 +309,8 @@ A TM can decide $P$ by repeatedly testing whether the current number of unmarked
 5. If an even number was seen, return to the left end and repeat on the unmarked zeros.
 
 Each non-halting pass divides the number of unmarked zeros by $2$. A positive integer eventually reaches $1$ exactly when it is a power of two; otherwise, some pass reaches an odd number greater than $1$ and rejects. Because the number of unmarked zeros strictly decreases after every non-halting pass, the machine always halts.
+
+*Accepted: `0`, `00`, `0000`. Rejected: `000` and `000000`; halving six unmarked zeros leaves three, and the next pass sees an odd count greater than one, so it rejects.*
 
 ---
 
