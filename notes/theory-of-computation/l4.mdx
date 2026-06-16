@@ -14,13 +14,15 @@ $$
 C=\{w\in\{0,1\}^*\mid w\text{ has as many }0\text{s as }1\text{s}\}
 $$
 
-are not regular. The obstacle is not that the problem is impossible; an ordinary algorithm can count or pair symbols. The missing resource is memory whose used portion may grow with the input.
+are not regular. The problem itself is easy for an ordinary algorithm: count the symbols, or pair them off. What finite automata lack is memory whose used portion can grow with the input.
 
-**Unbounded work memory.** Memory with no fixed finite bound on how many cells may be used during a computation. Each input still uses only finitely many cells at any finite time, but longer inputs may require more cells.
+**Tape.** A row of cells used as memory. Each cell stores one symbol. A head points to one cell at a time and can read or overwrite that cell. The input starts in the leftmost cells; the rest of the tape is blank.
+
+**Unbounded work memory.** Memory with no fixed finite bound on how many tape cells may be used during a computation. Each input still uses only finitely many cells at any finite time, but longer inputs may require more cells.
 
 *A finite automaton has a fixed notebook with one page. A Turing machine has a finite program and as much blank paper as the computation needs.*
 
-**Single-tape encoding.** Input, work memory, and output can all be represented on one tape by using separate regions and delimiter symbols. Multi-tape pictures are often easier to understand, but they do not change which problems can be solved.
+**Single-tape encoding.** Storing the input, work memory, and output on one tape. Different regions of the tape can be separated by delimiters such as `#`. Several tapes may be easier to draw, but one tape is enough to represent the same computation.
 
 ---
 
@@ -147,19 +149,46 @@ Turing machines are usually designed at a high level. A step such as "scan right
 
 *The language $C=\{w\in\{0,1\}^*\mid w\text{ has as many }0\text{s as }1\text{s}\}$ is not regular, but it is decidable.*
 
-Use $X$ to mark symbols that have already been paired.
+Use input alphabet $\Sigma=\{0,1\}$ and tape alphabet
 
-1. Sweep right to find the leftmost unmarked symbol. If none exists, accept.
-2. If it is `0`, mark it $X$, sweep right for an unmarked `1`, and mark that `1` as $X$. If no such `1` exists, reject.
-3. If it is `1`, mark it $X$, sweep right for an unmarked `0`, and mark that `0` as $X$. If no such `0` exists, reject.
-4. Return to the left end of the input and repeat.
+$$
+\Gamma=\{0,1,X,\sqcup\}.
+$$
+
+The symbol $X$ marks an input symbol that has already been paired. The blank $\sqcup$ marks the end of the currently relevant tape contents.
+
+1. Scan right, skipping $X$ symbols, until the first unmarked symbol is found.
+2. If the scan reaches $\sqcup$, accept: every input symbol has been paired.
+3. If the first unmarked symbol is `0`, overwrite it by $X$, scan right for an unmarked `1`, and overwrite that `1` by $X$. If the scan reaches $\sqcup$ first, reject.
+4. If the first unmarked symbol is `1`, overwrite it by $X$, scan right for an unmarked `0`, and overwrite that `0` by $X$. If the scan reaches $\sqcup$ first, reject.
+5. Move left back to the beginning of the input and repeat.
+
+For input `0110`, the passes are:
+
+<Split cols="1fr 1fr" align="center">
+<Pane>
 
 <TuringTape
+  title="After first pass"
   state="q_0"
   head={2}
   cells={["X", "X", "1", "0", "⊔"]}
-  caption="After one pairing pass on 0110, one 0 and one matching 1 have been marked."
+  caption="The first 0 has been paired with the first 1 to its right."
 />
+
+</Pane>
+<Pane>
+
+<TuringTape
+  title="After second pass"
+  state="q_{accept}"
+  head={4}
+  cells={["X", "X", "X", "X", "⊔"]}
+  caption="The remaining 1 has been paired with the remaining 0, so the machine accepts."
+/>
+
+</Pane>
+</Split>
 
 The invariant is that marked symbols form disjoint opposite-symbol pairs. If the machine accepts, every input symbol belongs to such a pair, so the numbers of `0`s and `1`s are equal. If it rejects, the leftmost remaining unmarked symbol has no opposite unmarked symbol to its right, and nothing unmarked lies to its left, so no complete pairing exists. Each successful pass marks two new symbols, so the machine halts.
 
