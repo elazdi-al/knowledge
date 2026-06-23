@@ -141,16 +141,6 @@ $$
 3. Run the decider for $E_{\mathrm{DFA}}$ on $\langle D^\oplus\rangle$.
 4. Accept iff $L(D^\oplus)=\varnothing$.
 
-<Mermaid
-  caption="DFA equivalence reduces to DFA emptiness by checking whether the disagreement language is empty."
-  chart={`flowchart LR
-    P["pair of DFAs"] --> X["build D_xor"]
-    X --> E["run E_DFA"]
-    E --> A["empty: accept"]
-    E --> R["nonempty: reject"]
-  `}
-/>
-
 *A decider may call another decider as a subroutine. The only obligation is that every subroutine call halts.*
 
 ---
@@ -181,23 +171,32 @@ Turing machines are countable because every machine has a finite encoding, and a
 
 *There are more yes/no string problems than there are programs.*
 
-**Diagonal language.** List $\Sigma^*$ by length and read each string as a Turing machine, treating any string that is not a valid encoding as a fixed machine that rejects everything. This enumerates all Turing machines as $M_1,M_2,M_3,\ldots$, and every machine appears as some $M_i$. Define
+**Diagonal language.** List $\Sigma^*$ by length and read each string as a Turing machine, treating any string that is not a valid encoding as a fixed machine that rejects everything. This enumerates all Turing machines as $M_1,M_2,M_3,\ldots$, and every machine appears as some $M_i$.
 
-$$
-\mathrm{DIAG}=\{\langle M_i\rangle\mid M_i\text{ does not accept }\langle M_i\rangle\}.
-$$
-
-Here "does not accept" means either rejects or loops forever.
+Tabulate how each machine behaves on each encoding: write **A** when it accepts, **R** when it rejects, and $\infty$ when it loops forever. Row $i$ records $M_i$ and column $j$ uses the input $\langle M_j\rangle$, so the entry in row $i$, column $j$ is the outcome of running $M_i$ on $\langle M_j\rangle$.
 
 | Machine on input | $\langle M_1\rangle$ | $\langle M_2\rangle$ | $\langle M_3\rangle$ | $\langle M_4\rangle$ | $\cdots$ |
 |---|---|---|---|---|---|
 | $M_1$ | **A** | $\infty$ | R | A | $\cdots$ |
-| $M_2$ | R | **R** | A | A | $\cdots$ |
-| $M_3$ | R | $\infty$ | **A** | $\infty$ | $\cdots$ |
-| $M_4$ | A | $\infty$ | R | **R** | $\cdots$ |
+| $M_2$ | R | $\boldsymbol{\infty}$ | A | A | $\cdots$ |
+| $M_3$ | R | $\infty$ | **R** | $\infty$ | $\cdots$ |
+| $M_4$ | A | $\infty$ | R | **A** | $\cdots$ |
 | $\vdots$ | $\vdots$ | $\vdots$ | $\vdots$ | $\vdots$ | $\ddots$ |
 
-The diagonal entries describe each machine on its own encoding. $\mathrm{DIAG}$ contains exactly the encodings whose diagonal entry is not A.
+Only the **diagonal** matters, the bold entries where $M_i$ runs on its own encoding $\langle M_i\rangle$. Define
+
+$$
+\mathrm{DIAG}=\{\langle M_i\rangle\mid M_i\text{ does not accept }\langle M_i\rangle\},
+$$
+
+where "does not accept" covers both rejecting and looping. So $\mathrm{DIAG}$ collects exactly the encodings whose diagonal entry is **not** A, the **R** and $\infty$ cases. Reading the diagonal above:
+
+- $M_1$ accepts $\langle M_1\rangle$ (A), so $\langle M_1\rangle\notin\mathrm{DIAG}$.
+- $M_2$ loops on $\langle M_2\rangle$ ($\infty$), so $\langle M_2\rangle\in\mathrm{DIAG}$.
+- $M_3$ rejects $\langle M_3\rangle$ (R), so $\langle M_3\rangle\in\mathrm{DIAG}$.
+- $M_4$ accepts $\langle M_4\rangle$ (A), so $\langle M_4\rangle\notin\mathrm{DIAG}$.
+
+Equivalently, $\mathrm{DIAG}$ is the *complement of the diagonal*: for every $i$ it is built to disagree with $M_i$ at the single input $\langle M_i\rangle$, turning accept into non-membership and reject-or-loop into membership.
 
 **Theorem: $\mathrm{DIAG}$ is undecidable.**
 
