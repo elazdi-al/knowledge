@@ -219,6 +219,74 @@ export function QueryProcessingFlow({
   );
 }
 
+export function OptimizerArchitectureSchema({
+  title,
+  caption,
+  className,
+}: {
+  title?: string;
+  caption?: string;
+  className?: string;
+}) {
+  const arrowId = stableId("optimizer-architecture", { title, caption });
+  return (
+    <DiagramFigure
+      title={title}
+      caption={caption ?? "Cost-based optimizer architecture."}
+      className={className}
+    >
+      <DiagramSvg w={660} h={332} label={caption ?? "Cost-based optimizer architecture"}>
+        <defs>
+          <ArrowHead id={arrowId} />
+        </defs>
+
+        <Box x={24} y={32} w={128} h={38} label="SQL query" tint fontWeight={700} />
+        <Box x={218} y={32} w={128} h={38} label="Parser" />
+        <Box x={412} y={32} w={128} h={38} label="Rewrite" state="new" />
+
+        <Arrow from={{ x: 152, y: 51 }} to={{ x: 218, y: 51 }} markerId={arrowId} />
+        <Arrow from={{ x: 346, y: 51 }} to={{ x: 412, y: 51 }} markerId={arrowId} />
+
+        <Frame x={126} y={114} w={384} h={140} title="Cost-based optimizer">
+          <Box x={166} y={170} w={136} h={38} label="Plan generator" tint fontWeight={700} />
+          <Box x={334} y={170} w={136} h={38} label="Cost estimator" tint fontWeight={700} />
+          <Arrow
+            from={{ x: 302, y: 178 }}
+            to={{ x: 334, y: 178 }}
+            markerId={arrowId}
+            label="plans"
+            labelOffset={15}
+          />
+          <Arrow
+            from={{ x: 334, y: 201 }}
+            to={{ x: 302, y: 201 }}
+            markerId={arrowId}
+            label="costs"
+            labelOffset={15}
+          />
+        </Frame>
+
+        <Arrow from={{ x: 476, y: 70 }} to={{ x: 400, y: 114 }} markerId={arrowId} />
+
+        <Frame x={540} y={114} w={96} h={140} title="Catalog">
+          <Cylinder x={554} y={154} w={68} h={38} label={["Schema"]} />
+          <Cylinder x={554} y={202} w={68} h={38} label={["Stats"]} />
+        </Frame>
+        <Arrow
+          from={{ x: 540, y: 184 }}
+          to={{ x: 470, y: 184 }}
+          markerId={arrowId}
+          label="metadata"
+          labelOffset={14}
+        />
+
+        <Box x={252} y={284} w={136} h={36} label="Physical plan" state="highlight" fontWeight={700} />
+        <Arrow from={{ x: 318, y: 254 }} to={{ x: 318, y: 284 }} markerId={arrowId} />
+      </DiagramSvg>
+    </DiagramFigure>
+  );
+}
+
 export function HashProjectionSchema({
   title,
   caption,
@@ -324,6 +392,389 @@ export function GraceProbeSchema({
         <Arrow from={{ x: 456, y: 189 }} to={{ x: 536, y: 168 }} markerId={arrowId} />
         <Label x={588} y={58} text="Join result" weight={700} />
         <Cylinder x={536} y={78} w={104} h={170} label={["⟨r, s⟩", "pairs"]} />
+      </DiagramSvg>
+    </DiagramFigure>
+  );
+}
+
+const HISTOGRAM_VALUES = [2, 3, 3, 1, 2, 1, 3, 8, 4, 2, 0, 1, 2, 4, 8];
+
+function BarChart({
+  x,
+  y,
+  w,
+  h,
+  title,
+  values,
+  max = 10,
+}: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  title?: string;
+  values: number[];
+  max?: number;
+}) {
+  const axisY = y + h;
+  const gap = 2.5;
+  const barW = (w - gap * (values.length - 1)) / values.length;
+  return (
+    <g>
+      {title && (
+        <Label x={x} y={y - 17} text={title} anchor="start" size={FONT.label} weight={700} />
+      )}
+      {[0, 5, 10].map((tick) => {
+        const ty = y + h - (tick / max) * h;
+        return (
+          <g key={tick}>
+            <line
+              x1={r2(x)}
+              y1={r2(ty)}
+              x2={r2(x + w)}
+              y2={r2(ty)}
+              stroke={COLOR.border}
+              strokeWidth={STROKE.divider}
+            />
+            {(tick === 0 || tick === 10) && (
+              <Label x={x - 9} y={ty} text={String(tick)} size={FONT.note} fill={COLOR.caption} />
+            )}
+          </g>
+        );
+      })}
+      <line
+        x1={r2(x)}
+        y1={r2(y)}
+        x2={r2(x)}
+        y2={r2(axisY)}
+        stroke={COLOR.muted}
+        strokeWidth={STROKE.frame}
+      />
+      <line
+        x1={r2(x)}
+        y1={r2(axisY)}
+        x2={r2(x + w)}
+        y2={r2(axisY)}
+        stroke={COLOR.muted}
+        strokeWidth={STROKE.frame}
+      />
+      {values.map((v, i) => {
+        const bh = (v / max) * h;
+        const bx = x + i * (barW + gap);
+        return (
+          <rect
+            key={i}
+            x={r2(bx)}
+            y={r2(axisY - bh)}
+            width={r2(barW)}
+            height={r2(bh)}
+            rx={1.5}
+            fill={COLOR.node}
+            stroke={COLOR.muted}
+            strokeWidth={STROKE.divider}
+          />
+        );
+      })}
+      {[0, 7, 14].map((tick) => {
+        const tx = x + tick * (barW + gap) + barW / 2;
+        return (
+          <Label
+            key={tick}
+            x={tx}
+            y={axisY + 16}
+            text={String(tick)}
+            size={FONT.note}
+            fill={COLOR.caption}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function BucketSpan({
+  x,
+  y,
+  w,
+  from,
+  to,
+  totalValues = 15,
+  label,
+}: {
+  x: number;
+  y: number;
+  w: number;
+  from: number;
+  to: number;
+  totalValues?: number;
+  label: string;
+}) {
+  const step = w / totalValues;
+  const x1 = x + from * step + 1;
+  const x2 = x + (to + 1) * step - 1;
+  const mid = (x1 + x2) / 2;
+  return (
+    <g>
+      <path
+        d={`M${r2(x1)},${r2(y)} L${r2(x2)},${r2(y)}`}
+        stroke={COLOR.muted}
+        strokeWidth={STROKE.divider}
+      />
+      <line
+        x1={r2(x1)}
+        y1={r2(y - 4)}
+        x2={r2(x1)}
+        y2={r2(y + 4)}
+        stroke={COLOR.muted}
+        strokeWidth={STROKE.divider}
+      />
+      <line
+        x1={r2(x2)}
+        y1={r2(y - 4)}
+        x2={r2(x2)}
+        y2={r2(y + 4)}
+        stroke={COLOR.muted}
+        strokeWidth={STROKE.divider}
+      />
+      <Label x={mid} y={y + 15} text={label} size={FONT.note} fill={COLOR.caption} />
+    </g>
+  );
+}
+
+export function UniformitySchema({
+  title,
+  caption,
+  className,
+}: {
+  title?: string;
+  caption?: string;
+  className?: string;
+}) {
+  return (
+    <DiagramFigure title={title} caption={caption} className={className}>
+      <DiagramSvg
+        w={620}
+        h={190}
+        label={caption ?? "Actual distribution compared with uniform approximation"}
+      >
+        <Label x={60} y={30} text="Actual distribution" anchor="start" size={FONT.label} weight={700} />
+        <BarChart x={60} y={64} w={210} h={84} values={HISTOGRAM_VALUES} />
+
+        <Label x={360} y={30} text="Uniform estimate" anchor="start" size={FONT.label} weight={700} />
+        <BarChart
+          x={360}
+          y={64}
+          w={210}
+          h={84}
+          values={Array.from({ length: 15 }, () => 3)}
+        />
+      </DiagramSvg>
+    </DiagramFigure>
+  );
+}
+
+export function HistogramBucketSchema({
+  title,
+  caption,
+  className,
+}: {
+  title?: string;
+  caption?: string;
+  className?: string;
+}) {
+  const widthBuckets = [
+    { from: 0, to: 2, label: "B1" },
+    { from: 3, to: 5, label: "B2" },
+    { from: 6, to: 8, label: "B3" },
+    { from: 9, to: 11, label: "B4" },
+    { from: 12, to: 14, label: "B5" },
+  ];
+  const depthBuckets = [
+    { from: 0, to: 3, label: "B1" },
+    { from: 4, to: 7, label: "B2" },
+    { from: 8, to: 9, label: "B3" },
+    { from: 10, to: 13, label: "B4" },
+    { from: 14, to: 14, label: "B5" },
+  ];
+  return (
+    <DiagramFigure title={title} caption={caption} className={className}>
+      <DiagramSvg w={660} h={224} label={caption ?? "Equi-width and equi-depth histograms"}>
+        <Label x={54} y={30} text="Equi-width" anchor="start" size={FONT.label} weight={700} />
+        <Label x={54} y={49} text="equal value ranges" anchor="start" size={FONT.note} fill={COLOR.caption} />
+        <BarChart x={54} y={78} w={240} h={76} values={HISTOGRAM_VALUES} />
+        {widthBuckets.map((b, i) => (
+          <BucketSpan key={i} x={54} y={186} w={240} from={b.from} to={b.to} label={b.label} />
+        ))}
+
+        <Label x={374} y={30} text="Equi-depth" anchor="start" size={FONT.label} weight={700} />
+        <Label x={374} y={49} text="similar tuple counts" anchor="start" size={FONT.note} fill={COLOR.caption} />
+        <BarChart x={374} y={78} w={240} h={76} values={HISTOGRAM_VALUES} />
+        {depthBuckets.map((b, i) => (
+          <BucketSpan key={i} x={374} y={186} w={240} from={b.from} to={b.to} label={b.label} />
+        ))}
+      </DiagramSvg>
+    </DiagramFigure>
+  );
+}
+
+function JoinMiniNode({
+  x,
+  y,
+  state,
+}: {
+  x: number;
+  y: number;
+  state?: BoxState;
+}) {
+  return (
+    <Box
+      x={x - 22}
+      y={y - 12}
+      w={44}
+      h={24}
+      label="join"
+      tint
+      state={state}
+      fontSize={FONT.note}
+      fontWeight={600}
+    />
+  );
+}
+
+function RelationMiniNode({
+  x,
+  y,
+  label,
+}: {
+  x: number;
+  y: number;
+  label: string;
+}) {
+  return <Box x={x - 16} y={y - 12} w={32} h={24} label={label} fontWeight={700} />;
+}
+
+function TreeEdge({ from, to }: { from: { x: number; y: number }; to: { x: number; y: number } }) {
+  return (
+    <line
+      x1={r2(from.x)}
+      y1={r2(from.y)}
+      x2={r2(to.x)}
+      y2={r2(to.y)}
+      stroke={COLOR.muted}
+      strokeWidth={STROKE.line}
+    />
+  );
+}
+
+function LeftDeepMiniTree({ x }: { x: number }) {
+  const j1 = { x: x + 62, y: 132 };
+  const j2 = { x: x + 104, y: 96 };
+  const j3 = { x: x + 146, y: 60 };
+  const a = { x: x + 34, y: 168 };
+  const b = { x: x + 90, y: 168 };
+  const c = { x: x + 136, y: 168 };
+  const d = { x: x + 178, y: 168 };
+  return (
+    <g>
+      <TreeEdge from={j3} to={j2} />
+      <TreeEdge from={j3} to={d} />
+      <TreeEdge from={j2} to={j1} />
+      <TreeEdge from={j2} to={c} />
+      <TreeEdge from={j1} to={a} />
+      <TreeEdge from={j1} to={b} />
+      <JoinMiniNode {...j3} state="highlight" />
+      <JoinMiniNode {...j2} />
+      <JoinMiniNode {...j1} />
+      <RelationMiniNode {...a} label="A" />
+      <RelationMiniNode {...b} label="B" />
+      <RelationMiniNode {...c} label="C" />
+      <RelationMiniNode {...d} label="D" />
+    </g>
+  );
+}
+
+function RightDeepMiniTree({ x }: { x: number }) {
+  const j1 = { x: x + 138, y: 132 };
+  const j2 = { x: x + 98, y: 96 };
+  const j3 = { x: x + 58, y: 60 };
+  const a = { x: x + 24, y: 168 };
+  const b = { x: x + 70, y: 168 };
+  const c = { x: x + 126, y: 168 };
+  const d = { x: x + 178, y: 168 };
+  return (
+    <g>
+      <TreeEdge from={j3} to={a} />
+      <TreeEdge from={j3} to={j2} />
+      <TreeEdge from={j2} to={b} />
+      <TreeEdge from={j2} to={j1} />
+      <TreeEdge from={j1} to={c} />
+      <TreeEdge from={j1} to={d} />
+      <JoinMiniNode {...j3} state="new" />
+      <JoinMiniNode {...j2} state="new" />
+      <JoinMiniNode {...j1} state="new" />
+      <RelationMiniNode {...a} label="A" />
+      <RelationMiniNode {...b} label="B" />
+      <RelationMiniNode {...c} label="C" />
+      <RelationMiniNode {...d} label="D" />
+    </g>
+  );
+}
+
+function BushyMiniTree({ x }: { x: number }) {
+  const j1 = { x: x + 62, y: 132 };
+  const j2 = { x: x + 146, y: 132 };
+  const j3 = { x: x + 104, y: 70 };
+  const a = { x: x + 34, y: 168 };
+  const b = { x: x + 90, y: 168 };
+  const c = { x: x + 118, y: 168 };
+  const d = { x: x + 174, y: 168 };
+  return (
+    <g>
+      <TreeEdge from={j3} to={j1} />
+      <TreeEdge from={j3} to={j2} />
+      <TreeEdge from={j1} to={a} />
+      <TreeEdge from={j1} to={b} />
+      <TreeEdge from={j2} to={c} />
+      <TreeEdge from={j2} to={d} />
+      <JoinMiniNode {...j3} state="new" />
+      <JoinMiniNode {...j1} state="new" />
+      <JoinMiniNode {...j2} state="new" />
+      <RelationMiniNode {...a} label="A" />
+      <RelationMiniNode {...b} label="B" />
+      <RelationMiniNode {...c} label="C" />
+      <RelationMiniNode {...d} label="D" />
+    </g>
+  );
+}
+
+export function LeftDeepPlanSchema({
+  title,
+  caption,
+  className,
+}: {
+  title?: string;
+  caption?: string;
+  className?: string;
+}) {
+  return (
+    <DiagramFigure
+      title={title}
+      caption={caption ?? "System R keeps left-deep join trees and prunes right-deep and bushy trees."}
+      className={className}
+    >
+      <DiagramSvg w={660} h={246} label={caption ?? "Left-deep join tree restriction"}>
+        <Frame x={14} y={18} w={202} h={208} title="Left-deep">
+          <LeftDeepMiniTree x={14} />
+          <Label x={115} y={210} text="kept" size={FONT.note} weight={700} />
+        </Frame>
+        <Frame x={229} y={18} w={202} h={208} title="Right-deep">
+          <RightDeepMiniTree x={229} />
+          <Label x={330} y={210} text="pruned" size={FONT.note} fill={COLOR.caption} />
+        </Frame>
+        <Frame x={444} y={18} w={202} h={208} title="Bushy">
+          <BushyMiniTree x={444} />
+          <Label x={545} y={210} text="pruned" size={FONT.note} fill={COLOR.caption} />
+        </Frame>
       </DiagramSvg>
     </DiagramFigure>
   );
