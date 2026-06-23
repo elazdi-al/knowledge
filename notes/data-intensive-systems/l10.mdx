@@ -1,0 +1,204 @@
+---
+title: "Data Intensive Systems: Lecture 10"
+description: "Transaction management through ACID, write-ahead logging, rollback, isolation, schedules, conflicts, and crash recovery."
+tags: ["Data intensive systems"]
+created: 2026-06-22
+updated: 2026-06-22
+---
+
+## Transaction Management
+
+Query execution chooses efficient physical operators. Transaction management adds the correctness layer that lets many operations run concurrently while the database can still recover after failures.
+
+**Transaction management.** The DBMS subsystem that enforces correct execution of transactions under concurrency and crashes.
+
+- **Concurrency control.** Chooses which interleavings of transactions are allowed.
+- **Recovery.** Restores the database after aborts and crashes.
+
+These components cut across the engine: query operators, access methods, the buffer manager, and the disk manager all need to cooperate with them. A join algorithm can be costed in I/Os, but a transaction also pays for log writes, lock waits, commit flushes, and recovery metadata.
+
+**Database object.** A named unit of database state that a transaction can read or write. For transaction reasoning, objects are abstract names such as $A$, $B$, $C$, or $X$; in an implementation they may correspond to tuples, records, pages, or index entries.
+
+**Transaction.** A sequence of database reads and writes treated as one unit of work, usually delimited by `BEGIN` and either `COMMIT` or `ABORT`.
+
+The DBMS observes only database operations:
+
+- $R_i(X)$ means transaction $T_i$ reads object $X$.
+- $W_i(X)$ means transaction $T_i$ writes object $X$.
+
+Application code may compute arbitrary values between these operations, but concurrency control and recovery reason about the reads and writes that touch database objects.
+
+**Commit.** The successful end of a transaction. After commit, the transaction's effects must be part of the durable database state.
+
+**Abort.** The unsuccessful end of a transaction. After abort, the transaction must appear as if it never executed.
+
+*A transaction is the unit at which the DBMS says "all of this happened" or "none of this happened".*
+
+**Example 1. Lost arithmetic on one account.**
+
+*Let $X=100$. $T_1$ subtracts $20$ and $T_2$ adds $10$. Every serial order ends at $90$. If both read $100$ before either writes, the final value can be $80$ or $110$, depending on which write lands last. The arithmetic is correct inside each transaction; the interleaving is not.*
+
+Serial execution avoids these bugs but wastes concurrency. Copying the whole database before each transaction would also make abort easy, but it is far too expensive. Transactions are the DBMS contract that gives the effect of safe serial execution without physically running everything one at a time.
+
+---
+
+## ACID Properties
+
+**Atomicity.** A transaction's actions all take effect, or none take effect.
+
+Atomicity matters when a transaction aborts or the system crashes halfway through. If a transfer debits account $A$ but aborts before crediting account $B$, the debit must be undone.
+
+**Consistency.** If the database starts in a valid state and a transaction preserves the application's invariants, then the database ends in a valid state.
+
+**Integrity constraint.** A condition declared in the database schema that every committed database state must satisfy.
+
+The DBMS checks declared integrity constraints automatically and aborts a transaction whose writes would violate them. Examples include `CHECK (balance >= 0)`, foreign keys, and `UNIQUE` constraints.
+
+**Application-level invariant.** A consistency rule the DBMS cannot enforce unless it is expressed as a database constraint or checked by transaction code.
+
+*If "the sum of all account balances equals total bank assets" is not declared in the schema, the DBMS does not know how to enforce it.*
+
+Consistency is only as strong as the rules the system can check. If no relevant constraints are declared and the application does not check the invariant, there is no enforcement.
+
+**Isolation.** Concurrent transactions must appear to execute as if each one ran alone in some serial order.
+
+Isolation is what lets programmers reason about one transaction without manually considering every possible interleaving with other transactions.
+
+**Durability.** Once a transaction commits, its effects survive crashes.
+
+Durability does not mean every data page is immediately written at commit. It means the DBMS has persisted enough information, usually in the log, to redo committed effects during recovery.
+
+| Property | Main mechanism | Core question |
+|---|---|---|
+| Atomicity | Undo information in the log, or shadow paging | Can the DBMS erase partial effects? |
+| Consistency | Integrity constraints and correct transaction logic | Does each transaction preserve valid states? |
+| Isolation | Concurrency control | Does the interleaving look serial? |
+| Durability | Redo information and forced commit logging | Can committed effects be reconstructed after a crash? |
+
+The mechanisms overlap. The same log that helps undo an aborted transaction also helps redo a committed one after a crash.
+
+---
+
+## Atomicity and Write-Ahead Logging
+
+**Rollback.** The process of undoing all writes of an aborted transaction.
+
+Rollback cannot rely on discarding memory state. A dirty page may already have been written to disk before the transaction aborts or before the crash happens. The DBMS therefore needs a persistent record of how to undo each change.
+
+**Log.** An append-only sequence of records describing transaction actions, especially updates and commits.
+
+The log is written sequentially, so appending to it is much cheaper than writing many random data pages. Each update record stores enough information to undo and redo the change.
+
+**Log record.** A persistent description of one transaction action.
+
+- **Transaction id.** Identifies the transaction that produced the record.
+- **Previous pointer.** Points to the previous log record of the same transaction, so rollback can walk that transaction backward.
+- **Page location.** Names the affected page, offset, and length.
+- **Before-image.** The old bytes, used for undo.
+- **After-image.** The new bytes, used for redo.
+
+<TransactionLogSchema />
+
+**Write-ahead logging (WAL).** A logging rule that requires the log record for a change to reach stable storage before the changed database page reaches stable storage.
+
+WAL has two practical rules:
+
+1. **Log before page.** Before flushing a dirty page, flush every log record needed to undo or redo the changes on that page.
+2. **Log before commit success.** Before telling the user that `COMMIT` succeeded, flush all of the transaction's log records, including the commit record.
+
+<WalRulesSchema />
+
+The first rule protects atomicity. If a dirty page reaches disk and the system crashes, the log must already contain the before-image needed to undo an uncommitted change.
+
+The second rule protects durability. If the DBMS reports commit success and crashes immediately after, the log must already contain the after-images needed to redo the transaction.
+
+**Logging cost.** If a transaction modifies $m$ pages, it creates at least $m$ update log records and one commit record. Commit forces all not-yet-persistent log records to disk.
+
+When those records fit in one log page, the commit cost is one forced sequential log write, plus the latency of forcing the storage device. If the records span several log pages, the I/O count is the number of dirty log pages. The data pages themselves do not need to be forced at commit under WAL.
+
+**Group commit.** A commit optimization that batches many transactions' commit records into one forced log write.
+
+Group commit improves throughput by amortizing one flush across many commits. The tradeoff is commit latency: a transaction may wait briefly so its commit can share a batch.
+
+**Shadow paging.** A copy-on-write recovery method where transactions modify private page copies and make them visible only at commit.
+
+Shadow paging makes abort and recovery simple because old pages remain untouched until commit. Its weakness is physical fragmentation and page-copy overhead, so most general-purpose DBMSs use logging instead.
+
+---
+
+## Isolation and Schedules
+
+**Concurrency control protocol.** The rule system a DBMS uses to decide which operations from different transactions may run at the same time.
+
+Two broad strategies are common:
+
+- **Pessimistic concurrency control.** Prevent conflicts before they happen, usually by locking.
+- **Optimistic concurrency control.** Let transactions run speculatively and check for conflicts before commit.
+
+Pessimistic methods are useful when conflicts are likely. Optimistic methods are useful when conflicts are rare enough that restarting a transaction is cheaper than making every transaction wait in advance.
+
+**Schedule.** A time order of the database operations from one or more transactions.
+
+**Serial schedule.** A schedule where each transaction runs to completion before the next one starts.
+
+**Interleaved schedule.** A schedule where operations from different transactions are mixed in time.
+
+Interleaving is the point of concurrency: while one transaction waits for disk, network, or locks, another transaction can use the CPU or issue other I/O. The danger is that some interleavings combine effects in a way no serial order could produce.
+
+**Serializable schedule.** An interleaved schedule whose effect is equivalent to some serial schedule, including the values read by transactions and the final database state.
+
+*Serializable does not mean "not interleaved". It means "interleaved, but indistinguishable from one-at-a-time execution".*
+
+**Example 2. Transfer and interest.**
+
+*Accounts $A$ and $B$ both start at $1000$. $T_1$ transfers $100$ from $A$ to $B$. $T_2$ applies $6\%$ interest to both accounts. If $T_1$ runs before $T_2$, the final state is $A=954, B=1166$. If $T_2$ runs before $T_1$, the final state is $A=960, B=1160$. Both serial outcomes preserve $A+B=2120$.*
+
+<ScheduleEquivalenceSchema />
+
+The bad schedule gives $A=954, B=1160$. It treats $A$ as if $T_1$ happened before $T_2$, but treats $B$ as if $T_2$ happened before $T_1$. No single serial order explains both objects, so the schedule is not correct.
+
+**Conflicting operations.** Two operations conflict when they come from different transactions, access the same object, and at least one of them is a write.
+
+Read-read pairs do not conflict because they do not change the object. The three basic object-level conflict shapes are read-write, write-read, and write-write.
+
+| Conflict shape | Anomaly | What goes wrong |
+|---|---|---|
+| read-write | **Unrepeatable read** | A transaction reads the same object twice and sees different committed values. |
+| write-read | **Dirty read** | A transaction reads another transaction's uncommitted write; if the writer aborts, the read value never truly existed. |
+| write-write | **Lost update** | One transaction overwrites another transaction's update. |
+| scan-write | **Phantom read** | A repeated predicate scan sees a new, removed, or changed tuple that matches the predicate. |
+| read-write over multiple objects | **Write skew** | Transactions read a shared invariant and write disjoint objects, jointly violating the invariant. |
+
+**Example 3. Dirty read.**
+
+*$T_1$ writes $A=12$ but later aborts. If $T_2$ reads that uncommitted value and commits a decision based on it, $T_2$ has depended on a state the database must later pretend never happened.*
+
+**Lock-based concurrency control.** A pessimistic protocol where readers acquire shared locks and writers acquire exclusive locks before accessing objects.
+
+Locking has a real cost. Uncontended acquire and release can be tiny, but contention turns into waiting for another transaction's I/O or computation. Lock granularity is the main tradeoff: coarse locks reduce lock-management overhead but reduce concurrency; fine locks increase concurrency but require more lock operations.
+
+---
+
+## Durability and Recovery
+
+**Recovery.** The procedure that runs after a crash to restore a database state containing all committed effects and no effects from transactions that were still active at the crash.
+
+Recovery uses the log because the data pages on disk may be stale, partially updated, or ahead of some uncommitted transaction's final state. The log is the ordered evidence of what the DBMS promised and what it may need to reverse.
+
+<RecoveryPhasesSchema />
+
+The common recovery structure is:
+
+1. **Analysis.** Scan the log forward from the last checkpoint to determine which transactions committed and which were still in flight at the crash.
+2. **Redo.** Replay updates from committed transactions using after-images, because some committed data-page writes may not have reached disk before the crash.
+3. **Undo.** Walk the log backward through in-flight transactions and restore before-images, because their partial effects must disappear.
+
+**Idempotent recovery step.** A recovery action that can be repeated safely.
+
+Recovery itself can crash. The protocol must therefore be designed so rerunning analysis, redo, or undo does not corrupt the database or apply an update twice in a logically visible way.
+
+**Checkpoint.** A log position that bounds recovery work by recording a recent consistent point, usually after flushing selected dirty pages and writing checkpoint metadata.
+
+Without checkpoints, recovery time grows with the entire log. With checkpoints, recovery starts from a recent log position, but the system pays extra steady-state I/O to create those checkpoints. This is the same engineering tradeoff seen in buffer management: spend work during normal execution to bound work after failure.
+
+Atomicity and durability are two directions through the same evidence. Undo uses before-images to erase uncommitted effects; redo uses after-images to rebuild committed effects.
