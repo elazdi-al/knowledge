@@ -4,9 +4,24 @@ import { BPlusTree } from "@/components/BPlusTree";
 import { BufferQueue } from "@/components/BufferQueue";
 import { ClockPolicy } from "@/components/ClockPolicy";
 import { CodePlayground } from "@/components/CodePlayground";
+import {
+  ConflictSerializabilitySchema,
+  DeadlockPreventionSchema,
+  LockGranularitySchema,
+  LockPhaseSchema,
+  MultiGranularityLockingSchema,
+  WaitForGraphSchema,
+} from "@/components/ConcurrencyControlSchemas";
 import { DemoFrame } from "@/components/DemoFrame";
 import { ERDiagram } from "@/components/ERDiagram";
 import { ERInstanceMapping } from "@/components/ERInstanceMapping";
+import {
+  CausalConsistencySchema,
+  DynamoSiblingsSchema,
+  KeyRangeLockingSchema,
+  PhantomReadSchema,
+  QuorumOverlapSchema,
+} from "@/components/EventualConsistencySchemas";
 import { Figure } from "@/components/Figure";
 import { HashDiagram } from "@/components/HashDiagram";
 import { IdeaBreak } from "@/components/IdeaBreak";
@@ -27,6 +42,11 @@ import {
 } from "@/components/QueryExecutionSchemas";
 import { R2Image } from "@/components/R2Image";
 import { RAIDDiagram } from "@/components/RAIDDiagram";
+import {
+  DfaToPathReductionSchema,
+  ReductionPipelineSchema,
+  RegTmReductionSchema,
+} from "@/components/ReductionSchemas";
 import { SortPasses } from "@/components/SortPasses";
 import { Pane, Split } from "@/components/Split";
 import { StorageHierarchy } from "@/components/StorageHierarchy";
@@ -49,7 +69,12 @@ export function useMDXComponents(
     BufferQueue,
     ClockPolicy,
     CodePlayground,
+    CausalConsistencySchema,
+    ConflictSerializabilitySchema,
+    DeadlockPreventionSchema,
     DemoFrame,
+    DfaToPathReductionSchema,
+    DynamoSiblingsSchema,
     ERDiagram,
     ERInstanceMapping,
     Figure,
@@ -57,10 +82,15 @@ export function useMDXComponents(
     hr: IdeaBreak,
     IdeaBreak,
     IndexMap,
+    KeyRangeLockingSchema,
     LanguageClasses,
+    LockGranularitySchema,
+    LockPhaseSchema,
     Mermaid,
+    MultiGranularityLockingSchema,
     PageLayout,
     Pane,
+    PhantomReadSchema,
     ExecutionModelSchema,
     GraceProbeSchema,
     HashProjectionSchema,
@@ -69,10 +99,13 @@ export function useMDXComponents(
     OptimizerArchitectureSchema,
     QueryTree,
     QueryProcessingFlow,
+    QuorumOverlapSchema,
     UniformitySchema,
     R2Image,
     RAIDDiagram,
+    ReductionPipelineSchema,
     RecoveryPhasesSchema,
+    RegTmReductionSchema,
     ScheduleEquivalenceSchema,
     SortPasses,
     Split,
@@ -80,6 +113,7 @@ export function useMDXComponents(
     TransactionLogSchema,
     TuringTape,
     TuringTrace,
+    WaitForGraphSchema,
     WalRulesSchema,
   };
 }

@@ -1,0 +1,240 @@
+---
+title: "Data Intensive Systems: Lecture 11"
+description: "Concurrency control through conflict serializability, precedence graphs, two-phase locking, strict 2PL, deadlocks, prevention schemes, and multi-granularity locks."
+tags: ["Data intensive systems"]
+created: 2026-06-23
+updated: 2026-06-23
+---
+
+## Conflict Serializability
+
+The DBMS cannot see the meaning of application code. It sees only database actions such as $R_i(X)$, $W_i(X)$, `COMMIT`, and `ABORT`. Concurrency control therefore needs a correctness test based only on the order of reads and writes.
+
+**Conflict.** A pair of operations conflicts when the operations come from different transactions, access the same database object, and at least one operation is a write.
+
+| Pair | Conflict? | Reason |
+|---|---:|---|
+| $R_i(X), R_j(X)$ | no | Reads do not change the object. |
+| $R_i(X), W_j(X)$ | yes | The write can change what the read should see. |
+| $W_i(X), R_j(X)$ | yes | The read may observe the write. |
+| $W_i(X), W_j(X)$ | yes | The final value depends on which write comes last. |
+| $R_i(X), W_j(Y)$ with $X\neq Y$ | no | Different objects are independent for conflict analysis. |
+
+**Conflict equivalence.** Two schedules are conflict equivalent when they contain the same actions of the same transactions and order every conflicting pair in the same way.
+
+**Conflict-serializable schedule.** A schedule is conflict serializable when it is conflict equivalent to some serial schedule.
+
+Equivalently, the schedule can be transformed into a serial schedule by repeatedly swapping adjacent operations that do not conflict.
+
+*Non-conflicting swaps are safe because they cannot change any value read or any final value written.*
+
+**Precedence graph.** A directed graph with one node per transaction and an edge $T_i\to T_j$ when an operation of $T_i$ conflicts with a later operation of $T_j$.
+
+An edge means "$T_i$ must appear before $T_j$ in any serial order that preserves these conflicts."
+
+**Theorem.** A schedule is conflict serializable if and only if its precedence graph is acyclic.
+
+If the graph is acyclic, any topological order of the graph is an equivalent serial order. If the graph has a cycle, the schedule requires contradictory serial orders.
+
+**Recipe: testing conflict serializability.**
+
+1. Create one graph node for each transaction.
+2. Scan the schedule for conflicting operations on the same object.
+3. For every conflict where $T_i$'s operation appears before $T_j$'s operation, add $T_i\to T_j$.
+4. Check the graph for cycles.
+5. If there is no cycle, read a serial order from any topological ordering.
+
+<ConflictSerializabilitySchema />
+
+**Example 1. A back-edge breaks serializability.**
+
+*Suppose $T_1$ writes $A$ before $T_2$ reads or writes $A$, so the graph contains $T_1\to T_2$. If later $T_2$ writes $B$ before $T_1$ reads or writes $B$, the graph also contains $T_2\to T_1$. The schedule treats $A$ as if $T_1$ came first, but treats $B$ as if $T_2$ came first. No single serial order explains both objects.*
+
+**Conflict serializability versus other equivalences.** Conflict serializability is a sufficient, efficiently checkable notion of correctness, but it is not the broadest possible one.
+
+| Equivalence notion | Preserves | Practical status |
+|---|---|---|
+| **Result equivalence** | Only the final database state | Usually impractical because it depends on program semantics. |
+| **View equivalence** | Which writes each read observes, plus final writes | More general than conflict equivalence, but view serializability is NP-complete to test. |
+| **Conflict equivalence** | The order of all read-write, write-read, and write-write conflicts | Standard choice because it is checkable by graph acyclicity. |
+
+Some serializable schedules are not conflict serializable. The DBMS accepts this loss because conflict serializability gives a simple online target for concurrency control.
+
+---
+
+## Locking and Two-Phase Locking
+
+A precedence graph can judge a completed schedule, but the DBMS must decide during execution whether the next operation may run. Locks make that decision local: before touching an object, a transaction must hold a compatible lock on it.
+
+**Lock.** A logical permission held by a transaction on a database object.
+
+**Shared lock (S-lock).** A lock mode that permits reading. Multiple transactions may hold shared locks on the same object at the same time.
+
+**Exclusive lock (X-lock).** A lock mode that permits writing. An exclusive lock is incompatible with every other lock on the same object.
+
+| Held \ Requested | S | X |
+|---|---:|---:|
+| S | yes | no |
+| X | no | no |
+
+**Lock manager.** The DBMS component that records which transactions hold locks, checks compatibility, grants requests, and queues blocked transactions.
+
+Lock execution has three steps:
+
+1. **Request.** The transaction asks for a lock or lock upgrade.
+2. **Decision.** The lock manager grants the request if it is compatible with current holders; otherwise the transaction waits.
+3. **Release.** The transaction releases locks according to the concurrency-control protocol.
+
+**Two-phase locking (2PL).** A locking protocol where each transaction obtains the needed S-lock before reading, obtains the needed X-lock before writing, and never requests a new lock after releasing any lock.
+
+- **Growing phase.** The transaction may acquire or upgrade locks.
+- **Shrinking phase.** The transaction may release or downgrade locks, but may not acquire new locks.
+
+<LockPhaseSchema />
+
+**Lock point.** The instant when a 2PL transaction obtains its final lock.
+
+2PL guarantees conflict serializability because transactions can be serialized by lock point order. If $T_i$ has a conflict edge to $T_j$, then $T_i$ must have acquired and released the relevant lock before $T_j$ could obtain its conflicting lock. This places $T_i$'s lock point before $T_j$'s lock point, so a cycle would require an impossible ordering of lock points.
+
+**Strict two-phase locking (strict 2PL).** A 2PL variant where a transaction releases all locks only after it commits or after the DBMS has decided to abort and rollback is complete.
+
+Strict 2PL is stronger than basic conflict serializability. It also prevents dirty reads and cascading aborts because no transaction can read a value written by another transaction before the writer has finished.
+
+The release point connects to recovery: after a commit, locks can be released only when the commit decision is durable, usually after the commit log record is on stable storage. After an abort, locks can be released after rollback removes the transaction's partial effects.
+
+**Cascading abort.** A situation where aborting one transaction forces other transactions to abort because they read or used its uncommitted writes.
+
+Basic 2PL can allow cascading aborts if a transaction releases an X-lock before commit and another transaction reads the uncommitted value. Strict 2PL avoids this by holding the lock until the writer commits or aborts.
+
+**Example 2. Transfer and sum.**
+
+*Let $A=1000$ and $B=1000$. $T_1$ transfers $100$ from $A$ to $B$, and $T_2$ returns $A+B$. Without 2PL, $T_1$ can write $A=900$ and release $A$ before updating $B$; then $T_2$ can read $A=900$ and $B=1000$, returning $1900$. Under 2PL, $T_1$ must acquire the lock on $B$ before releasing $A$, so $T_2$ cannot observe a mixed before/after state. Under strict 2PL, $T_2$ waits until $T_1$ commits or aborts.*
+
+2PL increases correctness by reducing freedom. Some conflict-serializable schedules are rejected because their lock acquisitions would require a transaction to reacquire locks after it already started shrinking.
+
+---
+
+## Deadlocks
+
+Locks can block a transaction. Blocking is safe when it is temporary, but it becomes a deadlock when every transaction in a group waits for another member of the same group.
+
+**Deadlock.** A cycle of transactions waiting for locks held by each other.
+
+**Wait-for graph.** A directed graph with one node per active transaction and an edge $T_i\to T_j$ when $T_i$ is waiting for a lock currently held by $T_j$.
+
+<WaitForGraphSchema />
+
+A cycle in the wait-for graph means no transaction in the cycle can make progress unless the DBMS intervenes.
+
+**Deadlock detection.** A strategy where the DBMS allows waits, periodically searches the wait-for graph for cycles, and breaks a detected cycle by aborting or rolling back one transaction.
+
+**Recipe: detecting and resolving a deadlock.**
+
+1. Add a wait-for edge whenever a lock request is blocked.
+2. Remove wait-for edges when the blocking lock is released or the waiting request is cancelled.
+3. Periodically search the graph for cycles.
+4. If a cycle exists, select a victim transaction.
+5. Roll back enough of the victim to release locks and break the cycle.
+
+**Timeout.** A simple deadlock-handling policy where the DBMS aborts a transaction if it waits longer than a threshold.
+
+Timeouts are cheap to implement, but they are imprecise:
+
+- A slow transaction can look like a deadlock, causing unnecessary aborts.
+- A short timeout wastes work; a long timeout lets real deadlocks block resources.
+- A timeout cannot distinguish a slow query from a cycle.
+- Retried transactions can conflict again and be aborted repeatedly.
+
+**Victim selection.** The policy used to choose which transaction to roll back after a deadlock is detected.
+
+Useful criteria include transaction age, amount of work already done, number of locks held, expected rollback cost, number of dependent transactions that would also roll back, and how many times the transaction has already restarted.
+
+**Rollback length.** The amount of a victim transaction that the DBMS undoes.
+
+A complete rollback aborts the whole transaction. A partial rollback uses savepoints to undo only enough work to break the deadlock, then continues by re-executing the undone part. Partial rollback can save work, but it requires more recovery machinery.
+
+**Deadlock prevention.** A strategy where the DBMS prevents cycles from forming by aborting one transaction immediately when a lock conflict would create an unsafe wait.
+
+Prevention commonly assigns each transaction a timestamp at start time. Older transactions have higher priority. When a transaction restarts, it keeps its original timestamp so repeated aborts do not cause starvation.
+
+**Wait-die.** A timestamp-based prevention scheme where an older requester waits for a younger holder, but a younger requester aborts when the holder is older.
+
+**Wound-wait.** A timestamp-based prevention scheme where an older requester aborts the younger holder, but a younger requester waits for an older holder.
+
+<DeadlockPreventionSchema />
+
+The request outcomes are easier to read as rules:
+
+| Scheme | Older requester, younger holder | Younger requester, older holder |
+|---|---|---|
+| **Wait-die** | The older requester waits. | The younger requester aborts itself. |
+| **Wound-wait** | The older requester aborts the younger holder. | The younger requester waits. |
+
+Both schemes avoid deadlocks because waiting edges all point in one timestamp direction. A directed cycle would require timestamps to be both increasing and decreasing around the same loop.
+
+---
+
+## Lock Granularity and Intention Locks
+
+Locking every tuple separately can expose a lot of concurrency, but the lock manager must process and store many lock requests. Locking an entire table uses fewer locks, but blocks more transactions than necessary.
+
+**Lock granularity.** The size of the database object protected by one lock, such as the whole database, one table, one page, one tuple, or one attribute.
+
+<LockGranularitySchema />
+
+The tradeoff is:
+
+- **Coarser locks:** lower lock-manager overhead, but lower parallelism because each lock covers more data.
+- **Finer locks:** higher lock-manager overhead, but higher parallelism because independent transactions can lock nearby data independently.
+
+**Latch.** A short-lived physical mutual-exclusion primitive used inside the DBMS to protect in-memory data structures.
+
+Locks are logical, transaction-level objects and can be held for a long time. Latches are internal, brief, and usually much cheaper. A transaction may hold many latches while acquiring or using one logical lock.
+
+**Lock escalation.** An optimization where the DBMS replaces many fine-grained locks with a coarser lock, such as replacing many tuple locks with one table lock.
+
+Escalation lowers lock-manager overhead, but it can reduce parallelism because the coarser lock conflicts with more transactions.
+
+**Multi-granularity locking.** A locking protocol for a hierarchy of objects where transactions can lock coarse objects, fine objects, or both while preserving compatibility checks.
+
+**Intention lock.** A lock on a higher-level object announcing that the transaction is doing explicit locking at lower levels of the hierarchy.
+
+*An intention lock is a signpost: "do not decide at this table until you know what I locked below it."*
+
+The main intention modes are:
+
+| Mode | Meaning |
+|---|---|
+| **IS** | Intention shared: the transaction intends to acquire S-locks lower in the tree. |
+| **IX** | Intention exclusive: the transaction intends to acquire X-locks lower in the tree. |
+| **SIX** | Shared and intention exclusive: the transaction holds S on this node and intends to acquire X-locks lower in the tree. |
+
+The standard compatibility matrix is:
+
+| Holds \ Wants | IS | IX | S | SIX | X |
+|---|---:|---:|---:|---:|---:|
+| IS | yes | yes | yes | yes | no |
+| IX | yes | yes | no | no | no |
+| S | yes | no | yes | no | no |
+| SIX | yes | no | no | no | no |
+| X | no | no | no | no | no |
+
+**Multi-granularity locking protocol.**
+
+1. Acquire locks from the root toward the target object.
+2. To acquire S or IS on a node, first hold at least IS on its parent.
+3. To acquire X, IX, or SIX on a node, first hold at least IX on its parent.
+4. Apply 2PL to all locks.
+5. Release locks bottom-up after descendant locks are no longer needed.
+
+<MultiGranularityLockingSchema />
+
+**Example 3. Reading one tuple and updating another.**
+
+*To read tuple $A$ in table $R$, $T_1$ takes IS($R$) and then S($A$). To update tuple $B$ in the same table, $T_2$ takes IX($R$) and then X($B$). IS and IX are compatible at the table level, and S($A$) and X($B$) are on different tuples, so the transactions can run together.*
+
+**Example 4. Scan all tuples and update one.**
+
+*If $T_1$ scans all tuples of $R$ and updates one tuple, it can take SIX($R$) and X on the updated tuple. A transaction $T_2$ that reads one different tuple can take IS($R$) and S on that tuple, because IS is compatible with SIX. A transaction $T_3$ that scans all tuples wants S($R$), which conflicts with SIX($R$), so it waits.*
+
+Applications usually do not acquire ordinary transaction locks manually. The DBMS chooses locks while executing queries under the selected isolation level. Explicit locks and hints are still useful for operations such as major schema changes, large batch updates, update-after-read patterns, or skipping rows that are already locked.

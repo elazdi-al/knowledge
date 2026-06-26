@@ -1,0 +1,230 @@
+---
+title: "Data Intensive Systems: Lecture 12"
+description: "Dynamic databases and phantom reads, predicate and index locking, SQL isolation levels, replication tradeoffs, CAP and PACELC, quorum tuning, Dynamo-style eventual consistency, and causal consistency."
+tags: ["Data intensive systems"]
+created: 2026-06-24
+updated: 2026-06-24
+---
+
+## Dynamic Databases and Phantoms
+
+Strict 2PL protects database objects that already exist. Real databases also change the set of objects: transactions insert tuples, delete tuples, and update attributes that determine whether a tuple matches a predicate.
+
+**Dynamic database.** A database execution model where the set of tuples satisfying a query predicate can change while transactions are running.
+
+**Predicate.** A Boolean condition used to select tuples, such as `age = 30`, `rating = 1`, or `status = 'lit'`.
+
+**Phantom read.** An isolation anomaly where a transaction repeats a predicate query and sees a tuple appear, disappear, or change membership because another transaction changed the set of matching tuples.
+
+*A phantom is not a changed value inside a tuple already locked by the reader. It is a changed membership of the predicate result.*
+
+<PhantomReadSchema />
+
+**Example 1. Counting matching people.**
+
+*Transaction $T_1$ runs `SELECT COUNT(*) FROM people WHERE status = 'lit'` and gets $99$. Transaction $T_2$ inserts a new committed row with `status = 'lit'`. If $T_1$ repeats the same query and gets $100$, the new row is a phantom for $T_1$. Tuple locks on the original $99$ rows did not protect the missing $100$th row because it did not exist yet.*
+
+Conflict-serializability analysis assumes a fixed set of objects. With inserts and deletes, locking each existing tuple can still miss the logical object that matters: the set of tuples described by a predicate.
+
+---
+
+## Protecting Predicate Results
+
+**Re-execute-scan validation.** A phantom-handling method where the DBMS records a transaction's predicate scans, re-runs them at commit time, and aborts the transaction if a scan result changed.
+
+**Recipe: validating scans at commit.**
+
+1. Record each predicate or range scan performed by the transaction.
+2. Let the transaction execute without fully blocking concurrent inserts.
+3. At commit time, re-execute the recorded scan predicates.
+4. If a result contains a new, removed, or changed matching tuple, abort and retry.
+5. If every recorded scan is stable, commit.
+
+This is optimistic: it allows concurrency first and pays with aborts when a phantom is detected.
+
+**Predicate locking.** A locking method where the lock target is the predicate itself, not the individual tuples currently satisfying it.
+
+- **Shared predicate lock.** Taken by a predicate read. Other compatible reads of the same predicate may proceed.
+- **Exclusive predicate lock.** Taken by an insert, delete, or update whose affected tuple could overlap a protected predicate.
+
+Predicate locking is conceptually clean: `status = 'lit'` protects the logical set of all rows with that status, including rows that do not exist yet. Its practical weakness is overlap testing. Deciding whether `age > 20` overlaps `status = 'lit'` can be expensive and sometimes impossible to do precisely from the predicates alone.
+
+**Index locking.** A practical phantom-prevention method that uses an index order to lock key values and the gaps between keys.
+
+Index locking replaces arbitrary predicate overlap with ordered key ranges. If the query scans `age = 30` or `12 < age <= 14`, a B$^+$-tree on `age` tells the DBMS exactly where a new matching key would be inserted.
+
+<KeyRangeLockingSchema />
+
+**Key-value lock.** A lock on one index key value.
+
+Key-value locks protect existing keys, but they do not protect the gaps where new keys can be inserted. If no tuple currently has `age = 30`, the DBMS may need a virtual key to represent the missing value.
+
+**Gap lock.** A lock on an interval between adjacent index keys.
+
+A gap lock prevents another transaction from inserting a key into that interval. It protects the absence of matching tuples, not only their presence.
+
+**Key-range lock.** A lock that combines an existing key with one adjacent gap.
+
+Common variants are:
+
+| Variant | Protected range | Insert blocked |
+|---|---|---|
+| **Next-key locking** | current key and the gap to the next key, for example $[14,16)$ | values such as $15$ |
+| **Prev-key locking** | gap from the previous key and the current key, for example $(12,14]$ | values such as $13$ |
+
+**Hierarchical key-range locking.** A key-range locking optimization where a transaction can take a coarse intention-style lock over a wide index range and finer locks inside it.
+
+The tradeoff is the same as multi-granularity locking: coarse range locks reduce lock-manager calls, but they can block more transactions than necessary.
+
+**Locking without a useful index.** If no index supports the predicate, the DBMS may have to lock every page, or lock the whole table, to prevent matching inserts and deletes.
+
+*Good indexes are not only access paths. They also give the lock manager a precise object to protect.*
+
+---
+
+## Isolation Levels
+
+Serializable execution is the cleanest programming model, but it can reduce throughput by making long scans block many writers. SQL isolation levels expose a controlled tradeoff: weaker levels allow more anomalies so transactions can run with less waiting.
+
+**Isolation level.** A DBMS setting that determines which effects of concurrent transactions a transaction may observe.
+
+The usual phenomena are:
+
+- **Dirty read.** Reading a value written by a transaction that has not committed.
+- **Unrepeatable read.** Reading the same existing row twice and seeing different committed values.
+- **Phantom read.** Re-running a predicate query and seeing a different set of matching rows.
+
+In the lock-based picture used here:
+
+| Isolation level | Main protection | Anomalies still allowed |
+|---|---|---|
+| **Serializable** | Strict 2PL plus predicate or index-range protection | none of the three phenomena |
+| **Repeatable read** | Holds read locks on existing rows until transaction end | phantoms |
+| **Read committed** | Reads only committed values; read locks may be released after each statement | unrepeatable reads and phantoms |
+| **Read uncommitted** | Allows reads without shared locks | dirty reads, unrepeatable reads, and phantoms |
+
+Writers still normally acquire exclusive locks, even at weaker isolation levels, because lost updates and physically corrupted state are not acceptable performance optimizations.
+
+SQL names are phenomena-based, and DBMS implementations are not identical. Some systems implement stronger behavior than the standard name suggests, especially when using MVCC or when running in replicated environments.
+
+---
+
+## Replication and Consistency Tradeoffs
+
+A single DBMS can centralize locks, logs, and transaction decisions. A replicated system stores copies of data on multiple machines, often across data centers. Replication improves fault tolerance and read scalability, but each extra copy creates a question: when is a read or write allowed to return?
+
+**Replica.** One copy of a data item stored on one server.
+
+**Replication factor ($N$).** The number of replicas maintained for a data item.
+
+**Strong consistency.** A replicated system behavior where reads observe the latest completed write, or return an error instead of returning stale data.
+
+Strong consistency often requires communication before responding. Across machines, that communication has latency; across data centers, it can be hundreds of milliseconds.
+
+**CAP theorem.** In the presence of a network partition, a distributed data store cannot simultaneously guarantee consistency, availability, and partition tolerance.
+
+| Property | Meaning |
+|---|---|
+| **Consistency (C)** | A read returns the newest value, or the system refuses to answer. |
+| **Availability (A)** | Every request to a non-failing node receives a response. |
+| **Partition tolerance (P)** | The system continues operating despite lost or delayed messages between nodes. |
+
+Because partitions are unavoidable in real distributed systems, the live choice during a partition is usually between consistency and availability.
+
+**PACELC.** A refinement of CAP: if there is a partition, choose between availability and consistency; else, when there is no partition, choose between latency and consistency.
+
+PACELC makes the everyday cost visible. Even without failures, a strongly consistent operation may wait for replica coordination, while a low-latency operation may answer from a nearby or local replica.
+
+**Consensus.** A protocol by which multiple nodes agree on one decision despite failures.
+
+If every operation needs consensus before returning, the operation's response time includes at least one network round trip in the normal case. Batching and pipelining can improve throughput, but they do not remove the latency cost from the consistency choice.
+
+---
+
+## Eventual Consistency and Quorums
+
+**Eventual consistency.** A replicated-system guarantee that, if no new updates occur, all replicas eventually converge to the same value or state.
+
+Eventual consistency allows stale reads before convergence. It is useful when availability and latency matter more than immediate freshness, and when the application can tolerate or repair temporary disagreement.
+
+**Client view.** The behavior observed by clients reading and writing through replicas.
+
+If process $A$ writes $x=7$ to one replica, process $B$ may still read $x=5$ from another replica that has not received the update. After propagation finishes and no new writes arrive, every replica returns $x=7$.
+
+**Server view.** The rule the system uses to decide when enough replicas have participated for an operation to return.
+
+The basic quorum parameters are:
+
+- **$N$.** Number of replicas.
+- **$R$.** Number of replicas that must participate in a read.
+- **$W$.** Number of replicas that must acknowledge a write.
+
+<QuorumOverlapSchema />
+
+**Quorum overlap rule.** If $R + W > N$, every read quorum intersects every successful write quorum in at least one replica.
+
+This gives a freshness guarantee for completed, non-concurrent writes when the system can identify the newest version. If $R=1$ and $W=1$, reads and writes are fast, but a read can easily contact a stale replica. If $R=N$ or $W=N$, one side waits for every replica and becomes slow or unavailable when a replica cannot respond.
+
+**Recipe: choosing $R$ and $W$.**
+
+1. Choose $N$ from the desired fault tolerance and storage cost.
+2. If reads must be fast, keep $R$ small and pay with weaker freshness unless $W$ is large.
+3. If writes must be fast, keep $W$ small and pay with weaker read freshness unless $R$ is large.
+4. Use $R+W>N$ when reads must overlap completed writes.
+5. Remember that concurrent writes still need versioning and reconciliation.
+
+---
+
+## Dynamo-Style Conflict Resolution
+
+**Dynamo.** Amazon's highly available key-value store design, built around simple `get()` and `put()` operations, replication, and eventual consistency.
+
+Dynamo-style systems accept that concurrent writes may reach different replicas. Instead of forcing a single global order immediately, they preserve multiple versions.
+
+**Sibling.** One of several concurrent versions of the same logical object that the storage system cannot safely order as newer than the others.
+
+**Reconciliation.** The application-level merge step that turns conflicting siblings into one new version.
+
+<DynamoSiblingsSchema />
+
+**Recipe: Dynamo-style conflict handling.**
+
+1. Store each accepted update as a separate version with version metadata.
+2. Propagate versions between replicas in the background.
+3. If a read quorum observes conflicting versions, return all siblings to the client.
+4. Let application logic merge the siblings into a new value.
+5. Write the reconciled value back so replicas can converge.
+
+**Example 2. Shopping cart merge.**
+
+*One stale replica stores `{shoes, sunglasses}`, another stores `{shoes, book}`, and another stores `{shoes, towel}`. A shopping cart can often reconcile by set union, producing `{shoes, sunglasses, book, towel}`. A bank account balance cannot be repaired so casually because addition, withdrawal, and transfer semantics matter.*
+
+Eventual consistency shifts work from the storage system to the application. It works well when conflicts have a natural merge rule, such as unioning cart items or merging social-feed updates. It is risky when the application invariant depends on one immediate global order.
+
+---
+
+## Causal Consistency
+
+Eventual consistency does not preserve the order in which users understand events. Strong consistency preserves too much order for some systems. Causal consistency sits between them.
+
+**Causal consistency.** A consistency model where all replicas observe causally related writes in the same order, while concurrent writes may be observed in different orders.
+
+A write $B$ causally depends on a write $A$ when $B$ happens after observing $A$, or when both are ordered by the same process. If a user corrects a post and another user replies after reading the correction, the reply causally depends on the correction.
+
+<CausalConsistencySchema />
+
+**Happens-before relation.** The causal order generated by process order and read-from dependencies.
+
+- **Process order.** If one process performs $A$ before $B$, then $A$ happens before $B$.
+- **Read-from order.** If a process reads the value written by $A$ and then writes $B$, then $A$ happens before $B$.
+- **Transitivity.** If $A$ happens before $B$ and $B$ happens before $C$, then $A$ happens before $C$.
+
+**Concurrent writes.** Writes that are not ordered by the happens-before relation.
+
+Concurrent writes have no causal order, so different replicas may observe them in different orders without violating causal consistency.
+
+**Example 3. Comment correction.**
+
+*User $A$ posts "pi is 3", then edits it to "pi is about 3.14". User $B$ reads the correction and replies "agreed". Causal consistency prevents another user from seeing the reply without also seeing the correction, because the reply depends on the correction. It does not require a global order for unrelated comments written at the same time.*
+
+Causal consistency is useful when order-of-events matters but full strong consistency is too expensive. It still leaves conflict handling to the system or application for writes that are genuinely concurrent.
