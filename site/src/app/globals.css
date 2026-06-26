@@ -845,6 +845,30 @@ html:has(.home-pane) main {
   .split__pane .diagram__card {
     padding: 0.9rem 0.6rem;
   }
+
+  .reduction-diagram__desktop,
+  .reduction-diagram__mobile {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .reduction-diagram__desktop {
+    display: flex;
+  }
+
+  .reduction-diagram__mobile {
+    display: none;
+  }
+
+  @media (max-width: 520px) {
+    .reduction-diagram__desktop {
+      display: none;
+    }
+
+    .reduction-diagram__mobile {
+      display: flex;
+    }
+  }
 }
 
 /* Code Playground (Sandpack) */
