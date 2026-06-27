@@ -51,8 +51,11 @@ import { R2Image } from "@/components/R2Image";
 import { RAIDDiagram } from "@/components/RAIDDiagram";
 import {
   DfaToPathReductionSchema,
+  PolynomialReductionSchema,
   ReductionPipelineSchema,
+  ReductionTransitivitySchema,
   RegTmReductionSchema,
+  SatToIndsetReductionSchema,
 } from "@/components/ReductionSchemas";
 import { SortPasses } from "@/components/SortPasses";
 import { Pane, Split } from "@/components/Split";
@@ -101,6 +104,7 @@ export function useMDXComponents(
     Pane,
     PhantomReadSchema,
     PnpContainmentSchema,
+    PolynomialReductionSchema,
     ExecutionModelSchema,
     GraceProbeSchema,
     HashProjectionSchema,
@@ -114,9 +118,11 @@ export function useMDXComponents(
     R2Image,
     RAIDDiagram,
     ReductionPipelineSchema,
+    ReductionTransitivitySchema,
     RecoveryPhasesSchema,
     RegTmReductionSchema,
     RunningTimeSchema,
+    SatToIndsetReductionSchema,
     ScheduleEquivalenceSchema,
     SortPasses,
     Split,
