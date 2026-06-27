@@ -140,8 +140,8 @@ function TwoColumnSchedule({
         stroke={COLOR.border}
         strokeWidth={STROKE.divider}
       />
-      <Label x={x + colW / 2} y={y + 17} text="T_1" size={FONT.note} weight={700} />
-      <Label x={x + colW + colW / 2} y={y + 17} text="T_2" size={FONT.note} weight={700} />
+      <Label x={x + colW / 2} y={y + 16} text="T_1" size={FONT.note} weight={700} />
+      <Label x={x + colW + colW / 2} y={y + 16} text="T_2" size={FONT.note} weight={700} />
       <line
         x1={r2(x)}
         y1={r2(y + 30)}
@@ -158,11 +158,11 @@ function TwoColumnSchedule({
             x={sx}
             y={y + step.y}
             w={colW - 14}
-            h={23}
+            h={24}
             label={step.text}
             state={step.state}
             tint={step.state !== "highlight"}
-            fontSize={9.4}
+            fontSize={10.1}
             fontWeight={step.text === "COMMIT" ? 700 : 400}
           />
         );
@@ -189,52 +189,52 @@ export function PhantomReadSchema({
       }
       className={className}
     >
-      <DiagramSvg w={660} h={318} label={caption ?? "Phantom reads and range protection"}>
-        <Frame x={14} y={18} w={306} h={266} title="Tuple locks only">
+      <DiagramSvg w={660} h={296} label={caption ?? "Phantom reads and range protection"}>
+        <Frame x={12} y={14} w={312} h={258} title="Tuple locks only">
           <TwoColumnSchedule
-            x={34}
-            y={58}
-            w={154}
-            h={172}
+            x={30}
+            y={54}
+            w={174}
+            h={180}
             steps={[
-              { tx: 1, y: 44, text: "count age=30" },
-              { tx: 1, y: 72, text: "result 5" },
-              { tx: 2, y: 98, text: "insert age=30", state: "new" },
-              { tx: 2, y: 126, text: "COMMIT" },
-              { tx: 1, y: 146, text: "result 6", state: "highlight" },
+              { tx: 1, y: 43, text: "count age=30" },
+              { tx: 1, y: 73, text: "result 5" },
+              { tx: 2, y: 101, text: "insert age=30", state: "new" },
+              { tx: 2, y: 131, text: "COMMIT" },
+              { tx: 1, y: 154, text: "result 6", state: "highlight" },
             ]}
           />
-          <Box x={212} y={78} w={72} h={26} label="row 30" tint fontSize={FONT.note} />
-          <Box x={212} y={116} w={72} h={26} label="row 30" tint fontSize={FONT.note} />
-          <Box x={212} y={154} w={72} h={26} label="new 30" state="new" fontSize={FONT.note} />
+          <Box x={226} y={76} w={76} h={28} label="row 30" tint fontSize={FONT.note} />
+          <Box x={226} y={116} w={76} h={28} label="row 30" tint fontSize={FONT.note} />
+          <Box x={226} y={156} w={76} h={28} label="new 30" state="new" fontSize={FONT.note} />
           <Lines
-            x={167}
-            y={254}
+            x={168}
+            y={253}
             lines={["The second SELECT sees a row", "that T_1 never protected."]}
             fill={COLOR.caption}
           />
         </Frame>
 
-        <Frame x={340} y={18} w={306} h={266} title="Range or predicate lock">
+        <Frame x={336} y={14} w={312} h={258} title="Range or predicate lock">
           <TwoColumnSchedule
-            x={360}
-            y={58}
-            w={154}
-            h={172}
+            x={354}
+            y={54}
+            w={174}
+            h={180}
             steps={[
-              { tx: 1, y: 44, text: "lock age=30", state: "highlight" },
-              { tx: 1, y: 72, text: "result 5" },
-              { tx: 2, y: 98, text: "insert waits" },
-              { tx: 1, y: 126, text: "result 5" },
-              { tx: 1, y: 146, text: "COMMIT" },
+              { tx: 1, y: 43, text: "lock age=30", state: "highlight" },
+              { tx: 1, y: 73, text: "result 5" },
+              { tx: 2, y: 101, text: "insert waits" },
+              { tx: 1, y: 131, text: "result 5" },
+              { tx: 1, y: 154, text: "COMMIT" },
             ]}
           />
-          <Box x={538} y={78} w={72} h={26} label="row 30" state="highlight" fontSize={FONT.note} />
-          <Box x={538} y={116} w={72} h={26} label="gap" state="highlight" fontSize={FONT.note} />
-          <Box x={538} y={154} w={72} h={26} label="new 30" state="new" fontSize={FONT.note} />
+          <Box x={550} y={76} w={76} h={28} label="row 30" state="highlight" fontSize={FONT.note} />
+          <Box x={550} y={116} w={76} h={28} label="gap" state="highlight" fontSize={FONT.note} />
+          <Box x={550} y={156} w={76} h={28} label="new 30" state="new" fontSize={FONT.note} />
           <Lines
-            x={493}
-            y={254}
+            x={492}
+            y={253}
             lines={["The insert conflicts with the", "protected predicate range."]}
             fill={COLOR.caption}
           />
@@ -332,57 +332,57 @@ export function KeyRangeLockingSchema({
       }
       className={className}
     >
-      <DiagramSvg w={660} h={350} label={caption ?? "Key, gap, and key-range locks"}>
-        <Frame x={14} y={20} w={306} h={136} title="Key-value lock">
-          <LeafRow x={44} y={74} focusKey={14} />
+      <DiagramSvg w={660} h={326} label={caption ?? "Key, gap, and key-range locks"}>
+        <Frame x={12} y={16} w={312} h={132} title="Key-value lock">
+          <LeafRow x={44} y={68} focusKey={14} />
           <Label
-            x={167}
-            y={136}
+            x={168}
+            y={132}
             text="protects key 14, but not its neighboring gaps"
             size={FONT.note}
             fill={COLOR.caption}
           />
         </Frame>
 
-        <Frame x={340} y={20} w={306} h={136} title="Gap lock">
-          <LeafRow x={370} y={74} focusGap="14-16" bracket={{ x1: 168, x2: 230, label: "(14,16)" }} />
+        <Frame x={336} y={16} w={312} h={132} title="Gap lock">
+          <LeafRow x={370} y={68} focusGap="14-16" bracket={{ x1: 168, x2: 230, label: "(14,16)" }} />
           <Label
-            x={493}
-            y={136}
+            x={492}
+            y={132}
             text="blocks inserts into the protected open interval"
             size={FONT.note}
             fill={COLOR.caption}
           />
         </Frame>
 
-        <Frame x={14} y={184} w={306} h={136} title="Next-key lock">
+        <Frame x={12} y={176} w={312} h={132} title="Next-key lock">
           <LeafRow
             x={44}
-            y={238}
+            y={228}
             focusKey={14}
             focusGap="14-16"
             bracket={{ x1: 128, x2: 230, label: "[14,16)" }}
           />
           <Label
-            x={167}
-            y={300}
+            x={168}
+            y={292}
             text="locks key 14 plus the gap to the next key"
             size={FONT.note}
             fill={COLOR.caption}
           />
         </Frame>
 
-        <Frame x={340} y={184} w={306} h={136} title="Prev-key lock">
+        <Frame x={336} y={176} w={312} h={132} title="Prev-key lock">
           <LeafRow
             x={370}
-            y={238}
+            y={228}
             focusKey={14}
             focusGap="12-14"
             bracket={{ x1: 64, x2: 166, label: "(12,14]" }}
           />
           <Label
-            x={493}
-            y={300}
+            x={492}
+            y={292}
             text="locks the previous gap plus key 14"
             size={FONT.note}
             fill={COLOR.caption}
@@ -409,39 +409,39 @@ function QuorumPanel({
   verdictState?: BoxState;
 }) {
   return (
-    <Frame x={x} y={24} w={292} h={220} title={title}>
+    <Frame x={x} y={18} w={304} h={208} title={title}>
       <CellStrip
-        x={x + 38}
-        y={72}
-        cellH={28}
-        widths={[48, 48, 48, 48]}
+        x={x + 58}
+        y={62}
+        cellH={30}
+        widths={[54, 54, 54, 54]}
         cells={["R1", "R2", "R3", "R4"]}
         tint
         fontSize={FONT.note}
       />
-      <Label x={x + 22} y={114} text="W" size={FONT.note} weight={700} />
+      <Label x={x + 34} y={113} text="W" size={FONT.note} weight={700} />
       <CellStrip
-        x={x + 38}
-        y={102}
-        cellH={28}
-        widths={[48, 48, 48, 48]}
+        x={x + 58}
+        y={98}
+        cellH={30}
+        widths={[54, 54, 54, 54]}
         cells={writeCells}
         fontSize={FONT.note}
       />
-      <Label x={x + 22} y={146} text="R" size={FONT.note} weight={700} />
+      <Label x={x + 34} y={147} text="R" size={FONT.note} weight={700} />
       <CellStrip
-        x={x + 38}
-        y={134}
-        cellH={28}
-        widths={[48, 48, 48, 48]}
+        x={x + 58}
+        y={132}
+        cellH={30}
+        widths={[54, 54, 54, 54]}
         cells={readCells}
         fontSize={FONT.note}
       />
       <Box
-        x={x + 56}
-        y={188}
-        w={180}
-        h={28}
+        x={x + 53}
+        y={180}
+        w={198}
+        h={30}
         label={verdict}
         state={verdictState}
         tint={!verdictState}
@@ -470,9 +470,9 @@ export function QuorumOverlapSchema({
       }
       className={className}
     >
-      <DiagramSvg w={660} h={278} label={caption ?? "Read and write quorum overlap"}>
+      <DiagramSvg w={660} h={254} label={caption ?? "Read and write quorum overlap"}>
         <QuorumPanel
-          x={24}
+          x={16}
           title="N=4, W=2, R=1"
           writeCells={[
             { label: "ack", state: "highlight" },
@@ -485,7 +485,7 @@ export function QuorumOverlapSchema({
           verdictState="highlight"
         />
         <QuorumPanel
-          x={344}
+          x={340}
           title="N=4, W=2, R=3"
           writeCells={[
             { label: "ack", state: "highlight" },
@@ -496,7 +496,7 @@ export function QuorumOverlapSchema({
           readCells={["", { label: "both", state: "highlight" }, { label: "read", tint: true }, { label: "read", tint: true }]}
           verdict="overlap exists"
         />
-        <Label x={330} y={264} text="R + W > N is the overlap test." size={FONT.note} fill={COLOR.caption} />
+        <Label x={330} y={242} text="R + W > N is the overlap test." size={FONT.note} fill={COLOR.caption} />
       </DiagramSvg>
     </DiagramFigure>
   );
@@ -595,61 +595,61 @@ export function DynamoSiblingsSchema({
       }
       className={className}
     >
-      <DiagramSvg w={660} h={334} label={caption ?? "Dynamo siblings and reconciliation"}>
+      <DiagramSvg w={660} h={304} label={caption ?? "Dynamo siblings and reconciliation"}>
         <defs>
           <ArrowHead id={arrowId} />
         </defs>
 
-        <Frame x={14} y={20} w={198} h={274} title="1. Concurrent writes">
-          <Box x={50} y={62} w={52} h={24} label="A writes" tint fontSize={FONT.note} />
-          <Box x={124} y={62} w={52} h={24} label="B writes" tint fontSize={FONT.note} />
+        <Frame x={12} y={16} w={204} h={252} title="1. Concurrent writes">
+          <Box x={45} y={56} w={58} h={26} label="A writes" tint fontSize={FONT.note} />
+          <Box x={125} y={56} w={58} h={26} label="B writes" tint fontSize={FONT.note} />
           <ReplicaSet
-            x={34}
-            y={150}
+            x={36}
+            y={138}
             labels={[
               { text: "x0=5" },
               { text: "xA=7", state: "highlight" },
               { text: "xB=9", state: "highlight" },
             ]}
           />
-          <Arrow from={{ x: 76, y: 88 }} to={{ x: 108, y: 150 }} markerId={arrowId} />
-          <Arrow from={{ x: 150, y: 88 }} to={{ x: 158, y: 192 }} markerId={arrowId} />
-          <Label x={113} y={260} text="W=1 accepts both writes" size={FONT.note} fill={COLOR.caption} />
+          <Arrow from={{ x: 74, y: 84 }} to={{ x: 112, y: 138 }} markerId={arrowId} />
+          <Arrow from={{ x: 154, y: 84 }} to={{ x: 162, y: 180 }} markerId={arrowId} />
+          <Label x={114} y={238} text="W=1 accepts both writes" size={FONT.note} fill={COLOR.caption} />
         </Frame>
 
-        <Frame x={232} y={20} w={198} h={274} title="2. Read returns siblings">
-          <Box x={301} y={62} w={60} h={24} label="C reads" tint fontSize={FONT.note} />
+        <Frame x={228} y={16} w={204} h={252} title="2. Read returns siblings">
+          <Box x={300} y={56} w={64} h={26} label="C reads" tint fontSize={FONT.note} />
           <ReplicaSet
             x={252}
-            y={150}
+            y={138}
             labels={[
               { text: "x0=5" },
               { text: "xA=7", state: "highlight" },
               { text: "xB=9", state: "highlight" },
             ]}
           />
-          <Arrow from={{ x: 331, y: 88 }} to={{ x: 326, y: 150 }} markerId={arrowId} />
-          <Arrow from={{ x: 331, y: 88 }} to={{ x: 376, y: 192 }} markerId={arrowId} />
-          <Box x={270} y={242} w={122} h={28} label="{xA, xB}" state="highlight" fontSize={FONT.note} />
+          <Arrow from={{ x: 332, y: 84 }} to={{ x: 328, y: 138 }} markerId={arrowId} />
+          <Arrow from={{ x: 332, y: 84 }} to={{ x: 378, y: 180 }} markerId={arrowId} />
+          <Box x={268} y={222} w={128} h={30} label="{xA, xB}" state="highlight" fontSize={FONT.note} />
         </Frame>
 
-        <Frame x={450} y={20} w={198} h={274} title="3. Reconcile and spread">
-          <Box x={516} y={62} w={66} h={24} label="merge xC" state="highlight" fontSize={FONT.note} />
+        <Frame x={444} y={16} w={204} h={252} title="3. Reconcile and spread">
+          <Box x={515} y={56} w={70} h={26} label="merge xC" state="highlight" fontSize={FONT.note} />
           <ReplicaSet
-            x={470}
-            y={150}
+            x={468}
+            y={138}
             labels={[
               { text: "xC=11", state: "highlight" },
               { text: "xC=11", state: "highlight" },
               { text: "xC=11", state: "highlight" },
             ]}
           />
-          <Arrow from={{ x: 549, y: 88 }} to={{ x: 546, y: 150 }} markerId={arrowId} />
-          <Arrow from={{ x: 548, y: 190 }} to={{ x: 496, y: 194 }} markerId={arrowId} bend={18} />
-          <Arrow from={{ x: 548, y: 190 }} to={{ x: 596, y: 194 }} markerId={arrowId} bend={-18} />
+          <Arrow from={{ x: 550, y: 84 }} to={{ x: 544, y: 138 }} markerId={arrowId} />
+          <Arrow from={{ x: 546, y: 178 }} to={{ x: 494, y: 182 }} markerId={arrowId} bend={18} />
+          <Arrow from={{ x: 546, y: 178 }} to={{ x: 594, y: 182 }} markerId={arrowId} bend={-18} />
           <Lines
-            x={549}
-            y={256}
+            x={546}
+            y={234}
             lines={["background propagation", "converges later"]}
             fill={COLOR.caption}
           />
@@ -679,7 +679,7 @@ function Timelines({
   processes: string[];
   events: TimelineEvent[];
 }) {
-  const gap = 46;
+  const gap = 44;
   return (
     <g>
       {processes.map((p, i) => (
@@ -699,9 +699,9 @@ function Timelines({
         <Box
           key={`${event.label}-${i}`}
           x={x + event.x}
-          y={y + event.process * gap - 12}
-          w={48}
-          h={24}
+          y={y + event.process * gap - 13}
+          w={52}
+          h={26}
           label={event.label}
           state={event.state}
           tint={event.state !== "highlight"}
@@ -732,16 +732,16 @@ export function CausalConsistencySchema({
       }
       className={className}
     >
-      <DiagramSvg w={660} h={334} label={caption ?? "Causal consistency examples"}>
+      <DiagramSvg w={660} h={300} label={caption ?? "Causal consistency examples"}>
         <defs>
           <ArrowHead id={arrowId} />
         </defs>
 
-        <Frame x={14} y={20} w={306} h={274} title="Dependent writes">
+        <Frame x={12} y={16} w={312} h={252} title="Dependent writes">
           <Timelines
             x={36}
-            y={82}
-            w={246}
+            y={78}
+            w={250}
             processes={["P1", "P2", "P3"]}
             events={[
               { process: 0, x: 40, label: "W(a)", state: "highlight" },
@@ -751,13 +751,13 @@ export function CausalConsistencySchema({
               { process: 2, x: 198, label: "R(a)" },
             ]}
           />
-          <Arrow from={{ x: 124, y: 82 }} to={{ x: 154, y: 128 }} markerId={arrowId} />
-          <Arrow from={{ x: 190, y: 128 }} to={{ x: 216, y: 128 }} markerId={arrowId} />
+          <Arrow from={{ x: 128, y: 78 }} to={{ x: 156, y: 122 }} markerId={arrowId} />
+          <Arrow from={{ x: 182, y: 122 }} to={{ x: 194, y: 122 }} markerId={arrowId} />
           <Box
-            x={76}
-            y={238}
-            w={184}
-            h={28}
+            x={66}
+            y={220}
+            w={216}
+            h={30}
             label="R(b) before R(a) violates order"
             state="highlight"
             fontSize={FONT.note}
@@ -765,11 +765,11 @@ export function CausalConsistencySchema({
           />
         </Frame>
 
-        <Frame x={340} y={20} w={306} h={274} title="Concurrent writes">
+        <Frame x={336} y={16} w={312} h={252} title="Concurrent writes">
           <Timelines
-            x={362}
-            y={82}
-            w={246}
+            x={360}
+            y={78}
+            w={250}
             processes={["P1", "P2", "P3", "P4"]}
             events={[
               { process: 0, x: 40, label: "W(a)", state: "highlight" },
@@ -781,10 +781,10 @@ export function CausalConsistencySchema({
             ]}
           />
           <Box
-            x={402}
-            y={254}
-            w={184}
-            h={28}
+            x={396}
+            y={236}
+            w={200}
+            h={30}
             label="both read orders are allowed"
             tint
             fontSize={FONT.note}
