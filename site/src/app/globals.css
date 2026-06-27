@@ -858,6 +858,11 @@ html:has(.home-pane) main {
     justify-content: center;
   }
 
+  .reduction-diagram__desktop svg,
+  .reduction-diagram__mobile svg {
+    width: 100%;
+  }
+
   .reduction-diagram__desktop {
     display: flex;
   }
