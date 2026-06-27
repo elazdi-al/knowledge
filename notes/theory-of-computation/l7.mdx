@@ -1,0 +1,325 @@
+---
+title: "Theory of Computation: Lecture 7"
+description: "Worst-case time complexity, asymptotic notation, TIME and P, polynomial-time verification, NP, nondeterministic polynomial time, and the P versus NP question."
+tags: ["Theory of computation"]
+created: 2026-06-26
+updated: 2026-06-26
+---
+
+## Worst-Case Time
+
+Decidability asks whether a Turing machine always gives the right answer and halts. Complexity asks how long a decider takes as the input length grows. Recognizers are not enough for this purpose: if a machine may loop on no-instances, its worst-case time may be infinite.
+
+**Worst-case running time.** Let $M$ be a Turing-machine decider over alphabet $\Sigma$. The running time, or time complexity, of $M$ is the function $t:\mathbb{N}\to\mathbb{N}$ defined by
+
+$$
+t(n)=\max_{\substack{w\in\Sigma^*\\ |w|=n}}
+\{\text{number of steps }M\text{ takes on }w\}.
+$$
+
+The maximum exists because there are finitely many strings of length $n$, and $M$ halts on every one of them.
+
+*For each input length, keep the slowest input of that length and forget the easier ones.*
+
+<RunningTimeSchema />
+
+If a decider has step counts $2,9,10$ on the length-$1$ inputs over some alphabet, then $t(1)=10$. If its length-$3$ inputs take at most $85$ steps, then $t(3)=85$. Different deciders for the same language may have different running-time functions.
+
+---
+
+## Asymptotic Time Classes
+
+Exact step counts are too sensitive to machine details. Complexity theory compares the eventual growth of running-time functions, ignoring constant factors and finitely many small inputs.
+
+**Big-O notation.** For functions $f,g:\mathbb{N}\to\mathbb{R}_{\ge 0}$, write $f(n)=O(g(n))$ if there exist constants $C>0$ and $n_0\in\mathbb{N}$ such that for every $n\ge n_0$,
+
+$$
+f(n)\le C\cdot g(n).
+$$
+
+**Small-o notation.** Write $f(n)=o(g(n))$ if for every constant $c>0$, there exists $n_0\in\mathbb{N}$ such that for every $n\ge n_0$,
+
+$$
+f(n)<c\cdot g(n).
+$$
+
+Big-O means "eventually no more than a constant multiple." Small-o means "eventually smaller than every constant multiple."
+
+<GrowthRateSchema />
+
+**Recipe: comparing growth rates.**
+
+1. To prove $f(n)=O(g(n))$, choose concrete constants $C$ and $n_0$, then prove $f(n)\le Cg(n)$ for all $n\ge n_0$.
+2. To disprove $f(n)=O(g(n))$, show that $f(n)/g(n)$ is unbounded.
+3. To prove $f(n)=o(g(n))$, show that $f(n)/g(n)\to 0$.
+
+**Example 1. Common comparisons.**
+
+*$5n^3+1=O(2^n)$ because exponentials eventually dominate polynomials. But $5n^3+1\ne O(20n+5)$ because the ratio grows like $n^2/4$. Also $\sqrt n=o(n)$, while an eventually positive function never satisfies $f(n)=o(f(n))$.*
+
+**Time complexity class.** For a time bound $t(n)$,
+
+$$
+\mathrm{TIME}(t(n))
+=
+\{L\subseteq\Sigma^*\mid L\text{ is decided by a TM in time }O(t(n))\}.
+$$
+
+A language belongs to $\mathrm{TIME}(t(n))$ if some decider for it has that asymptotic worst-case bound. A slower decider for the same language does not affect membership in the class.
+
+Typical containments follow directly from growth rates:
+
+$$
+\mathrm{TIME}(n)
+\subseteq
+\mathrm{TIME}(n^2)
+\subseteq
+\cdots
+\subseteq
+\mathrm{TIME}(2^{\sqrt n})
+\subseteq
+\mathrm{TIME}(2^n).
+$$
+
+Every regular language is in $\mathrm{TIME}(n)$: simulate its DFA and take one constant-time transition per input symbol.
+
+**Polynomial time ($P$).** $P$ is the class of languages decidable in polynomial time by a deterministic Turing machine:
+
+$$
+P=\bigcup_{k\ge 1}\mathrm{TIME}(n^k).
+$$
+
+*P is the coarse mathematical model of efficient deterministic decision.*
+
+**Example 2. Languages in $P$.**
+
+*The language of sorted integer arrays is in $P$: scan adjacent entries and reject at the first inversion. The graph path language*
+
+$$
+\{\langle G,s,t\rangle\mid s\text{ and }t\text{ are connected in }G\}
+$$
+
+*is in $P$ by breadth-first search. The language of connected graphs is in $P$ by running one graph search from an arbitrary vertex and checking whether every vertex is reached.*
+
+---
+
+## Certificates and Verification
+
+Many decision problems have a useful split between finding a solution and checking a proposed solution. The proposed solution is extra data, not part of the original instance.
+
+**Certificate.** A string $C$ intended to prove that an instance $x$ is a yes-instance. A verifier receives $\langle x,C\rangle$ and checks whether $C$ really proves membership.
+
+*A decider must answer from $x$ alone. A verifier is allowed to be handed the missing clue.*
+
+<VerifierSchema />
+
+**Conjunctive normal form (CNF).** A Boolean formula in CNF is an AND of clauses, where each clause is an OR of literals, and each literal is a variable or its negation.
+
+**Satisfying assignment.** A Boolean assignment to the variables of a formula $\varphi$ that makes $\varphi$ true.
+
+**SAT-verify.** The language
+
+$$
+\mathrm{SAT\text{-}verify}
+=
+\{\langle \varphi,C\rangle\mid C\text{ is a satisfying assignment of }\varphi\}
+$$
+
+is in $P$. Substitute the assignment into the formula and check that every clause contains at least one true literal.
+
+**SAT.** The satisfiability problem is
+
+$$
+\mathrm{SAT}
+=
+\{\langle \varphi\rangle\mid \varphi\text{ is satisfiable}\}.
+$$
+
+Equivalently,
+
+$$
+\langle\varphi\rangle\in\mathrm{SAT}
+\quad\Longleftrightarrow\quad
+\exists C\text{ such that }\langle\varphi,C\rangle\in\mathrm{SAT\text{-}verify}.
+$$
+
+A brute-force decider for SAT tries every truth assignment and runs the verifier on each one. This always halts, but for $m$ variables it may check $2^m$ assignments.
+
+**Example 3. SAT certificate.**
+
+*For*
+
+$$
+\varphi=(x\vee y\vee z)\wedge(\neg x\vee \neg y)\wedge(x\vee \neg z),
+$$
+
+*the assignment $x=\mathrm{true}$, $y=\mathrm{false}$, $z=\mathrm{true}$ is a certificate: each clause has at least one true literal.*
+
+Graph problems show the same pattern with certificates that are mappings or subsets.
+
+**Graph isomorphism.** A graph isomorphism from $G_1$ to $G_2$ is a bijection $f:V(G_1)\to V(G_2)$ that preserves adjacency:
+
+$$
+\{u,v\}\in E(G_1)
+\quad\Longleftrightarrow\quad
+\{f(u),f(v)\}\in E(G_2).
+$$
+
+Two graphs are isomorphic if at least one such bijection exists.
+
+**GI-verify.**
+
+$$
+\mathrm{GI\text{-}verify}
+=
+\{\langle G_1,G_2,C\rangle\mid C\text{ is a graph isomorphism }G_1\to G_2\}.
+$$
+
+This verifier is polynomial-time: check that $C$ is a bijection, then check the adjacency equivalence for every pair of vertices.
+
+**Graph isomorphism language.**
+
+$$
+\mathrm{GI}
+=
+\{\langle G_1,G_2\rangle\mid G_1\text{ and }G_2\text{ are isomorphic}\}.
+$$
+
+Equivalently, $\langle G_1,G_2\rangle\in\mathrm{GI}$ iff some certificate $C$ makes $\langle G_1,G_2,C\rangle\in\mathrm{GI\text{-}verify}$.
+
+**Independent set.** An independent set in a graph $G$ is a subset $S\subseteq V(G)$ such that no two vertices in $S$ are adjacent.
+
+**INDSET-verify.**
+
+$$
+\mathrm{INDSET\text{-}verify}
+=
+\{\langle G,k,C\rangle\mid C\text{ is an independent set of size }k\text{ in }G\}.
+$$
+
+This verifier is polynomial-time: check that $|C|=k$, then check every pair $u,v\in C$ and reject if $\{u,v\}\in E(G)$.
+
+**Independent set language.**
+
+$$
+\mathrm{INDSET}
+=
+\{\langle G,k\rangle\mid G\text{ has an independent set of size }k\}.
+$$
+
+Equivalently, $\langle G,k\rangle\in\mathrm{INDSET}$ iff some certificate $C$ makes $\langle G,k,C\rangle\in\mathrm{INDSET\text{-}verify}$.
+
+<GraphCertificateSchema />
+
+For SAT, GI, and INDSET, verification is polynomial. The direct search algorithms are still expensive: enumerate all assignments, all bijections, or all vertex subsets.
+
+---
+
+## Verifiers and NP
+
+The certificate pattern becomes a machine model when quantified over all instances.
+
+**Verifier for a language.** A Turing machine $V$ is a verifier for $L$ if it halts on certificate pairs and, for every input $x$,
+
+- if $x\in L$, then there exists a certificate $C$ such that $V$ accepts $\langle x,C\rangle$;
+- if $x\notin L$, then for every certificate $C$, $V$ rejects $\langle x,C\rangle$.
+
+**Polynomial-time verifier.** A verifier is polynomial-time if there is a polynomial $p$ such that yes-instances have relevant certificates of length at most $p(|x|)$, and $V$ checks those pairs in time polynomial in $|x|$.
+
+Equivalently, $L$ has a polynomial-time verifier if there is a polynomial-time TM $V$ and a polynomial $p$ such that
+
+$$
+x\in L
+\quad\Longleftrightarrow\quad
+\exists C,\ |C|\le p(|x|)
+\text{ and }V\text{ accepts }\langle x,C\rangle.
+$$
+
+For $x\notin L$, no certificate of the allowed length can make $V$ accept.
+
+**NP.** The class $NP$ is the class of languages that have polynomial-time verifiers.
+
+*NP means yes-instances have short certificates that can be checked quickly.*
+
+| Model | Input | Yes-instance condition | No-instance condition |
+|---|---|---|---|
+| Decider | $x$ | accepts $x$ | rejects $x$ |
+| Verifier | $\langle x,C\rangle$ | some $C$ is accepted | every $C$ is rejected |
+
+By the verifiers above,
+
+$$
+\mathrm{SAT},\ \mathrm{GI},\ \mathrm{INDSET}\in NP.
+$$
+
+---
+
+## Nondeterministic Polynomial Time
+
+The name $NP$ comes from an equivalent nondeterministic machine definition.
+
+**Nondeterministic Turing machine (NTM).** A Turing machine whose transition rule may offer several legal next moves:
+
+$$
+\delta:Q\times\Gamma\to\mathcal{P}(Q\times\Gamma\times\{L,R\}).
+$$
+
+One input may therefore generate a tree of computations rather than a single run.
+
+*A nondeterministic machine accepts if at least one branch finds a successful path.*
+
+**Nondeterministic decider.** An NTM $N$ decides $L$ if every computation branch halts and, for every input $x$,
+
+- if $x\in L$, then at least one computation of $N$ on $x$ accepts;
+- if $x\notin L$, then every computation of $N$ on $x$ rejects.
+
+**Polynomial-time NTM.** An NTM runs in polynomial time if the longest computation branch on any input of length $n$ has length bounded by a polynomial in $n$.
+
+**Theorem.** A language has a polynomial-time verifier if and only if it has a polynomial-time nondeterministic decider.
+
+**Proof sketch.**
+
+1. **Verifier to NTM.** On input $x$, nondeterministically write a certificate $C$ of polynomial length, then run the verifier on $\langle x,C\rangle$. If a valid certificate exists, one branch accepts. If no valid certificate exists, every branch rejects.
+2. **NTM to verifier.** Let $C$ encode the sequence of nondeterministic choices along one computation branch. The verifier simulates the NTM on $x$, following the choices in $C$, and accepts exactly when that branch accepts.
+
+**Nondeterministic time class.**
+
+$$
+\mathrm{NTIME}(t(n))
+=
+\{L\mid L\text{ has a nondeterministic }O(t(n))\text{-time decider}\}.
+$$
+
+Using the theorem,
+
+$$
+NP=\bigcup_{k\ge 1}\mathrm{NTIME}(n^k).
+$$
+
+This is the same class defined by polynomial-time verifiers.
+
+**P versus NP.** Every language in $P$ is in $NP$: a polynomial-time decider can be used as a verifier that ignores the certificate. Thus
+
+$$
+P\subseteq NP.
+$$
+
+Whether $P=NP$ is open. The question asks whether every problem whose yes-instances can be checked quickly also has yes/no answers that can be found quickly by a deterministic algorithm.
+
+<PnpContainmentSchema />
+
+**Cook-Levin theorem (informal).** SAT is complete for $NP$: a polynomial-time algorithm for SAT would give polynomial-time algorithms for every language in $NP$. Therefore
+
+$$
+\mathrm{SAT}\in P
+\quad\Longleftrightarrow\quad
+P=NP.
+$$
+
+The same is true for INDSET:
+
+$$
+\mathrm{INDSET}\in P
+\quad\Longleftrightarrow\quad
+P=NP.
+$$

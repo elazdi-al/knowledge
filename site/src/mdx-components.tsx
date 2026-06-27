@@ -5,6 +5,13 @@ import { BufferQueue } from "@/components/BufferQueue";
 import { ClockPolicy } from "@/components/ClockPolicy";
 import { CodePlayground } from "@/components/CodePlayground";
 import {
+  GraphCertificateSchema,
+  GrowthRateSchema,
+  PnpContainmentSchema,
+  RunningTimeSchema,
+  VerifierSchema,
+} from "@/components/ComplexitySchemas";
+import {
   ConflictSerializabilitySchema,
   DeadlockPreventionSchema,
   LockGranularitySchema,
@@ -78,6 +85,8 @@ export function useMDXComponents(
     ERDiagram,
     ERInstanceMapping,
     Figure,
+    GraphCertificateSchema,
+    GrowthRateSchema,
     HashDiagram,
     hr: IdeaBreak,
     IdeaBreak,
@@ -91,6 +100,7 @@ export function useMDXComponents(
     PageLayout,
     Pane,
     PhantomReadSchema,
+    PnpContainmentSchema,
     ExecutionModelSchema,
     GraceProbeSchema,
     HashProjectionSchema,
@@ -106,6 +116,7 @@ export function useMDXComponents(
     ReductionPipelineSchema,
     RecoveryPhasesSchema,
     RegTmReductionSchema,
+    RunningTimeSchema,
     ScheduleEquivalenceSchema,
     SortPasses,
     Split,
@@ -113,6 +124,7 @@ export function useMDXComponents(
     TransactionLogSchema,
     TuringTape,
     TuringTrace,
+    VerifierSchema,
     WaitForGraphSchema,
     WalRulesSchema,
   };
