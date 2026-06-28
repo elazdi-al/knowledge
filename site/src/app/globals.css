@@ -1573,3 +1573,211 @@ html:has(.home-pane) main {
     mask-image: none !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Print / PDF
+   ───────────
+   `Cmd+P` should yield a canonical document: the note alone, on white, in the
+   light palette, with no chrome and nothing clipped or split mid-thought.
+   Everything here is scoped to print, so the on-screen experience is untouched.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Generous, even margins frame the measure like a typeset page. The browser's
+   own header/footer (page numbers, URL) sits outside this box. */
+@page {
+  margin: 18mm 16mm;
+}
+
+@media print {
+  /* A reusable opt-out for chrome that should never reach paper: the site
+     header, the floating theme toggle, the copy-as-Markdown button. */
+  .no-print {
+    display: none !important;
+  }
+
+  /* 1 — Force the light palette regardless of the on-screen theme. Dark pages
+     waste ink and read poorly; redeclaring the tokens (including the diagram
+     `--mm-*` set) on both html and html.dark re-themes the whole document at
+     once, diagrams and code frames included. */
+  html,
+  html.dark {
+    color-scheme: light;
+
+    --color-gray-100: #fdfdfc;
+    --color-gray-200: #f9f9f8;
+    --color-gray-300: #f1f0ef;
+    --color-gray-400: #e9e9e7;
+    --color-gray-500: #e2e1de;
+    --color-gray-600: #dad9d6;
+    --color-gray-700: #cfceca;
+    --color-gray-800: #bcbbb5;
+    --color-gray-900: #8d8d86;
+    --color-gray-1000: #82827c;
+    --color-gray-1100: #63635e;
+    --color-gray-1200: #21201c;
+
+    --color-bg-fill: #f8f8f8;
+    --color-code-bg: #ffffff;
+
+    --color-bg: #ffffff;
+    --color-text: var(--color-gray-1200);
+    --color-muted: var(--color-gray-1100);
+    --color-faint: var(--color-gray-1000);
+    --color-border: var(--color-gray-400);
+    --color-border-strong: var(--color-gray-600);
+    --color-hover: var(--color-gray-300);
+    --color-surface: var(--color-gray-100);
+
+    --mm-bg: #ffffff;
+    --mm-node: #f6f6f5;
+    --mm-fg: #21201c;
+    --mm-border: #e2e1de;
+    --mm-line: #cfceca;
+    --mm-muted: #63635e;
+    --mm-accent: #8d8d86;
+    --mm-dot-ring: #e6e5e2;
+    --mm-caption: #8d8d86;
+    --mm-hi-bg: #21201c;
+    --mm-hi-fg: #ffffff;
+    --mm-frame-border: var(--color-border);
+    --mm-curve-linear: #2563eb;
+    --mm-curve-quadratic: #0f766e;
+    --mm-curve-exponential: #c2410c;
+  }
+
+  /* Honour every themed colour we just set - card fills, code backgrounds,
+     syntax highlighting, the dark highlight boxes inside diagrams. Without this
+     Chrome silently drops backgrounds and the diagrams lose their structure. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: #ffffff;
+  }
+
+  /* 2 — Strip the chrome. The header, toggle and copy button carry `.no-print`;
+     the rest are portalled overlays that only exist while open, dropped here as
+     a safety net. The highlight ink layer is anchored to on-screen geometry, so
+     it would smear once the page reflows for print - remove it and keep the
+     underlying text clean. The body scroll-edge fades go too. */
+  .cmdk-backdrop,
+  .cmdk-popup,
+  .tooltip-popup,
+  .highlight-popover,
+  [data-highlighters-overlay],
+  #highlighters-shared-defs,
+  body::before,
+  body::after {
+    display: none !important;
+  }
+
+  /* 3 — Let the page margins do the framing. The shell stops constraining the
+     measure, the long scroll-tail padding collapses, and the home view (which
+     locks to the viewport on screen) flows as one natural document. */
+  html:has(.home-pane) {
+    overflow: visible;
+  }
+
+  .layout-shell,
+  html:has(.home-pane) .layout-shell {
+    max-width: none;
+    height: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  main,
+  html:has(.home-pane) main {
+    padding-bottom: 0 !important;
+  }
+
+  .prose {
+    max-width: none;
+  }
+
+  .home-scroller {
+    overflow: visible;
+    height: auto;
+    min-height: 0;
+    margin-inline: 0;
+    padding: 0;
+    mask-image: none;
+  }
+
+  /* 4 — Keep things whole. Headings stay with the text they introduce, atomic
+     blocks never split across a page, and no single line is stranded at a page
+     edge. A long code listing is the one exception - it may exceed a page, so
+     let it break rather than overflow. */
+  p,
+  li,
+  blockquote {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4 {
+    break-after: avoid;
+    break-inside: avoid;
+  }
+
+  .diagram,
+  .mermaid-graph,
+  .demo-frame,
+  .split,
+  .split__pane,
+  figure,
+  table,
+  tr,
+  blockquote,
+  li,
+  .prose img,
+  .prose .katex-display {
+    break-inside: avoid;
+  }
+
+  .prose pre {
+    break-inside: auto;
+  }
+
+  /* 5 — Nothing clipped. On screen these scroll; on paper they must wrap or
+     overflow visibly so no character is lost to a hidden axis. Long code lines
+     wrap instead of running off the right edge. */
+  .prose pre {
+    overflow: visible;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .prose pre code {
+    display: block;
+    min-width: 0;
+    white-space: pre-wrap;
+  }
+
+  .prose pre [data-line] {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .diagram__card,
+  .mermaid-graph__card,
+  .demo-frame,
+  .prose .katex-display,
+  .prose table {
+    overflow: visible;
+  }
+
+  /* Box-shadow rings don't print; restate the diagram and Mermaid frames as
+     real borders so every card keeps its outline on paper. */
+  .diagram__card,
+  .mermaid-graph__card {
+    box-shadow: none;
+    border: 1px solid var(--mm-frame-border);
+  }
+}

@@ -358,6 +358,95 @@ function CliqueEdges({ points }: { points: Pt[] }) {
   );
 }
 
+export function NpCompletenessChainSchema({
+  title,
+  caption,
+  className,
+}: {
+  title?: string;
+  caption?: string;
+  className?: string;
+}) {
+  const arrowId = stableId("np-chain", { title, caption });
+
+  const box = (x: number, y: number, w: number, label: string, state: "normal" | "emphasis" | "new" = "normal") => (
+    <Box x={x} y={y} w={w} h={38} label={label} state={state} fontWeight={700} fontSize={FONT.note} />
+  );
+
+  return (
+    <DiagramFigure
+      title={title}
+      caption={
+        caption ??
+        "Each arrow means a polynomial-time reduction from the source problem to the target problem."
+      }
+      className={className}
+    >
+      <ResponsiveDiagram
+        desktop={
+          <DiagramSvg w={660} h={380} label={caption ?? "NP-completeness reduction chain"}>
+            <defs>
+              <ArrowHead id={arrowId} />
+            </defs>
+
+            {box(270, 28, 120, "SAT", "emphasis")}
+            {box(152, 112, 126, "INDSET", "emphasis")}
+            {box(414, 112, 96, "3SAT")}
+            {box(64, 202, 148, "VERTEX COVER")}
+            {box(304, 202, 112, "CLIQUE")}
+            {box(76, 292, 124, "SET COVER")}
+            {box(286, 292, 132, "SUBSET-SUM", "new")}
+
+            <Arrow from={{ x: 298, y: 66 }} to={{ x: 226, y: 112 }} markerId={arrowId} />
+            <Arrow from={{ x: 362, y: 66 }} to={{ x: 454, y: 112 }} markerId={arrowId} />
+            <Arrow from={{ x: 186, y: 150 }} to={{ x: 138, y: 202 }} markerId={arrowId} />
+            <Arrow from={{ x: 246, y: 150 }} to={{ x: 332, y: 202 }} markerId={arrowId} />
+            <Arrow from={{ x: 138, y: 240 }} to={{ x: 138, y: 292 }} markerId={arrowId} />
+            <Arrow from={{ x: 200, y: 311 }} to={{ x: 286, y: 311 }} markerId={arrowId} dashed />
+
+            <Lines
+              x={330}
+              y={356}
+              lines={["known complete sources feed later complete targets by transitivity"]}
+              fill={COLOR.caption}
+            />
+          </DiagramSvg>
+        }
+        mobile={
+          <DiagramSvg w={310} h={522} label={caption ?? "NP-completeness reduction chain"}>
+            <defs>
+              <ArrowHead id={`${arrowId}-mobile`} />
+            </defs>
+
+            {box(105, 22, 100, "SAT", "emphasis")}
+            {box(92, 102, 126, "INDSET", "emphasis")}
+            {box(102, 182, 106, "CLIQUE")}
+            {box(81, 262, 148, "VERTEX COVER")}
+            {box(93, 342, 124, "SET COVER")}
+            {box(89, 422, 132, "SUBSET-SUM", "new")}
+            {box(221, 102, 78, "3SAT")}
+
+            <Arrow from={{ x: 155, y: 60 }} to={{ x: 155, y: 102 }} markerId={`${arrowId}-mobile`} />
+            <Arrow from={{ x: 190, y: 60 }} to={{ x: 248, y: 102 }} markerId={`${arrowId}-mobile`} />
+            <Arrow from={{ x: 155, y: 140 }} to={{ x: 155, y: 182 }} markerId={`${arrowId}-mobile`} />
+            <Arrow from={{ x: 155, y: 220 }} to={{ x: 155, y: 262 }} markerId={`${arrowId}-mobile`} />
+            <Arrow from={{ x: 155, y: 300 }} to={{ x: 155, y: 342 }} markerId={`${arrowId}-mobile`} />
+            <Arrow from={{ x: 155, y: 380 }} to={{ x: 155, y: 422 }} markerId={`${arrowId}-mobile`} dashed />
+
+            <Lines
+              x={155}
+              y={494}
+              lines={["arrows transfer NP-hardness", "when the target is in NP"]}
+              fill={COLOR.caption}
+              lineH={14}
+            />
+          </DiagramSvg>
+        }
+      />
+    </DiagramFigure>
+  );
+}
+
 export function PolynomialReductionSchema({
   title,
   caption,

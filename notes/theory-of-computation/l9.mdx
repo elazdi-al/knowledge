@@ -1,0 +1,232 @@
+---
+title: "Theory of Computation: Lecture 9"
+description: "NP-completeness reduction chains for CLIQUE, VERTEX COVER, SET COVER, and SUBSET-SUM, with graph complements and pseudo-polynomial subset-sum."
+tags: ["Theory of computation"]
+created: 2026-06-27
+updated: 2026-06-27
+---
+
+## Reduction Chains
+
+A known NP-complete language becomes a source for later hardness proofs. If $C$ is NP-complete, $C\le_P L$, and $L\in NP$, then $L$ is NP-complete: every language in $NP$ reduces to $C$, and $C$ reduces to $L$.
+
+**Reduction chain.** A directed collection of polynomial-time reductions, where an arrow $A\to B$ means $A\le_P B$.
+
+*Follow arrows from a known hard problem to the new problem. The arrow direction is the reduction direction.*
+
+<NpCompletenessChainSchema />
+
+**Recipe: extending an NP-completeness chain.**
+
+1. Show $L\in NP$ by giving a polynomial-time verifier.
+2. Choose a known NP-complete language $C$.
+3. Construct a polynomial-time map $f$ from instances of $C$ to instances of $L$.
+4. Prove exact preservation:
+
+$$
+x\in C
+\quad\Longleftrightarrow\quad
+f(x)\in L.
+$$
+
+The direction is essential. To prove $L$ hard, reduce a known hard problem *to* $L$, not $L$ to the known problem.
+
+---
+
+## CLIQUE and Graph Complements
+
+**Clique.** A $k$-clique in a graph $G$ is a subset of $k$ vertices such that every pair of distinct vertices in the subset is connected by an edge.
+
+**CLIQUE.** The language
+
+$$
+\mathrm{CLIQUE}
+=
+\{\langle G,k\rangle\mid G\text{ has a clique of size }k\}.
+$$
+
+The language is in $NP$: a certificate is a set $S$ of $k$ vertices, and the verifier checks that every pair in $S$ is adjacent.
+
+**Graph complement.** For a graph $G=(V,E)$, the complement graph $\overline G=(V,\overline E)$ has the same vertices and exactly the missing edges:
+
+$$
+\{u,v\}\in\overline E
+\quad\Longleftrightarrow\quad
+\{u,v\}\notin E.
+$$
+
+Thus non-adjacency in $G$ becomes adjacency in $\overline G$.
+
+**Theorem.** $\mathrm{CLIQUE}$ is NP-complete.
+
+Membership in $NP$ was shown above. For hardness, reduce $\mathrm{INDSET}$ to $\mathrm{CLIQUE}$. Given $\langle G,k\rangle$, output
+
+$$
+f(\langle G,k\rangle)=\langle \overline G,k\rangle.
+$$
+
+The complement graph is computable in polynomial time by checking each pair of vertices. Correctness follows from the definition of complement:
+
+$$
+S\text{ is an independent set of size }k\text{ in }G
+\quad\Longleftrightarrow\quad
+S\text{ is a clique of size }k\text{ in }\overline G.
+$$
+
+Therefore $\mathrm{INDSET}\le_P\mathrm{CLIQUE}$, and $\mathrm{CLIQUE}$ is NP-complete. The same complement idea also gives $\mathrm{CLIQUE}\le_P\mathrm{INDSET}$.
+
+---
+
+## VERTEX COVER
+
+**Vertex cover.** A vertex cover of a graph $G=(V,E)$ is a subset $S\subseteq V$ such that every edge of $G$ has at least one endpoint in $S$.
+
+*A vertex cover touches every edge.*
+
+**VERTEX COVER.** The language
+
+$$
+\mathrm{VERTEX\ COVER}
+=
+\{\langle G,k\rangle\mid G\text{ has a vertex cover of size }k\}.
+$$
+
+The language is in $NP$: a certificate is a set $C$ of vertices. The verifier checks that $|C|=k$ and rejects if it finds an edge $\{u,v\}$ with both $u\notin C$ and $v\notin C$.
+
+**Vertex-cover duality.** For every graph $G=(V,E)$ and every subset $S\subseteq V$,
+
+$$
+S\text{ is a vertex cover}
+\quad\Longleftrightarrow\quad
+V\setminus S\text{ is an independent set}.
+$$
+
+If $S$ covers every edge, then no edge can have both endpoints outside $S$, so $V\setminus S$ is independent. Conversely, if $V\setminus S$ is independent, then every edge has at least one endpoint in $S$, so $S$ is a vertex cover.
+
+**Theorem.** $\mathrm{VERTEX\ COVER}$ is NP-complete.
+
+Reduce $\mathrm{INDSET}$ to $\mathrm{VERTEX\ COVER}$. Given $\langle G,k\rangle$, let $n=|V(G)|$ and output
+
+$$
+f(\langle G,k\rangle)=\langle G,n-k\rangle.
+$$
+
+The map is polynomial time because it only counts vertices and changes the integer parameter. By vertex-cover duality,
+
+$$
+G\text{ has an independent set of size }k
+\quad\Longleftrightarrow\quad
+G\text{ has a vertex cover of size }n-k.
+$$
+
+Thus $\mathrm{INDSET}\le_P\mathrm{VERTEX\ COVER}$, and since $\mathrm{VERTEX\ COVER}\in NP$, the language is NP-complete.
+
+---
+
+## SET COVER
+
+**Set cover.** Let $U$ be a finite universe and let $\mathcal F=\{T_1,\ldots,T_m\}$ be a family of subsets of $U$. A set cover of size $k$ is a subfamily $\{T_{i_1},\ldots,T_{i_k}\}\subseteq\mathcal F$ whose union is all of $U$:
+
+$$
+\bigcup_{j=1}^k T_{i_j}=U.
+$$
+
+**SET COVER.** The language
+
+$$
+\mathrm{SET\ COVER}
+=
+\{\langle U,\mathcal F,k\rangle\mid \mathcal F\text{ contains a set cover of size }k\}.
+$$
+
+The language is in $NP$: a certificate is $k$ chosen sets from $\mathcal F$, and the verifier checks that their union equals $U$.
+
+**Example 1. Covering a universe.**
+
+*For $U=\{1,\ldots,9\}$, the three sets $\{1,2,4\}$, $\{3,5,6\}$, and $\{4,7,8,9\}$ cover $U$. No two of these three sets cover all elements.*
+
+**Theorem.** $\mathrm{SET\ COVER}$ is NP-complete.
+
+Reduce $\mathrm{VERTEX\ COVER}$ to $\mathrm{SET\ COVER}$. Given an instance $\langle G=(V,E),k\rangle$, build a set-cover instance as follows:
+
+1. Let the universe be the edge set: $U=E$.
+2. For every vertex $v\in V$, create a set
+
+$$
+S_v=\{e\in E\mid e\text{ is incident to }v\}.
+$$
+
+3. Let $\mathcal F=\{S_v\mid v\in V\}$ and keep the same parameter $k$.
+
+The construction is polynomial time because it creates one set per vertex and one universe element per edge.
+
+If $C\subseteq V$ is a vertex cover of size $k$, then every edge is incident to some vertex in $C$. Therefore the sets $\{S_v\mid v\in C\}$ cover $U=E$.
+
+Conversely, if $S_{v_1},\ldots,S_{v_k}$ cover $U=E$, then every edge belongs to at least one of those sets. Hence every edge is incident to one of $v_1,\ldots,v_k$, so $\{v_1,\ldots,v_k\}$ is a vertex cover.
+
+Thus
+
+$$
+\langle G,k\rangle\in\mathrm{VERTEX\ COVER}
+\quad\Longleftrightarrow\quad
+\langle E,\{S_v\mid v\in V\},k\rangle\in\mathrm{SET\ COVER}.
+$$
+
+So $\mathrm{VERTEX\ COVER}\le_P\mathrm{SET\ COVER}$, and $\mathrm{SET\ COVER}$ is NP-complete.
+
+---
+
+## SUBSET-SUM and Encoding
+
+**SUBSET-SUM.** Let $X$ be a multiset of positive integers. The language
+
+$$
+\mathrm{SUBSET\text{-}SUM}
+=
+\{\langle X,s\rangle\mid X\text{ contains a sub-multiset whose elements sum to }s\}.
+$$
+
+The language is in $NP$: a certificate is the chosen sub-multiset, or equivalently a bit vector selecting which entries of $X$ to use. The verifier sums the selected numbers and compares the result with $s$.
+
+**Example 2. Subset sums.**
+
+*For $X=\{1,3,4,6,13,13\}$, $\langle X,8\rangle\in\mathrm{SUBSET\text{-}SUM}$ because $1+3+4=8$. But $\langle X,12\rangle\notin\mathrm{SUBSET\text{-}SUM}$.*
+
+**Dynamic-programming table for SUBSET-SUM.** Let $X=\{x_1,\ldots,x_m\}$ and let
+
+$$
+T=\sum_{i=1}^m x_i.
+$$
+
+Define $A[i,j]$ to be true iff some subset of $\{x_1,\ldots,x_i\}$ sums to $j$, for $0\le i\le m$ and $0\le j\le T$.
+
+1. Set $A[0,0]=\mathrm{true}$.
+2. Set $A[0,j]=\mathrm{false}$ for $j>0$.
+3. For $i=1,\ldots,m$ and $j=0,\ldots,T$, use
+
+$$
+A[i,j]
+=
+A[i-1,j]
+\vee
+\bigl(j\ge x_i\text{ and }A[i-1,j-x_i]\bigr).
+$$
+
+4. Accept iff $A[m,s]=\mathrm{true}$.
+
+The table has $(m+1)(T+1)$ entries, so the running time is $O(mT)$.
+
+**Pseudo-polynomial time.** An algorithm is pseudo-polynomial if its running time is polynomial in the numeric values of the input, but not necessarily polynomial in the number of bits needed to encode those values.
+
+For SUBSET-SUM, the distinction is decisive:
+
+| Encoding | Input length | Effect on the $O(mT)$ algorithm |
+|---|---:|---|
+| Unary | $\Theta(x_1+\cdots+x_m+s)$ | Polynomial in the input length |
+| Binary | $\Theta(\lceil\log x_1\rceil+\cdots+\lceil\log x_m\rceil+\lceil\log s\rceil)$ | May be exponential in the input length |
+
+SUBSET-SUM uses binary encoding in the NP-completeness statement. Therefore the dynamic program does not prove $\mathrm{SUBSET\text{-}SUM}\in P$.
+
+**Theorem.** $\mathrm{SET\ COVER}\le_P\mathrm{SUBSET\text{-}SUM}$.
+
+Combined with $\mathrm{SET\ COVER}$ being NP-complete and $\mathrm{SUBSET\text{-}SUM}\in NP$, this implies that $\mathrm{SUBSET\text{-}SUM}$ is NP-complete. The hardness result is compatible with the dynamic program because pseudo-polynomial time is weaker than polynomial time under binary encoding.

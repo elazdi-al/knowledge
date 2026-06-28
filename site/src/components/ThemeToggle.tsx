@@ -24,7 +24,7 @@ export function ThemeToggle() {
       onPressedChange={handlePressedChange}
       aria-label="Toggle theme"
       title="Toggle theme"
-      className="fixed bottom-6 right-6 z-50 h-4 w-4 cursor-pointer rounded-full border-0 bg-[color:var(--color-text)] opacity-90 transition-opacity hover:opacity-100"
+      className="no-print fixed bottom-6 right-6 z-50 h-4 w-4 cursor-pointer rounded-full border-0 bg-[color:var(--color-text)] opacity-90 transition-opacity hover:opacity-100"
     />
   );
 }

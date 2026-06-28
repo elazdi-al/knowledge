@@ -46,7 +46,7 @@ export function CopyPageButton({ markdown, className }: CopyPageButtonProps) {
         onClick={handleCopy}
         aria-label="Copy page as Markdown"
         className={cn(
-          "group flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-300 transition-[scale,background-color] duration-200 ease-out hover:bg-gray-400 active:scale-[0.97] will-change-transform",
+          "no-print group flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-300 transition-[scale,background-color] duration-200 ease-out hover:bg-gray-400 active:scale-[0.97] will-change-transform",
           className,
         )}
       >
