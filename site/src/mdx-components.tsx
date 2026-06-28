@@ -51,6 +51,7 @@ import { R2Image } from "@/components/R2Image";
 import { RAIDDiagram } from "@/components/RAIDDiagram";
 import {
   DfaToPathReductionSchema,
+  NpCompletenessChainSchema,
   PolynomialReductionSchema,
   ReductionPipelineSchema,
   ReductionTransitivitySchema,
@@ -100,6 +101,7 @@ export function useMDXComponents(
     LockPhaseSchema,
     Mermaid,
     MultiGranularityLockingSchema,
+    NpCompletenessChainSchema,
     PageLayout,
     Pane,
     PhantomReadSchema,

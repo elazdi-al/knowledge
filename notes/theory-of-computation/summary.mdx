@@ -1,0 +1,157 @@
+---
+title: "TOC Summary"
+description: "Compact reference of the definitions, theorems, and proof recipes of Theory of Computation: regular languages and the pumping lemma, Turing machines, decidability and recognizability, reductions, and the P, NP, and NP-completeness landscape."
+tags: ["Theory of computation"]
+created: 2026-06-28
+updated: 2026-06-28
+---
+
+## Regular Languages
+
+**DFA.** $M=(Q,\Sigma,\delta,q_0,F)$ with total $\delta:Q\times\Sigma\to Q$. Accepts $w$ iff $\hat\delta(q_0,w)\in F$. Accepts $\epsilon$ iff $q_0\in F$.
+
+**NFA.** Same tuple with $\delta:Q\times(\Sigma\cup\{\epsilon\})\to 2^Q$: any number of next states, including none, plus $\epsilon$-moves. Accepts $w$ iff at least one path reading $w$ ends in $F$.
+
+**Equivalence of models.**
+- Every DFA is an NFA (the case with exactly one next state and no $\epsilon$-moves).
+- Every NFA has an equivalent DFA, by the subset construction: a DFA state is a set of NFA states. The DFA can be exponentially larger.
+- So DFAs and NFAs recognize exactly the same class, the regular languages.
+
+**Regular language.** A language recognized by some DFA, equivalently some NFA.
+- Closed under: $\overline{L}$, $L_1\cup L_2$, $L_1\cap L_2$, $L_1\circ L_2$ (concatenation), $L^*$ (Kleene star, $L^*=\{w_1\cdots w_k \mid k\ge 0,\ w_i\in L\}$, which includes $\epsilon$).
+- $\overline{L}$: keep the DFA, swap accepting and non-accepting states. $L_1\cup L_2$ and $L_1\cap L_2$: product DFA on $Q_1\times Q_2$, accepting when one side (union) or both sides (intersection) accept. $L_1\circ L_2$: link two NFAs with $\epsilon$-moves, then determinize. $L^*$: add a new accepting start state with an $\epsilon$-move to the old start, and $\epsilon$-moves from each accepting state back to it.
+
+**Regular languages to know.**
+- $\varnothing$ and $\Sigma^*$: regular (a DFA with no accepting state; a DFA with all states accepting).
+- $\{\epsilon\}$ and **every finite language**: regular.
+- Fixed substring, prefix, suffix, or position, e.g. strings ending in $1$: regular.
+- Parity and divisibility, e.g. number of $1$s divisible by $5$: regular (counting modulo a fixed number).
+- Pattern shapes $0^*1^*$ and $0^*110^*$: regular.
+- Equal number of substrings $01$ and $10$: regular. The answer depends only on whether the first and last symbols are equal, which is two bits, not on the counts.
+
+**Non-regular languages to know.** Each needs unbounded exact memory, which counting modulo a fixed number cannot provide.
+- $\{0^n1^n \mid n\ge 0\}$: must match two unbounded counts exactly.
+- $\{ww \mid w\in\{0,1\}^*\}$: must store the entire first half.
+- $\{0^m1^n \mid m>n\}$.
+- Equal number of $0$s and $1$s.
+
+**Pumping lemma.** If $A$ is regular, there is a length $p$ such that every $s\in A$ with $|s|\ge p$ splits as $s=xyz$ with:
+- $|y|\ge 1$,
+- $|xy|\le p$,
+- $xy^iz\in A$ for every $i\ge 0$.
+
+This is a necessary condition only. It proves non-regularity by contradiction, never regularity.
+
+**Proving non-regularity (pumping).**
+1. Assume $L$ is regular with pumping length $p$.
+2. Pick one $s\in L$ with $|s|\ge p$, written in terms of $p$.
+3. Check every split $s=xyz$ with $|xy|\le p$ and $|y|\ge 1$. A good $s$ forces $y$ into a single block.
+4. Pick one $i$ (usually $0$ or $2$) for which $xy^iz\notin L$.
+
+**Proving non-regularity (closure).** Assume $L$ is regular, then combine it with regular languages under closure (intersect with a regular filter, complement, union) to reach a known non-regular language. Example: $C\cap 0^*1^* = \{0^n1^n\}$, so equal $0$s and $1$s is non-regular.
+
+---
+
+## Turing Machines and Computability
+
+**Turing machine (TM).** $M=(Q,\Sigma,\Gamma,\delta,q_0,q_{\text{accept}},q_{\text{reject}})$: a finite control on a one-way-infinite tape, with $\Sigma\subseteq\Gamma$, blank $\sqcup\in\Gamma\setminus\Sigma$, and $\delta:(Q\setminus\{q_{\text{accept}},q_{\text{reject}}\})\times\Gamma\to Q\times\Gamma\times\{L,R\}$ (read, write one cell, move one cell). On each input it accepts, rejects, or runs forever.
+
+**Recognizable.** Some TM accepts every $w\in L$, and on $w\notin L$ it rejects or runs forever. Not closed under complement: $\mathrm{HALT}$ is recognizable, but $\overline{\mathrm{HALT}}$ is not.
+
+**Decidable.** Some TM halts on every input and accepts exactly $L$. Closed under complement: run the decider and swap accept and reject.
+
+**Decidable languages.** Every regular language; $\{0^n1^n\}$; equal $0$s and $1$s; $\{0^{2^n}\}$ (unary powers of two).
+
+**Recognizable languages.** $L$ is decidable iff both $L$ and $\overline{L}$ are recognizable (run both recognizers in alternation; one must accept).
+
+**Decidable problems about automata.**
+- $E_{\mathrm{DFA}}=\{\langle D\rangle \mid L(D)=\varnothing\}$: decidable. $L(D)=\varnothing$ iff no accepting state is reachable from $q_0$, which is reachability on the state graph.
+- $EQ_{\mathrm{DFA}}=\{\langle D,D'\rangle \mid L(D)=L(D')\}$: decidable. Build the DFA for the symmetric difference $L(D)\oplus L(D')$ and test it for emptiness; the two are equal iff it is empty.
+
+**Church-Turing thesis.** Anything computable by an algorithm is computable by a Turing machine. The same class of computable functions arises from multi-tape TMs, $\lambda$-calculus, and ordinary programming languages.
+
+**Encoding $\langle O\rangle$.** A finite string describing an object: a DFA, a graph, a TM, or a pair $\langle O_1,O_2\rangle$. A decision problem is the set of encodings whose answer is yes.
+
+**Countability.**
+- Countable: $\Sigma^*$, all finite encodings, all DFAs, all Turing machines.
+- Uncountable: the set of all languages $\mathcal{P}(\Sigma^*)$ (diagonal argument on characteristic sequences).
+- Consequence: there are more languages than Turing machines, so some languages are not recognizable.
+
+**Diagonalization.** $\mathrm{DIAG}=\{\langle M_i\rangle \mid M_i \text{ does not accept } \langle M_i\rangle\}$ is undecidable. A decider for it would have to disagree with its own behavior on its own encoding.
+
+**Core undecidable problems.**
+- $A_{\mathrm{TM}}=\{\langle M,w\rangle \mid M \text{ accepts } w\}$: recognizable, undecidable.
+- $\mathrm{HALT}=\{\langle M,w\rangle \mid M \text{ halts on } w\}$: recognizable, undecidable.
+- Difference on the no-instances: $\mathrm{HALT}$ says no only when $M$ loops; $A_{\mathrm{TM}}$ says no when $M$ rejects or loops.
+
+**Mapping reduction $A\le_m B$.** A total computable $f$ with $w\in A \iff f(w)\in B$. It makes $B$ at least as hard as $A$.
+- $B$ decidable $\Rightarrow A$ decidable. $A$ undecidable $\Rightarrow B$ undecidable.
+- $B$ recognizable $\Rightarrow A$ recognizable. $A$ unrecognizable $\Rightarrow B$ unrecognizable.
+
+**Proving undecidability by reduction.**
+1. Take a known hard language: $A_{\mathrm{TM}}$ for undecidability, $\overline{A_{\mathrm{TM}}}$ for unrecognizability.
+2. Map each instance to a target instance by writing the new machine's code, without running it.
+3. Show $f$ is total computable and that $w\in A \iff f(w)\in B$.
+
+**More undecidable and unrecognizable problems.**
+- $REG_{\mathrm{TM}}=\{\langle N\rangle \mid L(N) \text{ is regular}\}$: undecidable, by $A_{\mathrm{TM}}\le_m REG_{\mathrm{TM}}$.
+- $\overline{A_{\mathrm{TM}}}$ and $\overline{\mathrm{HALT}}$: not recognizable.
+- $EQ_{\mathrm{TM}}=\{\langle M_1,M_2\rangle \mid L(M_1)=L(M_2)\}$: not recognizable, by $\overline{A_{\mathrm{TM}}}\le_m EQ_{\mathrm{TM}}$, hence also undecidable.
+
+**Hierarchy.** $\text{Regular}\subsetneq\text{Decidable}\subsetneq\text{Recognizable}\subsetneq\mathcal{P}(\Sigma^*)$, every containment strict:
+- $\{0^n1^n\}$: decidable, not regular.
+- $\mathrm{HALT}$: recognizable, not decidable.
+- $\overline{\mathrm{HALT}}$: not recognizable.
+
+---
+
+## Time Complexity: P and NP
+
+**Worst-case time.** For a decider $M$, $t(n)$ is the maximum number of steps over all inputs of length $n$. Defined for deciders only, since recognizers may loop.
+
+**Asymptotics.**
+- $f=O(g)$: $f(n)\le C\,g(n)$ for some constant $C$ and all large $n$.
+- $f=o(g)$: $f(n)/g(n)\to 0$.
+
+**P.** Languages decidable in polynomial time by a deterministic TM: $P=\bigcup_{k\ge 1}\mathrm{TIME}(n^k)$.
+- Every regular language is in $P$ (one constant-time step per input symbol).
+- Known in $P$: sortedness of an array; $s$-$t$ connectivity by BFS; graph connectivity.
+
+**Certificate and verifier.** A verifier for $L$ reads a pair $\langle x,C\rangle$, where $C$ is a proposed proof that $x\in L$. It is polynomial-time if valid certificates have length $\le p(|x|)$ and the check runs in time polynomial in $|x|$.
+
+**NP.** Languages with a polynomial-time verifier.
+- $x\in L$ iff some certificate is accepted; $x\notin L$ iff every certificate is rejected.
+- Equivalent definition: languages decided by a polynomial-time nondeterministic TM, $NP=\bigcup_{k\ge 1}\mathrm{NTIME}(n^k)$. The certificate is the choices of one accepting branch.
+
+**P vs NP.** $P\subseteq NP$ (a decider is a verifier that ignores the certificate). Whether $P=NP$ is open.
+
+**Polynomial-time reduction $A\le_P B$.** A total polynomial-time computable $f$ with $w\in A \iff f(w)\in B$.
+- If $A\le_P B$ and $B\in P$, then $A\in P$.
+- Transitive: $A\le_P B$ and $B\le_P C$ give $A\le_P C$.
+
+**NP-hard and NP-complete.**
+- NP-hard: every $L\in NP$ reduces to it, $L\le_P H$.
+- NP-complete: NP-hard and in NP.
+- If any NP-complete language is in $P$, then $P=NP$.
+
+**Cook-Levin.** SAT is NP-complete. So $\mathrm{SAT}\in P \iff P=NP$, and the same holds for every NP-complete language.
+
+**Proving $L$ NP-complete.**
+1. Show $L\in NP$ with a polynomial-time verifier.
+2. Reduce a known NP-complete language to $L$ (direction: known problem $\to L$, never $L \to$ known problem).
+3. By transitivity, every NP language then reduces to $L$.
+
+<NpCompletenessChainSchema />
+
+**NP-complete problems.**
+- **SAT**: a CNF formula, an AND of clauses where each clause is an OR of literals, that has a satisfying assignment.
+- **3SAT**: SAT restricted to formulas with at most $3$ literals per clause.
+- **INDSET**: $\langle G,k\rangle$ where $G$ has $k$ vertices with no edge between any two.
+- **CLIQUE**: $\langle G,k\rangle$ where $G$ has $k$ vertices that are pairwise adjacent.
+- **VERTEX COVER**: $\langle G,k\rangle$ where $G$ has $k$ vertices that together touch every edge.
+- **SET COVER**: $\langle U,\mathcal{F},k\rangle$ where $k$ of the sets in $\mathcal{F}$ have union $U$.
+- **SUBSET-SUM**: $\langle X,s\rangle$ where some sub-multiset of the positive integers $X$ sums to $s$.
+
+**Graph isomorphism (GI).** In NP, but not known to be NP-complete and not known to be in $P$.
+
+**Pseudo-polynomial time.** SUBSET-SUM has an $O(mT)$ dynamic program with $T=\sum_i x_i$. This is polynomial in the integer values but exponential in the binary input length, so it does not place SUBSET-SUM in $P$. NP-completeness assumes binary encoding.
