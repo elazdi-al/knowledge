@@ -7,8 +7,9 @@ import { z } from "zod";
  * File-system note reader.
  *
  * Walks ../notes recursively and returns one entry per .md/.mdx file.
- * The path inside that directory becomes the
- * slug, so concepts/foo.md → slug "concepts/foo" → URL /notes/concepts/foo.
+ * The path inside that directory becomes the slug, so
+ * data-intensive-systems/l9.mdx → slug "data-intensive-systems/l9" →
+ * URL /notes/data-intensive-systems/l9.
  *
  * gray-matter parses the YAML block here so the index page and per-note
  * metadata don't need to load the compiled MDX module.
@@ -62,8 +63,8 @@ function slugFromPath(filePath: string): string {
   return withoutExt.split(path.sep).join("/");
 }
 
-// In production builds this cache lets the homepage, tag pages, and
-// every note share a single filesystem walk. In dev we read fresh so
+// In production builds this cache lets the homepage, the search index,
+// and every note share a single filesystem walk. In dev we read fresh so
 // edits in ../notes are reflected on the next request.
 let cache: Promise<Note[]> | null = null;
 const useCache = process.env.NODE_ENV === "production";
