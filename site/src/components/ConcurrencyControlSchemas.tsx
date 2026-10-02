@@ -523,7 +523,7 @@ export function DeadlockPreventionSchema({
     const arrowY = 96;
     return (
       <Frame x={x} y={24} w={276} h={150} title={title}>
-        <Label x={x + 133} y={58} text={rule} size={FONT.note} fill={COLOR.caption} />
+        <Label x={x + 138} y={58} text={rule} size={FONT.note} fill={COLOR.caption} />
 
         <Box x={oldX - 36} y={84} w={72} h={34} label="T_{old}" state="emphasis" fontWeight={700} />
         <Box x={youngX - 42} y={84} w={84} h={34} label="T_{young}" tint fontWeight={700} />
