@@ -541,38 +541,6 @@ function BucketSpan({
   );
 }
 
-export function UniformitySchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
-  return (
-    <DiagramFigure title={title} caption={caption} className={className}>
-      <DiagramSvg
-        w={620}
-        h={190}
-        label={caption ?? "Actual distribution compared with uniform approximation"}
-      >
-        <Label x={60} y={30} text="Actual distribution" anchor="start" size={FONT.label} weight={700} />
-        <BarChart x={60} y={64} w={210} h={84} values={HISTOGRAM_VALUES} />
-
-        <Label x={360} y={30} text="Uniform estimate" anchor="start" size={FONT.label} weight={700} />
-        <BarChart
-          x={360}
-          y={64}
-          w={210}
-          h={84}
-          values={Array.from({ length: 15 }, () => 3)}
-        />
-      </DiagramSvg>
-    </DiagramFigure>
-  );
-}
-
 export function HistogramBucketSchema({
   title,
   caption,
