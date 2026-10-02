@@ -21,7 +21,6 @@
   --color-gray-1100: #63635e;
   --color-gray-1200: #21201c;
 
-  --color-bg-fill: #f8f8f8;
   --color-code-bg: #ffffff;
   --color-brand: #fad657;
 
@@ -126,7 +125,6 @@
     --color-gray-1100: #b5b3ad;
     --color-gray-1200: #eeeeec;
 
-    --color-bg-fill: #252525;
     --color-code-bg: #11110e;
 
     --color-bg: var(--color-gray-100);
@@ -660,29 +658,6 @@ html:has(.home-pane) main {
   }
 }
 
-/* Inline demo frame */
-@layer components {
-  .demo-frame {
-    margin-block: 1.6em;
-    border: 1px solid var(--color-gray-400);
-    background: var(--color-bg-fill);
-    border-radius: 10px;
-    padding: 1.5rem 1rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    overflow: hidden;
-  }
-
-  .demo-frame__caption {
-    color: var(--color-faint);
-    font-size: 0.72rem;
-    font-family: var(--font-mono);
-    letter-spacing: 0.04em;
-  }
-}
-
 /* Mermaid diagram */
 @layer components {
   .mermaid-graph {
@@ -955,130 +930,6 @@ html:has(.home-pane) main {
 
   .complexity-diagram__mobile {
     display: flex;
-  }
-}
-
-/* Code Playground (Sandpack) */
-@layer components {
-  .code-playground {
-    --cp-gray-100: #fdfdfc;
-    --cp-gray-200: #f9f9f8;
-    --cp-gray-300: #f1f0ef;
-    --cp-gray-400: #e9e9e8;
-    --cp-gray-900: #8d8d86;
-    --cp-gray-1100: #63635d;
-    --cp-gray-1200: #21201c;
-    --cp-surface1: #ffffff;
-    --cp-surface2: #e9e9e8;
-    --cp-surface3: #f6f8fa;
-    --cp-clickable: #63635d;
-    --cp-base: #ffffff;
-    --cp-disabled: #6f6d66;
-    --cp-hover: #000000;
-    --cp-accent: #000000;
-    --cp-error-surface: #d73a4a;
-    --cp-syntax-plain: #24292f;
-    --cp-syntax-comment: #5f5d59;
-    --cp-syntax-keyword: #d73a4a;
-    --cp-syntax-tag: #23863a;
-    --cp-syntax-punctuation: #24292f;
-    --cp-syntax-definition: #7041c1;
-    --cp-syntax-property: #015cc5;
-    --cp-syntax-static: #e26208;
-    --cp-syntax-string: #032f62;
-    color-scheme: light;
-  }
-
-  .mobile-full-width {
-    margin-inline: -1.5rem;
-    width: calc(100% + 3rem);
-  }
-
-  @media (min-width: 640px) {
-    .mobile-full-width {
-      margin-inline: 0;
-      width: 100%;
-    }
-  }
-
-  .code-playground__shell {
-    /* Gray-400 background shows through the 1px flex gaps as hairlines */
-    background: var(--cp-gray-400);
-    color: var(--cp-accent);
-    border: 1px solid var(--cp-gray-400);
-  }
-
-  .code-playground__panel {
-    flex: var(--desktop-width, 50);
-    min-width: 200px;
-    background: var(--cp-surface1);
-  }
-
-  .code-playground__preview-panel {
-    border-top: 1px solid var(--cp-gray-400);
-  }
-
-  @media (min-width: 1024px) {
-    .code-playground__preview-panel {
-      border-top: 0;
-    }
-  }
-
-  .code-playground .sp-wrapper {
-    background: transparent;
-    width: 100%;
-    height: 100%;
-  }
-
-  .code-playground .sp-stack {
-    background: var(--cp-surface1);
-  }
-
-  .code-playground .sp-editor {
-    height: 100%;
-    width: 100%;
-  }
-
-  .code-playground .sp-tabs {
-    background: var(--cp-surface1);
-    border-bottom: 1px solid var(--cp-gray-400);
-  }
-
-  .code-playground .sp-tabs-scrollable-container {
-    padding-inline: 8px;
-  }
-
-  .code-playground .sp-tab-button {
-    color: var(--cp-clickable);
-    font-size: 13px;
-    padding: 0 8px;
-    height: 40px;
-  }
-
-  .code-playground .sp-tab-button[data-active="true"] {
-    color: var(--cp-accent);
-  }
-
-  .code-playground .cm-content {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-  }
-
-  .code-playground .cm-line {
-    font-size: 13px;
-  }
-
-  .code-playground .cm-gutterElement {
-    color: var(--cp-gray-900) !important;
-    font-size: 13px !important;
-  }
-
-  .code-playground .cm-matchingBracket {
-    background: var(--cp-gray-100) !important;
-  }
-
-  .code-playground .sp-preview-container {
-    background: #ffffff;
   }
 }
 
@@ -1616,7 +1467,6 @@ html:has(.home-pane) main {
     --color-gray-1100: #63635e;
     --color-gray-1200: #21201c;
 
-    --color-bg-fill: #f8f8f8;
     --color-code-bg: #ffffff;
 
     --color-bg: #ffffff;
@@ -1728,7 +1578,6 @@ html:has(.home-pane) main {
 
   .diagram,
   .mermaid-graph,
-  .demo-frame,
   .split,
   .split__pane,
   figure,
@@ -1767,7 +1616,6 @@ html:has(.home-pane) main {
 
   .diagram__card,
   .mermaid-graph__card,
-  .demo-frame,
   .prose .katex-display,
   .prose table {
     overflow: visible;
