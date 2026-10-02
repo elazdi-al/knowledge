@@ -3,7 +3,6 @@ import { Automaton } from "@/components/Automaton";
 import { BPlusTree } from "@/components/BPlusTree";
 import { BufferQueue } from "@/components/BufferQueue";
 import { ClockPolicy } from "@/components/ClockPolicy";
-import { CodePlayground } from "@/components/CodePlayground";
 import {
   GraphCertificateSchema,
   GrowthRateSchema,
@@ -19,7 +18,6 @@ import {
   MultiGranularityLockingSchema,
   WaitForGraphSchema,
 } from "@/components/ConcurrencyControlSchemas";
-import { DemoFrame } from "@/components/DemoFrame";
 import { ERDiagram } from "@/components/ERDiagram";
 import { ERInstanceMapping } from "@/components/ERInstanceMapping";
 import {
@@ -29,7 +27,6 @@ import {
   PhantomReadSchema,
   QuorumOverlapSchema,
 } from "@/components/EventualConsistencySchemas";
-import { Figure } from "@/components/Figure";
 import { HashDiagram } from "@/components/HashDiagram";
 import { IdeaBreak } from "@/components/IdeaBreak";
 import { IndexMap } from "@/components/IndexMap";
@@ -47,7 +44,6 @@ import {
   QueryProcessingFlow,
   UniformitySchema,
 } from "@/components/QueryExecutionSchemas";
-import { R2Image } from "@/components/R2Image";
 import { RAIDDiagram } from "@/components/RAIDDiagram";
 import {
   DfaToPathReductionSchema,
@@ -79,21 +75,17 @@ export function useMDXComponents(
     BPlusTree,
     BufferQueue,
     ClockPolicy,
-    CodePlayground,
     CausalConsistencySchema,
     ConflictSerializabilitySchema,
     DeadlockPreventionSchema,
-    DemoFrame,
     DfaToPathReductionSchema,
     DynamoSiblingsSchema,
     ERDiagram,
     ERInstanceMapping,
-    Figure,
     GraphCertificateSchema,
     GrowthRateSchema,
     HashDiagram,
     hr: IdeaBreak,
-    IdeaBreak,
     IndexMap,
     KeyRangeLockingSchema,
     LanguageClasses,
@@ -117,7 +109,6 @@ export function useMDXComponents(
     QueryProcessingFlow,
     QuorumOverlapSchema,
     UniformitySchema,
-    R2Image,
     RAIDDiagram,
     ReductionPipelineSchema,
     ReductionTransitivitySchema,

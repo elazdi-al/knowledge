@@ -6,9 +6,7 @@ import { cn } from "@/lib/cn";
 
 interface TooltipProps {
   label: ReactNode;
-  side?: "top" | "right" | "bottom" | "left";
-  sideOffset?: number;
-  /** Open delay in ms. Omit to inherit the Base UI / Provider default (600ms). */
+  /** Open delay in ms. Omit to inherit the Base UI default (600ms). */
   delay?: number;
   children: ReactElement;
   className?: string;
@@ -16,8 +14,6 @@ interface TooltipProps {
 
 export function Tooltip({
   label,
-  side = "top",
-  sideOffset = 6,
   delay,
   children,
   className,
@@ -26,7 +22,7 @@ export function Tooltip({
     <BaseTooltip.Root>
       <BaseTooltip.Trigger delay={delay} render={children} />
       <BaseTooltip.Portal>
-        <BaseTooltip.Positioner side={side} sideOffset={sideOffset}>
+        <BaseTooltip.Positioner side="top" sideOffset={6}>
           <BaseTooltip.Popup className={cn("tooltip-popup", className)}>
             {label}
           </BaseTooltip.Popup>
@@ -35,5 +31,3 @@ export function Tooltip({
     </BaseTooltip.Root>
   );
 }
-
-export const TooltipProvider = BaseTooltip.Provider;
