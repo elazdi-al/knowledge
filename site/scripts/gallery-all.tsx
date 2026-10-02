@@ -34,8 +34,6 @@ const modules: GalleryModule[] = [
   storagehierarchy,
 ];
 
-// Palette + CSS copied from preview-bplustree.tsx so the gallery shares the
-// exact light/dark scaffold.
 const PALETTE_LIGHT = `--mm-bg:#ffffff;--mm-node:#f6f6f5;--mm-fg:#21201c;--mm-border:#e2e1de;--mm-line:#cfceca;--mm-muted:#63635e;--mm-accent:#8d8d86;--mm-caption:#8d8d86;--mm-hi-bg:#21201c;--mm-hi-fg:#ffffff;--mm-frame-border:#e2e1de;`;
 const PALETTE_DARK = `--mm-bg:#0a0a0a;--mm-node:#1c1c1f;--mm-fg:#f5f5f5;--mm-border:#383840;--mm-line:#4a4a52;--mm-muted:#c6c6c6;--mm-accent:#9a9aa0;--mm-caption:#8a8a8a;--mm-hi-bg:#f5f5f5;--mm-hi-fg:#0a0a0a;--mm-frame-border:rgba(255,255,255,0.14);`;
 
