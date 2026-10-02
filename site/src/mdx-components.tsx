@@ -5,9 +5,7 @@ import { BufferQueue } from "@/components/BufferQueue";
 import { ClockPolicy } from "@/components/ClockPolicy";
 import {
   GraphCertificateSchema,
-  GrowthRateSchema,
   PnpContainmentSchema,
-  RunningTimeSchema,
   VerifierSchema,
 } from "@/components/ComplexitySchemas";
 import {
@@ -42,15 +40,12 @@ import {
   LeftDeepPlanSchema,
   OptimizerArchitectureSchema,
   QueryProcessingFlow,
-  UniformitySchema,
 } from "@/components/QueryExecutionSchemas";
 import { RAIDDiagram } from "@/components/RAIDDiagram";
 import {
   DfaToPathReductionSchema,
   NpCompletenessChainSchema,
-  PolynomialReductionSchema,
   ReductionPipelineSchema,
-  ReductionTransitivitySchema,
   RegTmReductionSchema,
   SatToIndsetReductionSchema,
 } from "@/components/ReductionSchemas";
@@ -83,7 +78,6 @@ export function useMDXComponents(
     ERDiagram,
     ERInstanceMapping,
     GraphCertificateSchema,
-    GrowthRateSchema,
     HashDiagram,
     hr: IdeaBreak,
     IndexMap,
@@ -98,7 +92,6 @@ export function useMDXComponents(
     Pane,
     PhantomReadSchema,
     PnpContainmentSchema,
-    PolynomialReductionSchema,
     ExecutionModelSchema,
     GraceProbeSchema,
     HashProjectionSchema,
@@ -108,13 +101,10 @@ export function useMDXComponents(
     QueryTree,
     QueryProcessingFlow,
     QuorumOverlapSchema,
-    UniformitySchema,
     RAIDDiagram,
     ReductionPipelineSchema,
-    ReductionTransitivitySchema,
     RecoveryPhasesSchema,
     RegTmReductionSchema,
-    RunningTimeSchema,
     SatToIndsetReductionSchema,
     ScheduleEquivalenceSchema,
     SortPasses,

@@ -60,9 +60,6 @@
     --mm-hi-bg: #21201c; /* highlight box fill */
     --mm-hi-fg: #ffffff; /* highlight box text */
     --mm-frame-border: var(--color-border); /* card + container ring */
-    --mm-curve-linear: #2563eb;
-    --mm-curve-quadratic: #0f766e;
-    --mm-curve-exponential: #c2410c;
 
     /* Viewport primitives: classic units are the fallback; modern browsers
        swap to dynamic/small units so fixed panels stay inside Safari chrome. */
@@ -108,9 +105,6 @@
     --mm-hi-bg: #f5f5f5; /* highlight box fill */
     --mm-hi-fg: #0a0a0a; /* highlight box text */
     --mm-frame-border: rgba(255, 255, 255, 0.14); /* card + container ring */
-    --mm-curve-linear: #60a5fa;
-    --mm-curve-quadratic: #2dd4bf;
-    --mm-curve-exponential: #fb923c;
 
     --color-gray-100: #111110;
     --color-gray-200: #191918;
@@ -873,56 +867,6 @@ html:has(.home-pane) main {
   display: none;
 }
 
-.growth-rate-chart__series {
-  color: var(--growth-curve-color);
-  opacity: 1;
-  transition-property: opacity;
-  transition-duration: 180ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-}
-
-.growth-rate-chart__series--linear {
-  --growth-curve-color: var(--mm-curve-linear);
-}
-
-.growth-rate-chart__series--quadratic {
-  --growth-curve-color: var(--mm-curve-quadratic);
-}
-
-.growth-rate-chart__series--exponential {
-  --growth-curve-color: var(--mm-curve-exponential);
-}
-
-.growth-rate-chart__curve-hit {
-  pointer-events: stroke;
-}
-
-.growth-rate-chart__curve {
-  pointer-events: none;
-  transition-property: stroke-width, filter;
-  transition-duration: 180ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-}
-
-.growth-rate-chart:has(.growth-rate-chart__series:hover)
-  .growth-rate-chart__series:not(:hover) {
-  opacity: 0.28;
-}
-
-.growth-rate-chart__series:hover .growth-rate-chart__curve {
-  stroke-width: 3.4px;
-  filter: drop-shadow(
-    0 3px 5px color-mix(in srgb, var(--growth-curve-color) 28%, transparent)
-  );
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .growth-rate-chart__series,
-  .growth-rate-chart__curve {
-    transition-duration: 0ms;
-  }
-}
-
 @media (max-width: 520px) {
   .complexity-diagram__desktop {
     display: none;
@@ -1490,9 +1434,6 @@ html:has(.home-pane) main {
     --mm-hi-bg: #21201c;
     --mm-hi-fg: #ffffff;
     --mm-frame-border: var(--color-border);
-    --mm-curve-linear: #2563eb;
-    --mm-curve-quadratic: #0f766e;
-    --mm-curve-exponential: #c2410c;
   }
 
   /* Honour every themed colour we just set - card fills, code backgrounds,
