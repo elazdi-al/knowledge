@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/cn";
-import { normalizeQuery, type ItemHit, type NoteHit, type PreviewLine } from "@/lib/search-core";
+import { normalizeQuery, QUERY_MAX, type ItemHit, type NoteHit, type PreviewLine } from "@/lib/search-core";
 import { useSearch, warmSearch, type SearchStatus } from "@/lib/use-search";
 
 /* ---------------------------------- store ---------------------------------- */
@@ -264,6 +264,7 @@ export function CommandMenu() {
               autoFocus
               value={query}
               onValueChange={setQuery}
+              maxLength={QUERY_MAX}
               placeholder="Search notes and concepts…"
               className="cmdk-input"
             />
