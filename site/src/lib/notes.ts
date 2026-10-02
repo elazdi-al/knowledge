@@ -91,16 +91,8 @@ async function load(): Promise<Note[]> {
       body: parsed.content,
     });
   }
-  notes.sort((a, b) => sortKey(b) - sortKey(a));
+  notes.sort((a, b) => a.slug.localeCompare(b.slug, "en", { numeric: true }));
   return notes;
-}
-
-function sortKey(n: Note): number {
-  return (
-    n.frontmatter.updated?.getTime() ??
-    n.frontmatter.created?.getTime() ??
-    0
-  );
 }
 
 export async function getNoteBySlug(slug: string): Promise<Note | undefined> {
