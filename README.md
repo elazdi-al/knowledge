@@ -1,31 +1,32 @@
 # knowledge
 
-A local-first, typography-first knowledge renderer.
+Course notes written in MDX, and the site that renders them. The notes live in
+`notes/`. `site/` is a Next.js 16 app that exports them as static HTML. A
+Cloudflare Worker serves that export and answers search queries.
 
-You write Markdown in `notes/`. A Next.js 15 site in `site/` renders it.
-Deployable to Cloudflare Pages with R2 for images.
+On a note page you can highlight passages, which the browser keeps in
+IndexedDB, and copy the note's source as Markdown.
+
+## Repository layout
 
 ```
 knowledge/
-├── notes/                  ← your writing (.md / .mdx)
-│   ├── concepts/
-│   ├── projects/
-│   ├── papers/
-│   └── daily/
-└── site/                   ← the renderer (Next.js 15, App Router)
-    ├── src/
-    │   ├── app/            ← routes
-    │   ├── components/     ← UI + MDX components
-    │   └── lib/            ← notes loader, MDX pipeline, R2 helper
-    ├── next.config.ts
-    ├── wrangler.toml       ← Cloudflare Pages config
-    └── .env.example        ← R2 public URL
+├── notes/
+│   ├── data-intensive-systems/   one .mdx file per lecture
+│   └── theory-of-computation/
+├── RULES.md                      how to write a note
+└── site/
+    ├── src/app/                  routes: home, notes/[...slug], search-index.json
+    ├── src/components/           page chrome and the components notes use
+    ├── src/components/diagram/   shared SVG primitives, palette, text metrics
+    ├── src/lib/                  note loader, MDX pipeline, search engine
+    ├── src/mdx-components.tsx    components every note can use
+    ├── worker/index.ts           the Worker that serves /api/search
+    ├── scripts/                  helper scripts
+    └── wrangler.toml             Worker and static asset config
 ```
 
-The site is completely decoupled from `notes/`. Move files, rename
-folders, restructure: the renderer picks it up.
-
-## Run it
+## Run the site
 
 ```sh
 cd site
@@ -33,175 +34,114 @@ bun install
 bun run dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000>. In development the loader reads `../notes` on
+every request, so a saved edit shows up when you refresh the page. Nothing
+watches the files.
 
-The dev server reads notes from `../notes` on every request, so edits
-land in the browser within a few hundred milliseconds. No restart, no
-re-index.
+Run these from `site/` as well:
 
-### Build & preview
+| Command             | What it does                                                 |
+| ------------------- | ------------------------------------------------------------ |
+| `bun run build`     | Exports the site to `site/out/`, with `search-index.json`.   |
+| `bun run preview`   | Builds, then `wrangler dev` serves `out/` and the Worker.    |
+| `bun run deploy`    | Builds, then `wrangler deploy` publishes the Worker.         |
+| `bun run typecheck` | Runs `tsc --noEmit`.                                         |
 
-```sh
-bun run build        # static export → site/out
-bun run preview      # wrangler pages dev out
-```
+## Add a note
 
-### Deploy to Cloudflare Pages
+Create an `.mdx` file in a course folder under `notes/`. Its path inside
+`notes/` becomes the URL, so `notes/data-intensive-systems/l9.mdx` is served at
+`/notes/data-intensive-systems/l9`. The homepage lists notes by path and
+compares numbers as numbers, so `l2` comes before `l10`. The loader also picks
+up `.md` files. Both compile as MDX.
 
-```sh
-bun run deploy       # build + wrangler pages deploy out --project-name=knowledge
-```
-
-The first deploy will prompt you to create the project; subsequent
-deploys reuse it. See `wrangler.toml` for the project name and
-optional R2 binding.
-
-## Adding a note
-
-Drop a Markdown file anywhere under `notes/`:
+Every note starts with YAML frontmatter:
 
 ```md
 ---
-title: My New Note
-description: One-line summary, optional.
-created: 2026-05-18
-updated: 2026-05-18
+title: "Data Intensive Systems: Lecture 9"
+description: "Query optimization as cost-based search."
+tags: ["Data intensive systems"]
+created: 2026-06-21
+updated: 2026-06-22
 ---
-
-The body starts here. Plain Markdown plus inline math like
-$a^2 + b^2 = c^2$ and block math:
-
-$$
-\nabla \cdot \mathbf{E} = \frac{\rho}{\varepsilon_0}
-$$
 ```
 
-URL is derived from the file's path inside `notes/`:
+The zod schema in `site/src/lib/notes.ts` accepts these fields:
 
-| file                                          | URL                                       |
-| --------------------------------------------- | ----------------------------------------- |
-| `notes/concepts/cross-encoder-reranking.md`   | `/notes/concepts/cross-encoder-reranking` |
-| `notes/daily/2026-05-18.md`                   | `/notes/daily/2026-05-18`                 |
+| Field         | Type     | Required | Effect                                           |
+| ------------- | -------- | -------- | ------------------------------------------------ |
+| `title`       | string   | yes      | Page title and homepage entry.                   |
+| `description` | string   | no       | Shown under the title and on the homepage.       |
+| `tags`        | string[] | no       | Parsed. The site does not show them.             |
+| `created`     | date     | no       | Shown as the date under the title.               |
+| `updated`     | date     | no       | Parsed. The site does not show it.               |
+| `draft`       | boolean  | no       | `true` leaves the note out of the build.         |
 
-### Frontmatter
+The body is GitHub-flavored Markdown with KaTeX math (`$...$` inline, `$$...$$`
+for blocks). Shiki highlights code blocks at build time. Headings get anchor
+links.
 
-| field         | type     | required | notes                                  |
-| ------------- | -------- | -------- | -------------------------------------- |
-| `title`       | string   | yes      | shown in listing and `<h1>`            |
-| `description` | string   | no       | shown on listings and under the title  |
-| `tags`        | string[] | no       | kept on the note, not shown in UI      |
-| `created`     | date     | no       | `YYYY-MM-DD` works; shown on the page  |
-| `updated`     | date     | no       | drives homepage sort order             |
-| `draft`       | boolean  | no       | `true` hides the note                  |
+To check one note without a full build, run `bun run verify` with its path
+(see the helper scripts below).
 
-### When to use MDX
+## Components in notes
 
-Use `.md` by default. Switch to `.mdx` only when a note benefits from
-a component: a callout, an inline interaction, an image with a
-caption. MDX components are pre-registered globally so notes don't
-need to `import` anything.
+Notes never import anything. `site/src/mdx-components.tsx` registers every
+component, so a new one goes there. The notes use these:
 
-Available out of the box:
+- `Split` lays out its `Pane` children side by side on wide screens and
+  stacks them on narrow ones.
+- `Automaton` draws a finite automaton in the textbook style.
+- The diagram family draws course figures as SVG at build time. It includes
+  `BPlusTree`, `IndexMap`, `PageLayout`, `ERDiagram`, `HashDiagram`,
+  `QueryTree`, `TuringTape`, `TuringTrace`, and the figures in the
+  `*Schemas.tsx` files. They share the primitives in
+  `site/src/components/diagram/` and the `--mm-*` palette in `globals.css`,
+  so they follow light and dark mode.
+- `Mermaid` renders a Mermaid diagram in the same palette.
+- A `---` line in the body renders as `IdeaBreak`, a short row of dashes
+  between ideas.
 
-| component           | use                                            |
-| ------------------- | ---------------------------------------------- |
-| `<Callout>`         | aside box; `kind="info" \| "note" \| "warn"`    |
-| `<R2Image>`         | image stored in R2; `src` is the object key   |
-| `<DemoFrame>`       | wrap an inline interactive demo               |
-| `<CodePlayground>`  | lazy-loaded Sandpack editor (one-off use)     |
+`RULES.md` covers how to write a note: structure, concept blocks, examples,
+and what to leave out. It bans callout boxes.
 
-See `notes/concepts/calm-interfaces.mdx` for a working example.
-`CodePlayground` is dynamically imported, so the Sandpack bundle is
-only fetched on notes that actually embed it.
+## Search
 
-## Images via R2
+Press Cmd-K on a Mac, or Ctrl-K elsewhere, to open the command menu. It
+searches note titles plus the concepts and sections inside each note.
 
-Cloud images live in a public R2 bucket. The renderer takes the
-object key and resolves it to a full URL.
+`bun run build` writes `search-index.json` into `out/`. In production the
+Worker in `site/worker/index.ts` builds the search engine from that file and
+answers `GET /api/search?q=...`. It caps each IP at 30 requests per 10 seconds
+and caches answers at the edge. The public `/search-index.json` path returns
+404. Under `bun run dev` there is no Worker, so the browser runs the same
+engine from `site/src/lib/search-core.ts` against the live index route.
 
-1. Create an R2 bucket in the Cloudflare dashboard.
-2. Enable a public URL (or attach a custom domain).
-3. Copy the URL into `site/.env.local`:
+## Helper scripts
 
-```sh
-NEXT_PUBLIC_R2_PUBLIC_URL=https://pub-XXXXXXXX.r2.dev
-```
+Run these from `site/`:
 
-Then reference images by key:
-
-```mdx
-<R2Image
-  src="notes/2026-05/sketch.png"
-  alt="A sketch of the retrieval pipeline"
-  width={1280}
-  height={720}
-  caption="Bi-encoder, cross-encoder, with a budget label."
-/>
-```
-
-When `NEXT_PUBLIC_R2_PUBLIC_URL` is unset, `<R2Image>` renders an
-inline placeholder so local development never breaks.
-
-For private buckets, point `NEXT_PUBLIC_R2_PUBLIC_URL` at a
-Worker route that signs requests on your behalf. The rest of the
-stack stays the same.
-
-## Design
-
-Type, color, and spacing follow the open-source palette from
-[emilkowal.ski](https://emilkowal.ski). A 12-step gray scale
-(`gray-100` through `gray-1200`) for light and dark, one warm yellow
-brand color, a 644px reading column, and serif italics for inline
-emphasis. Tweak `@theme { ... }` in `globals.css` to retune the
-entire site.
-
-## Folder map for the renderer
-
-```
-site/src/
-├── lib/
-│   ├── notes.ts         ← reads ../notes, parses frontmatter
-│   ├── mdx.ts           ← compiles MDX with math + code highlighting
-│   ├── r2.ts            ← R2 URL helper
-│   └── cn.ts            ← classname utility
-├── components/
-│   ├── Header.tsx
-│   ├── NoteList.tsx        ← row-hover writing list
-│   ├── Callout.tsx
-│   ├── R2Image.tsx
-│   ├── DemoFrame.tsx
-│   ├── ThemeToggle.tsx     ← inline-script-driven light/dark
-│   ├── CodePlayground.tsx  ← thin lazy wrapper
-│   ├── CodePlaygroundImpl.tsx ← Sandpack, only loaded on demand
-│   └── mdx.tsx             ← global MDX component map
-└── app/
-    ├── layout.tsx
-    ├── page.tsx                       ← homepage
-    ├── globals.css
-    ├── notes/[...slug]/page.tsx       ← individual note
-    └── not-found.tsx
-```
+- `bun run gallery` renders every example in `scripts/gallery/` into
+  `site/preview-all.html`, with light and dark side by side.
+- `bun run verify ../notes/data-intensive-systems/l9.mdx` compiles and renders
+  one note the way the site does. It fails on MDX syntax errors and unknown
+  components.
+- `bun scripts/gen-font-metrics.mjs` downloads Inter and regenerates
+  `src/components/diagram/font-metrics.ts`, the glyph widths that size diagram
+  boxes. Rerun it only when the glyph list in the script changes.
 
 ## Stack
 
-- Next.js 15 (App Router, static export)
-- React 19
-- Tailwind CSS v4
-- Inter + Instrument Serif + JetBrains Mono (via `next/font`)
-- TypeScript (strict)
-- next-mdx-remote 5 + remark-math + rehype-katex + rehype-pretty-code (Shiki)
-- Cloudflare Pages + R2
-
-## Future extension points (kept clean on purpose)
-
-- **Search.** Add Pagefind as a build step (`bunx pagefind --site out`).
-- **Backlinks.** Parse `[[wikilinks]]` with a remark plugin; expose
-  the inbound map on `Note` in `lib/notes.ts`.
-- **Note graph.** Iterate the collection at build time, emit graph
-  JSON.
-- **Vector DB / semantic search.** Iterate notes, embed, write to a
-  local store. Keep that in a sibling folder (`indexer/`).
-- **MCP server.** Same data source; expose `getAllNotes()` over MCP.
-
-The renderer reads files and produces HTML. Anything heavier than
-that belongs in a sibling tool.
+- Next.js 16 with the App Router and `output: "export"`, React 19, TypeScript.
+- Tailwind CSS 4. The palette and prose styles live in
+  `site/src/app/globals.css`, and the reading column is 692px wide
+  (`--container-prose`).
+- Inter and JetBrains Mono, loaded through `next/font` in
+  `site/src/app/layout.tsx`.
+- `@mdx-js/mdx` with remark-gfm, remark-math, rehype-katex,
+  rehype-pretty-code (Shiki), rehype-slug, and rehype-autolink-headings, wired
+  up in `site/src/lib/mdx.tsx`.
+- cmdk and Base UI for the command menu and tooltips.
+- Cloudflare Workers with static assets, deployed with Wrangler.
+- Bun for installs and scripts.

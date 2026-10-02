@@ -45,10 +45,11 @@
   :root {
     color-scheme: light;
 
-    /* Mermaid diagram palette - light. Clean inverse of the reference: a
-       white card, a faintly grey node container, element boxes read by their
-       border, and a darker box as the highlight. The Mermaid SVG references
-       these as var(--mm-*), so the diagram and its frame re-theme together. */
+    /* Diagram palette - light. Clean inverse of the reference: a white card,
+       a faintly grey node container, element boxes read by their border, and
+       a darker box as the highlight. Every diagram, Mermaid included,
+       references these as var(--mm-*), so figures and frames re-theme
+       together. */
     --mm-bg: #ffffff; /* card + element-box fill */
     --mm-node: #f6f6f5; /* node container fill */
     --mm-fg: #21201c; /* container titles */
@@ -84,7 +85,7 @@
     html.dark {
       color-scheme: dark;
 
-      /* Mermaid diagram palette - dark. Tuned for contrast: a near-black card,
+      /* Diagram palette - dark. Tuned for contrast: a near-black card,
          a clearly-lighter node container, element boxes that drop back to the
          card colour and read by a visible border, brighter connectors and dot,
          and an inverted highlight box. */
