@@ -62,10 +62,9 @@
     --mm-frame-border: var(--color-border); /* card + container ring */
 
     /* Viewport primitives: classic units are the fallback; modern browsers
-       swap to dynamic/small units so fixed panels stay inside Safari chrome. */
+       swap to dynamic units so fixed panels stay inside Safari chrome. */
     --app-viewport-width: 100vw;
     --app-viewport-height: 100vh;
-    --app-viewport-small-height: 100vh;
   }
 
   @supports (width: 100dvw) {
@@ -77,12 +76,6 @@
   @supports (height: 100dvh) {
     :root {
       --app-viewport-height: 100dvh;
-    }
-  }
-
-  @supports (height: 100svh) {
-    :root {
-      --app-viewport-small-height: 100svh;
     }
   }
 
@@ -351,7 +344,6 @@ html:has(.home-pane) main {
     margin-top: 0;
   }
 
-  .prose h1,
   .prose h2,
   .prose h3,
   .prose h4 {
@@ -483,13 +475,6 @@ html:has(.home-pane) main {
     font-style: italic;
   }
 
-  .prose hr {
-    border: 0;
-    height: 1px;
-    background: var(--color-gray-400);
-    margin-block: 2.2em;
-  }
-
   .prose pre {
     font-family: var(--font-mono);
     font-size: 0.75rem;
@@ -501,12 +486,6 @@ html:has(.home-pane) main {
     overflow: auto;
     max-width: 100%;
     min-width: 0;
-  }
-
-  @media (min-width: 768px) {
-    .prose pre {
-      padding: 1rem;
-    }
   }
 
   .prose pre code {
@@ -618,31 +597,8 @@ html:has(.home-pane) main {
   }
 }
 
-/* Writing list row */
+/* Section label */
 @layer components {
-  .row-link {
-    display: block;
-    margin-inline: -0.75rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    transition: background-color 150ms ease;
-  }
-
-  .row-link:hover {
-    background: var(--color-gray-300);
-  }
-
-  .row-link__title {
-    color: var(--color-text);
-    font-weight: 500;
-    letter-spacing: -0.011em;
-  }
-
-  .row-link__desc {
-    color: var(--color-muted);
-    font-style: italic;
-  }
-
   .section-label {
     color: var(--color-faint);
     font-size: 0.8125rem;
@@ -1509,7 +1465,6 @@ html:has(.home-pane) main {
     widows: 3;
   }
 
-  .prose h1,
   .prose h2,
   .prose h3,
   .prose h4 {
