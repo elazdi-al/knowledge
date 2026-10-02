@@ -169,7 +169,7 @@ export function QueryProcessingFlow({
   className?: string;
 }) {
   const arrowId = stableId("query-flow", { title, caption });
-  const cx = 330;
+  const cx = 280;
   const bw = 300;
   const bh = 36;
   const boxes = [
@@ -689,12 +689,12 @@ function RightDeepMiniTree({ x }: { x: number }) {
 }
 
 function BushyMiniTree({ x }: { x: number }) {
-  const j1 = { x: x + 62, y: 132 };
-  const j2 = { x: x + 146, y: 132 };
+  const j1 = { x: x + 58, y: 132 };
+  const j2 = { x: x + 150, y: 132 };
   const j3 = { x: x + 104, y: 70 };
   const a = { x: x + 34, y: 168 };
-  const b = { x: x + 90, y: 168 };
-  const c = { x: x + 118, y: 168 };
+  const b = { x: x + 82, y: 168 };
+  const c = { x: x + 126, y: 168 };
   const d = { x: x + 174, y: 168 };
   return (
     <g>
