@@ -25,15 +25,10 @@ const FrontmatterSchema = z.object({
   draft: z.boolean().default(false),
 });
 
-export type NoteFrontmatter = z.infer<typeof FrontmatterSchema>;
-
 export interface Note {
   slug: string;
   slugSegments: string[];
-  filePath: string;
-  relativePath: string;
-  isMDX: boolean;
-  frontmatter: NoteFrontmatter;
+  frontmatter: z.infer<typeof FrontmatterSchema>;
   body: string;
 }
 
@@ -92,9 +87,6 @@ async function load(): Promise<Note[]> {
     notes.push({
       slug,
       slugSegments: slug.split("/"),
-      filePath,
-      relativePath: path.relative(NOTES_DIR, filePath),
-      isMDX: filePath.endsWith(".mdx"),
       frontmatter: fm,
       body: parsed.content,
     });
@@ -114,19 +106,6 @@ function sortKey(n: Note): number {
 export async function getNoteBySlug(slug: string): Promise<Note | undefined> {
   const all = await getAllNotes();
   return all.find((n) => n.slug === slug);
-}
-
-export async function getAllTags(): Promise<Map<string, Note[]>> {
-  const notes = await getAllNotes();
-  const map = new Map<string, Note[]>();
-  for (const n of notes) {
-    for (const t of n.frontmatter.tags) {
-      const arr = map.get(t) ?? [];
-      arr.push(n);
-      map.set(t, arr);
-    }
-  }
-  return map;
 }
 
 export function formatDate(d?: Date): string {
