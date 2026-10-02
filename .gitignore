@@ -1,9 +1,5 @@
-# dependencies
-site/node_modules/
-site/.astro/
-site/dist/
-site/.vercel/
-site/.netlify/
+# source slides
+*.pdf
 
 # logs
 *.log
