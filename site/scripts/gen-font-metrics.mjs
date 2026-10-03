@@ -4,7 +4,7 @@
  * Downloads the static Inter TTFs (weights 400 and 700) from the Google Fonts
  * CSS API — the same family the site loads via next/font — reads each glyph's
  * advance width with opentype.js, and emits
- * `src/components/diagram/font-metrics.ts`.
+ * `src/components/figure/font-metrics.ts`.
  *
  * Run once (and re-run only if the glyph set below grows):
  *   bun scripts/gen-font-metrics.mjs
@@ -83,7 +83,7 @@ export const INTER_700: FontMetrics = {
 `;
 
 writeFileSync(
-  new URL("../src/components/diagram/font-metrics.ts", import.meta.url),
+  new URL("../src/components/figure/font-metrics.ts", import.meta.url),
   out,
 );
-console.log("wrote src/components/diagram/font-metrics.ts");
+console.log("wrote src/components/figure/font-metrics.ts");

@@ -9,15 +9,14 @@
     "typecheck": "tsc --noEmit",
     "deploy": "next build && wrangler deploy",
     "preview": "next build && wrangler dev",
-    "gallery": "bun scripts/gallery-all.tsx",
-    "verify": "bun scripts/verify-note.tsx"
+    "verify": "bun scripts/verify-note.tsx",
+    "lint:figures": "bun scripts/lint-figures.tsx"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@highlighters/core": "^1.1.2",
     "@mdx-js/mdx": "^3.1.1",
     "@types/mdx": "^2.0.13",
-    "beautiful-mermaid": "^1.1.3",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "gray-matter": "^4.0.3",

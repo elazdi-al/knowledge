@@ -1,267 +1,7 @@
-import type { ReactNode } from "react";
-import {
-  Arrow,
-  ArrowHead,
-  Box,
-  COLOR,
-  DiagramFigure,
-  DiagramSvg,
-  FONT,
-  Label,
-  RADIUS,
-  STROKE,
-  r2,
-  stableId,
-} from "@/components/diagram";
+import { Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text } from "@/components/figure";
 
-type Anchor = "start" | "middle" | "end";
-type Weight = 400 | 600 | 700;
-type Pt = { x: number; y: number };
-
-function ResponsiveDiagram({
-  desktop,
-  mobile,
-}: {
-  desktop: ReactNode;
-  mobile: ReactNode;
-}) {
-  return (
-    <>
-      <div className="reduction-diagram__desktop">{desktop}</div>
-      <div className="reduction-diagram__mobile">{mobile}</div>
-    </>
-  );
-}
-
-function Lines({
-  x,
-  y,
-  lines,
-  size = FONT.note,
-  weight = 400,
-  fill = COLOR.fg,
-  anchor = "middle",
-  lineH = 15,
-  halo = false,
-}: {
-  x: number;
-  y: number;
-  lines: string[];
-  size?: number;
-  weight?: Weight;
-  fill?: string;
-  anchor?: Anchor;
-  lineH?: number;
-  halo?: boolean;
-}) {
-  return (
-    <g>
-      {lines.map((line, i) => (
-        <Label
-          key={`${line}-${i}`}
-          x={x}
-          y={y + i * lineH}
-          text={line}
-          size={size}
-          weight={weight}
-          fill={fill}
-          anchor={anchor}
-          halo={halo}
-        />
-      ))}
-    </g>
-  );
-}
-
-function Frame({
-  x,
-  y,
-  w,
-  h,
-  title,
-  children,
-}: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <g>
-      <rect
-        x={r2(x)}
-        y={r2(y)}
-        width={r2(w)}
-        height={r2(h)}
-        rx={RADIUS.frame}
-        fill={COLOR.node}
-        stroke={COLOR.border}
-        strokeWidth={STROKE.frame}
-      />
-      <Label x={x + 14} y={y + 22} text={title} size={FONT.label} weight={700} anchor="start" />
-      {children}
-    </g>
-  );
-}
-
-function State({
-  x,
-  y,
-  label,
-  accepting = false,
-  target = false,
-}: {
-  x: number;
-  y: number;
-  label: string;
-  accepting?: boolean;
-  target?: boolean;
-}) {
-  const r = target ? 19 : 22;
-  return (
-    <g>
-      <circle
-        cx={r2(x)}
-        cy={r2(y)}
-        r={r}
-        fill={target ? COLOR.bg : COLOR.node}
-        stroke={COLOR.fg}
-        strokeWidth={STROKE.frame}
-        strokeDasharray={target ? STROKE.dash : undefined}
-      />
-      {accepting && (
-        <circle
-          cx={r2(x)}
-          cy={r2(y)}
-          r={r - 5}
-          fill="none"
-          stroke={COLOR.fg}
-          strokeWidth={STROKE.frame}
-        />
-      )}
-      <Label x={x} y={y} text={label} size={FONT.label} weight={600} />
-    </g>
-  );
-}
-
-function Segment({
-  a,
-  b,
-  dashed = false,
-  width = STROKE.line,
-}: {
-  a: Pt;
-  b: Pt;
-  dashed?: boolean;
-  width?: number;
-}) {
-  return (
-    <line
-      x1={r2(a.x)}
-      y1={r2(a.y)}
-      x2={r2(b.x)}
-      y2={r2(b.y)}
-      stroke={COLOR.muted}
-      strokeWidth={width}
-      strokeDasharray={dashed ? STROKE.dash : undefined}
-      strokeLinecap="round"
-    />
-  );
-}
-
-function LiteralNode({
-  x,
-  y,
-  label,
-  selected = false,
-}: {
-  x: number;
-  y: number;
-  label: string;
-  selected?: boolean;
-}) {
-  return (
-    <g>
-      {selected && (
-        <rect
-          x={r2(x - 29)}
-          y={r2(y - 29)}
-          width="58"
-          height="58"
-          rx={RADIUS.frame}
-          fill="none"
-          stroke={COLOR.fg}
-          strokeWidth={STROKE.bold}
-        />
-      )}
-      <circle
-        cx={r2(x)}
-        cy={r2(y)}
-        r="21"
-        fill={selected ? COLOR.node : COLOR.bg}
-        stroke={COLOR.fg}
-        strokeWidth={STROKE.frame}
-      />
-      <Label x={x} y={y} text={label} size={FONT.title} weight={700} />
-    </g>
-  );
-}
-
-function ClauseFrame({
-  x,
-  y,
-  w,
-  h,
-  label,
-}: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  label: string;
-}) {
-  return (
-    <g>
-      <rect
-        x={r2(x)}
-        y={r2(y)}
-        width={r2(w)}
-        height={r2(h)}
-        rx={RADIUS.frame}
-        fill={COLOR.node}
-        stroke={COLOR.fg}
-        strokeWidth={STROKE.frame}
-      />
-      <Label x={x + 12} y={y + 18} text={label} size={FONT.label} weight={700} anchor="start" />
-    </g>
-  );
-}
-
-function CliqueEdges({ points }: { points: Pt[] }) {
-  const edges: Array<[Pt, Pt, number]> = [];
-  for (let i = 0; i < points.length; i++) {
-    for (let j = i + 1; j < points.length; j++) {
-      const distance = j - i;
-      const sameRow = Math.abs(points[i].y - points[j].y) < 1;
-      const bend = sameRow && distance > 1 ? (distance % 2 === 0 ? -22 : 26) : 0;
-      edges.push([points[i], points[j], bend]);
-    }
-  }
-
-  return (
-    <g>
-      {edges.map(([a, b, bend], i) => (
-        bend === 0 ? (
-          <Segment key={i} a={a} b={b} />
-        ) : (
-          <Arrow key={i} from={a} to={b} bend={bend} color={COLOR.muted} />
-        )
-      ))}
-    </g>
-  );
-}
+const notes = (lines: string[]) => lines.map((t) => <Text key={t} text={t} size="note" muted />);
+const down = (from: string, to: string) => <Edge key={to} from={from} to={to} fromSide="bottom" toSide="top" route="ortho" />;
 
 export function NpCompletenessChainSchema({
   title,
@@ -272,14 +12,8 @@ export function NpCompletenessChainSchema({
   caption?: string;
   className?: string;
 }) {
-  const arrowId = stableId("np-chain", { title, caption });
-
-  const box = (x: number, y: number, w: number, label: string, state: "normal" | "emphasis" | "new" = "normal") => (
-    <Box x={x} y={y} w={w} h={38} label={label} state={state} fontWeight={700} fontSize={FONT.note} />
-  );
-
   return (
-    <DiagramFigure
+    <Diagram
       title={title}
       caption={
         caption ??
@@ -287,70 +21,60 @@ export function NpCompletenessChainSchema({
       }
       className={className}
     >
-      <ResponsiveDiagram
-        desktop={
-          <DiagramSvg w={660} h={380} label={caption ?? "NP-completeness reduction chain"}>
-            <defs>
-              <ArrowHead id={arrowId} />
-            </defs>
-
-            {box(270, 28, 120, "SAT", "emphasis")}
-            {box(152, 112, 126, "INDSET", "emphasis")}
-            {box(414, 112, 96, "3SAT")}
-            {box(64, 202, 148, "VERTEX COVER")}
-            {box(304, 202, 112, "CLIQUE")}
-            {box(76, 292, 124, "SET COVER")}
-            {box(286, 292, 132, "SUBSET-SUM", "new")}
-
-            <Arrow from={{ x: 298, y: 66 }} to={{ x: 226, y: 112 }} markerId={arrowId} />
-            <Arrow from={{ x: 362, y: 66 }} to={{ x: 454, y: 112 }} markerId={arrowId} />
-            <Arrow from={{ x: 186, y: 150 }} to={{ x: 138, y: 202 }} markerId={arrowId} />
-            <Arrow from={{ x: 246, y: 150 }} to={{ x: 332, y: 202 }} markerId={arrowId} />
-            <Arrow from={{ x: 138, y: 240 }} to={{ x: 138, y: 292 }} markerId={arrowId} />
-            <Arrow from={{ x: 200, y: 311 }} to={{ x: 286, y: 311 }} markerId={arrowId} dashed />
-
-            <Lines
-              x={330}
-              y={356}
-              lines={["known complete sources feed later complete targets by transitivity"]}
-              fill={COLOR.caption}
-            />
-          </DiagramSvg>
-        }
-        mobile={
-          <DiagramSvg w={310} h={522} label={caption ?? "NP-completeness reduction chain"}>
-            <defs>
-              <ArrowHead id={`${arrowId}-mobile`} />
-            </defs>
-
-            {box(105, 22, 100, "SAT", "emphasis")}
-            {box(92, 102, 126, "INDSET", "emphasis")}
-            {box(102, 182, 106, "CLIQUE")}
-            {box(81, 262, 148, "VERTEX COVER")}
-            {box(93, 342, 124, "SET COVER")}
-            {box(89, 422, 132, "SUBSET-SUM", "new")}
-            {box(221, 102, 78, "3SAT")}
-
-            <Arrow from={{ x: 155, y: 60 }} to={{ x: 155, y: 102 }} markerId={`${arrowId}-mobile`} />
-            <Arrow from={{ x: 190, y: 60 }} to={{ x: 248, y: 102 }} markerId={`${arrowId}-mobile`} />
-            <Arrow from={{ x: 155, y: 140 }} to={{ x: 155, y: 182 }} markerId={`${arrowId}-mobile`} />
-            <Arrow from={{ x: 155, y: 220 }} to={{ x: 155, y: 262 }} markerId={`${arrowId}-mobile`} />
-            <Arrow from={{ x: 155, y: 300 }} to={{ x: 155, y: 342 }} markerId={`${arrowId}-mobile`} />
-            <Arrow from={{ x: 155, y: 380 }} to={{ x: 155, y: 422 }} markerId={`${arrowId}-mobile`} dashed />
-
-            <Lines
-              x={155}
-              y={494}
-              lines={["arrows transfer NP-hardness", "when the target is in NP"]}
-              fill={COLOR.caption}
-              lineH={14}
-            />
-          </DiagramSvg>
-        }
-      />
-    </DiagramFigure>
+      <Col gap={24}>
+        <Col gap={36}>
+          <Node id="sat" title="SAT" state="strong" />
+          <Row gap={56} align="start">
+            <Col gap={36}>
+              <Node id="indset" title="INDSET" state="strong" />
+              <Grid cols={2} colGap={40} rowGap={36}>
+                <Node id="vc" title="VERTEX COVER" />
+                <Node id="clique" title="CLIQUE" />
+                <Node id="sc" title="SET COVER" />
+                <Node id="ss" title="SUBSET-SUM" state="placeholder" />
+              </Grid>
+            </Col>
+            <Node id="3sat" title="3SAT" />
+          </Row>
+        </Col>
+        {notes(["known complete sources feed later complete targets by transitivity"])}
+      </Col>
+      {down("sat", "indset")}
+      {down("sat", "3sat")}
+      {down("indset", "vc")}
+      {down("indset", "clique")}
+      {down("vc", "sc")}
+      <Edge from="sc" to="ss" dashed />
+    </Diagram>
   );
 }
+
+const CLAUSES: Array<Array<{ id: string; label: string; chosen?: boolean }>> = [
+  [{ id: "k1n1", label: "¬x_1", chosen: true }],
+  [
+    { id: "k2p1", label: "x_1" },
+    { id: "k2n2", label: "¬x_2", chosen: true },
+  ],
+  [
+    { id: "k3p1", label: "x_1" },
+    { id: "k3p2", label: "x_2" },
+    { id: "k3n3", label: "¬x_3", chosen: true },
+  ],
+  [
+    { id: "k4p1", label: "x_1" },
+    { id: "k4p2", label: "x_2" },
+    { id: "k4p3", label: "x_3" },
+    { id: "k4n4", label: "¬x_4", chosen: true },
+  ],
+];
+const CONFLICTS: Array<[string, string]> = [
+  ["k1n1", "k2p1"],
+  ["k1n1", "k3p1"],
+  ["k1n1", "k4p1"],
+  ["k2n2", "k3p2"],
+  ["k2n2", "k4p2"],
+  ["k3n3", "k4p3"],
+];
 
 export function SatToIndsetReductionSchema({
   title,
@@ -361,85 +85,27 @@ export function SatToIndsetReductionSchema({
   caption?: string;
   className?: string;
 }) {
-  const desktop = {
-    k1: [{ id: "k1n1", x: 104, y: 278, label: "¬x_1", selected: true }],
-    k2: [
-      { id: "k2p1", x: 558, y: 244, label: "x_1" },
-      { id: "k2n2", x: 558, y: 312, label: "¬x_2", selected: true },
-    ],
-    k3: [
-      { id: "k3p1", x: 232, y: 124, label: "x_1" },
-      { id: "k3p2", x: 330, y: 124, label: "x_2" },
-      { id: "k3n3", x: 428, y: 124, label: "¬x_3", selected: true },
-    ],
-    k4: [
-      { id: "k4p1", x: 212, y: 432, label: "x_1" },
-      { id: "k4p2", x: 300, y: 432, label: "x_2" },
-      { id: "k4p3", x: 388, y: 432, label: "x_3" },
-      { id: "k4n4", x: 476, y: 432, label: "¬x_4", selected: true },
-    ],
-  };
-  const mobile = {
-    k1: [{ id: "k1n1", x: 155, y: 84, label: "¬x_1", selected: true }],
-    k2: [
-      { id: "k2p1", x: 112, y: 206, label: "x_1" },
-      { id: "k2n2", x: 198, y: 206, label: "¬x_2", selected: true },
-    ],
-    k3: [
-      { id: "k3p1", x: 72, y: 334, label: "x_1" },
-      { id: "k3p2", x: 155, y: 334, label: "x_2" },
-      { id: "k3n3", x: 238, y: 334, label: "¬x_3", selected: true },
-    ],
-    k4: [
-      { id: "k4p1", x: 50, y: 488, label: "x_1" },
-      { id: "k4p2", x: 120, y: 488, label: "x_2" },
-      { id: "k4p3", x: 190, y: 488, label: "x_3" },
-      { id: "k4n4", x: 260, y: 488, label: "¬x_4", selected: true },
-    ],
-  };
-
-  const desktopNodes = Object.fromEntries(
-    Object.values(desktop)
-      .flat()
-      .map((node) => [node.id, node]),
+  const D = 40;
+  const literal = (l: (typeof CLAUSES)[number][number]) => (
+    <Node key={l.id} id={l.id} shape="circle" w={D} title={l.label} state={l.chosen ? "active" : undefined} />
   );
-  const mobileNodes = Object.fromEntries(
-    Object.values(mobile)
-      .flat()
-      .map((node) => [node.id, node]),
-  );
-
-  const conflicts: Array<[string, string, number]> = [
-    ["k1n1", "k2p1", -34],
-    ["k1n1", "k3p1", -56],
-    ["k1n1", "k4p1", 32],
-    ["k2n2", "k3p2", -36],
-    ["k2n2", "k4p2", 42],
-    ["k3n3", "k4p3", 46],
-  ];
-
-  const renderConflictEdges = (
-    nodes: Record<string, Pt>,
-    markerSuffix = "",
-    mobileMode = false,
-  ) => (
-    <g>
-      {conflicts.map(([from, to, bend], i) => (
-        <Arrow
-          key={`${from}-${to}-${markerSuffix}`}
-          from={nodes[from]}
-          to={nodes[to]}
-          bend={mobileMode ? Math.sign(bend) * 26 : bend}
-          dashed
-          color={COLOR.muted}
-          width={i === conflicts.length - 1 ? STROKE.bold : STROKE.line}
-        />
-      ))}
-    </g>
-  );
-
+  // each clause is a polygon, so no clique edge passes through a vertex
+  const polygon = (ls: (typeof CLAUSES)[number]) =>
+    ls.length === 3 ? (
+      <Col gap={24}>
+        <Row gap={36}>{ls.slice(0, 2).map(literal)}</Row>
+        {literal(ls[2])}
+      </Col>
+    ) : ls.length === 4 ? (
+      <Grid cols={2} gap={36}>
+        {ls.map(literal)}
+      </Grid>
+    ) : (
+      <Row gap={36}>{ls.map(literal)}</Row>
+    );
+  const cliques = CLAUSES.flatMap((ls) => ls.flatMap((a, i) => ls.slice(i + 1).map((b) => [a.id, b.id] as const)));
   return (
-    <DiagramFigure
+    <Diagram
       title={title}
       caption={
         caption ??
@@ -447,77 +113,31 @@ export function SatToIndsetReductionSchema({
       }
       className={className}
     >
-      <ResponsiveDiagram
-        desktop={
-          <DiagramSvg w={660} h={560} label={caption ?? "Reduction from SAT to independent set"}>
-            <Frame x={16} y={18} w={628} h={478} title="example construction">
-              <ClauseFrame x={164} y={66} w={328} h={116} label="K_3" />
-              <ClauseFrame x={48} y={222} w={112} h={112} label="K_1" />
-              <ClauseFrame x={502} y={194} w={112} h={166} label="K_2" />
-              <ClauseFrame x={162} y={374} w={356} h={116} label="K_4" />
-
-              <CliqueEdges points={desktop.k2} />
-              <CliqueEdges points={desktop.k3} />
-              <CliqueEdges points={desktop.k4} />
-              {renderConflictEdges(desktopNodes)}
-
-              {Object.values(desktop)
-                .flat()
-                .map((node) => (
-                  <LiteralNode key={node.id} {...node} />
-                ))}
-            </Frame>
-
-            <Lines
-              x={330}
-              y={522}
-              lines={[
-                "solid edges: clause cliques",
-                "dashed edges: conflicting literals",
-                "outlined nodes: chosen independent set",
-              ]}
-              fill={COLOR.caption}
-              lineH={15}
-            />
-          </DiagramSvg>
-        }
-        mobile={
-          <DiagramSvg w={310} h={668} label={caption ?? "Reduction from SAT to independent set"}>
-            <Frame x={14} y={16} w={282} h={548} title="example construction">
-              <ClauseFrame x={96} y={48} w={118} h={74} label="K_1" />
-              <ClauseFrame x={52} y={168} w={206} h={82} label="K_2" />
-              <ClauseFrame x={28} y={292} w={254} h={86} label="K_3" />
-              <ClauseFrame x={18} y={444} w={274} h={88} label="K_4" />
-
-              <CliqueEdges points={mobile.k2} />
-              <CliqueEdges points={mobile.k3} />
-              <CliqueEdges points={mobile.k4} />
-              {renderConflictEdges(mobileNodes, "-mobile", true)}
-
-              {Object.values(mobile)
-                .flat()
-                .map((node) => (
-                  <LiteralNode key={node.id} {...node} />
-                ))}
-            </Frame>
-
-            <Lines
-              x={155}
-              y={600}
-              lines={[
-                "solid: clause cliques",
-                "dashed: conflicts",
-                "outlined: chosen set",
-              ]}
-              fill={COLOR.caption}
-              lineH={15}
-            />
-          </DiagramSvg>
-        }
-      />
-    </DiagramFigure>
+      <Col gap={14}>
+        <Group title="example construction">
+          <Grid cols={2} gap={48} align="center">
+            {CLAUSES.map((ls, i) => (
+              <Group key={i} id={`K${i + 1}`} title={`K_${i + 1}`}>
+                {polygon(ls)}
+              </Group>
+            ))}
+          </Grid>
+        </Group>
+        <Col gap={2}>{notes(["solid edges: clause cliques", "dashed edges: conflicting literals", "outlined nodes: chosen independent set"])}</Col>
+      </Col>
+      {cliques.map(([a, b]) => (
+        <Edge key={a + b} from={a} to={b} route="arc" head="none" />
+      ))}
+      {CONFLICTS.map(([a, b]) => (
+        <Edge key={a + b} from={a} to={b} dashed head="none" />
+      ))}
+    </Diagram>
   );
 }
+
+const DFA_D = 44;
+const state = (id: string, label: string, double = false) => <Node id={id} shape="circle" w={DFA_D} title={label} double={double} />;
+const hole = <Space w={DFA_D} h={DFA_D} />;
 
 export function DfaToPathReductionSchema({
   title,
@@ -528,10 +148,8 @@ export function DfaToPathReductionSchema({
   caption?: string;
   className?: string;
 }) {
-  const arrowId = stableId("dfa-path-reduction", { title, caption });
-
   return (
-    <DiagramFigure
+    <Diagram
       title={title}
       caption={
         caption ??
@@ -539,105 +157,44 @@ export function DfaToPathReductionSchema({
       }
       className={className}
     >
-      <ResponsiveDiagram
-        desktop={
-          <DiagramSvg
-            w={660}
-            h={300}
-            label={caption ?? "Reduction from DFA nonemptiness to path reachability"}
-          >
-            <defs>
-              <ArrowHead id={arrowId} />
-            </defs>
-
-            <Frame x={16} y={34} w={286} h={192} title="DFA D">
-              <State x={74} y={139} label="q_0" />
-              <State x={164} y={99} label="q_1" />
-              <State x={244} y={139} label="q_f" accepting />
-              <Arrow from={{ x: 96, y: 129 }} to={{ x: 142, y: 109 }} markerId={arrowId} label="0" />
-              <Arrow from={{ x: 184, y: 109 }} to={{ x: 222, y: 129 }} markerId={arrowId} label="1" />
-              <Arrow
-                from={{ x: 74, y: 161 }}
-                to={{ x: 232, y: 161 }}
-                markerId={arrowId}
-                bend={26}
-                label="1"
-              />
-              <Label x={159} y={202} text="accepting state reachable" size={FONT.note} fill={COLOR.caption} />
-            </Frame>
-
-            <Arrow from={{ x: 314, y: 130 }} to={{ x: 346, y: 130 }} markerId={arrowId} label="f" />
-
-            <Frame x={358} y={34} w={286} h={192} title="Graph instance">
-              <State x={416} y={139} label="q_0" />
-              <State x={506} y={99} label="q_1" />
-              <State x={586} y={139} label="q_f" />
-              <State x={586} y={200} label="t" target />
-              <Arrow from={{ x: 438, y: 129 }} to={{ x: 484, y: 109 }} markerId={arrowId} />
-              <Arrow from={{ x: 526, y: 109 }} to={{ x: 564, y: 129 }} markerId={arrowId} />
-              <Arrow from={{ x: 586, y: 161 }} to={{ x: 586, y: 180 }} markerId={arrowId} />
-              <Label x={501} y={202} text="path from q_0 to t" size={FONT.note} fill={COLOR.caption} />
-            </Frame>
-
-            <Label
-              x={330}
-              y={264}
-              text="<D> maps to <G,q_0,t>; transition labels are dropped"
-              size={FONT.note}
-              fill={COLOR.caption}
-            />
-          </DiagramSvg>
-        }
-        mobile={
-          <DiagramSvg
-            w={310}
-            h={468}
-            label={caption ?? "Reduction from DFA nonemptiness to path reachability"}
-          >
-            <defs>
-              <ArrowHead id={`${arrowId}-mobile`} />
-            </defs>
-
-            <Frame x={20} y={20} w={270} h={170} title="DFA D">
-              <State x={72} y={113} label="q_0" />
-              <State x={154} y={78} label="q_1" />
-              <State x={232} y={113} label="q_f" accepting />
-              <Arrow from={{ x: 94, y: 104 }} to={{ x: 132, y: 87 }} markerId={`${arrowId}-mobile`} label="0" />
-              <Arrow from={{ x: 174, y: 88 }} to={{ x: 210, y: 104 }} markerId={`${arrowId}-mobile`} label="1" />
-              <Arrow
-                from={{ x: 72, y: 135 }}
-                to={{ x: 220, y: 135 }}
-                markerId={`${arrowId}-mobile`}
-                bend={24}
-                label="1"
-              />
-              <Label x={155} y={174} text="accepting state reachable" size={FONT.note} fill={COLOR.caption} />
-            </Frame>
-
-            <Arrow from={{ x: 155, y: 204 }} to={{ x: 155, y: 242 }} markerId={`${arrowId}-mobile`} label="f" />
-
-            <Frame x={20} y={256} w={270} h={182} title="Graph instance">
-              <State x={72} y={344} label="q_0" />
-              <State x={154} y={309} label="q_1" />
-              <State x={232} y={344} label="q_f" />
-              <State x={232} y={397} label="t" target />
-              <Arrow from={{ x: 94, y: 334 }} to={{ x: 132, y: 318 }} markerId={`${arrowId}-mobile`} />
-              <Arrow from={{ x: 174, y: 319 }} to={{ x: 210, y: 334 }} markerId={`${arrowId}-mobile`} />
-              <Arrow from={{ x: 232, y: 366 }} to={{ x: 232, y: 378 }} markerId={`${arrowId}-mobile`} />
-              <Label x={150} y={419} text="path from q_0 to t" size={FONT.note} fill={COLOR.caption} />
-            </Frame>
-
-            <Lines
-              x={155}
-              y={444}
-              lines={["<D> maps to <G,q_0,t>", "labels are dropped"]}
-              fill={COLOR.caption}
-              lineH={14}
-            />
-          </DiagramSvg>
-        }
-      />
-    </DiagramFigure>
+      <Col gap={14}>
+        <Row wrap gap={24} align="start">
+          <Group id="dfa" title="DFA D" gap={14}>
+            <Grid cols={3} colGap={48} rowGap={16}>
+              {hole}
+              {state("d-q1", "q_1")}
+              {hole}
+              {state("d-q0", "q_0")}
+              {hole}
+              {state("d-qf", "q_f", true)}
+            </Grid>
+            <Text text="accepting state reachable" size="note" muted />
+          </Group>
+          <Group id="graph" title="Graph instance" gap={14}>
+            <Grid cols={4} colGap={36} rowGap={16}>
+              {hole}
+              {state("g-q1", "q_1")}
+              {hole}
+              {hole}
+              {state("g-q0", "q_0")}
+              {hole}
+              {state("g-qf", "q_f")}
+              <Node id="g-t" shape="circle" w={DFA_D} title="t" state="placeholder" />
+            </Grid>
+            <Text text="path from q_0 to t" size="note" muted />
+          </Group>
+        </Row>
+        <Text text="<D> maps to <G,q_0,t>; transition labels are dropped" size="note" muted />
+      </Col>
+      <Edge from="dfa" to="graph" label="f" />
+      <Edge from="d-q0" to="d-q1" route="arc" label="0" />
+      <Edge from="d-q1" to="d-qf" route="arc" label="1" />
+      <Edge from="d-q0" to="d-qf" route="arc" bend={40} label="1" />
+      <Edge from="g-q0" to="g-q1" route="arc" />
+      <Edge from="g-q1" to="g-qf" route="arc" />
+      <Edge from="g-q0" to="g-qf" route="arc" bend={40} state="active" />
+      <Edge from="g-qf" to="g-t" route="arc" state="active" />
+    </Diagram>
   );
 }
 
@@ -656,75 +213,23 @@ export function ReductionPipelineSchema({
   result?: string;
   className?: string;
 }) {
-  const arrowId = stableId("reduction-pipeline", { title, caption, solver, solverNote, result });
-
   return (
-    <DiagramFigure
-      title={title}
-      caption={caption ?? "Use the reduction first, then run the machine for B."}
-      className={className}
-    >
-      <ResponsiveDiagram
-        desktop={
-          <DiagramSvg w={660} h={212} label={caption ?? "Reduction pipeline"}>
-            <defs>
-              <ArrowHead id={arrowId} />
-            </defs>
-
-            <Frame x={18} y={24} w={624} h={130} title={result}>
-              <Box x={48} y={82} w={106} h={42} label="w" state="highlight" fontWeight={700} />
-              <Box x={214} y={82} w={86} h={42} label="f" tint fontWeight={700} />
-              <Box x={360} y={82} w={116} h={42} label="f(w)" state="highlight" fontWeight={700} />
-              <Box x={536} y={82} w={80} h={42} label={solver} fontWeight={700} />
-
-              <Arrow from={{ x: 154, y: 103 }} to={{ x: 214, y: 103 }} markerId={arrowId} />
-              <Arrow from={{ x: 300, y: 103 }} to={{ x: 360, y: 103 }} markerId={arrowId} />
-              <Arrow from={{ x: 476, y: 103 }} to={{ x: 536, y: 103 }} markerId={arrowId} />
-
-              <Lines x={257} y={144} lines={["computable", "total"]} fill={COLOR.caption} />
-              <Lines x={576} y={144} lines={[solverNote]} fill={COLOR.caption} />
-            </Frame>
-
-            <Label
-              x={330}
-              y={184}
-              text="correctness condition: w in A iff f(w) in B"
-              size={FONT.note}
-              fill={COLOR.caption}
-            />
-          </DiagramSvg>
-        }
-        mobile={
-          <DiagramSvg w={310} h={428} label={caption ?? "Reduction pipeline"}>
-            <defs>
-              <ArrowHead id={`${arrowId}-mobile`} />
-            </defs>
-
-            <Frame x={20} y={22} w={270} h={350} title={result}>
-              <Box x={92} y={74} w={126} h={40} label="w" state="highlight" fontWeight={700} />
-              <Box x={125} y={142} w={60} h={40} label="f" tint fontWeight={700} />
-              <Box x={92} y={218} w={126} h={40} label="f(w)" state="highlight" fontWeight={700} />
-              <Box x={112} y={294} w={86} h={40} label={solver} fontWeight={700} />
-
-              <Arrow from={{ x: 155, y: 114 }} to={{ x: 155, y: 142 }} markerId={`${arrowId}-mobile`} />
-              <Arrow from={{ x: 155, y: 182 }} to={{ x: 155, y: 218 }} markerId={`${arrowId}-mobile`} />
-              <Arrow from={{ x: 155, y: 258 }} to={{ x: 155, y: 294 }} markerId={`${arrowId}-mobile`} />
-
-              <Lines x={226} y={150} lines={["computable", "total"]} fill={COLOR.caption} lineH={14} />
-              <Lines x={155} y={356} lines={[solverNote]} fill={COLOR.caption} lineH={14} />
-            </Frame>
-
-            <Lines
-              x={155}
-              y={398}
-              lines={["correctness:", "w in A iff f(w) in B"]}
-              fill={COLOR.caption}
-              lineH={14}
-            />
-          </DiagramSvg>
-        }
-      />
-    </DiagramFigure>
+    <Diagram title={title} caption={caption ?? "Use the reduction first, then run the machine for B."} className={className}>
+      <Col gap={10}>
+        <Group title={result}>
+          <Row wrap gap={36}>
+            <Node id="w" title="w" mono />
+            <Node id="f" title="f" sub="computable, total" />
+            <Node id="fw" title="f(w)" mono />
+            <Node id="m" title={solver} sub={solverNote} />
+          </Row>
+        </Group>
+        {notes(["correctness condition: w ∈ A iff f(w) ∈ B"])}
+      </Col>
+      <Edge from="w" to="f" />
+      <Edge from="f" to="fw" />
+      <Edge from="fw" to="m" />
+    </Diagram>
   );
 }
 
@@ -737,10 +242,8 @@ export function RegTmReductionSchema({
   caption?: string;
   className?: string;
 }) {
-  const arrowId = stableId("regtm-reduction", { title, caption });
-
   return (
-    <DiagramFigure
+    <Diagram
       title={title}
       caption={
         caption ??
@@ -748,92 +251,35 @@ export function RegTmReductionSchema({
       }
       className={className}
     >
-      <ResponsiveDiagram
-        desktop={
-          <DiagramSvg w={660} h={380} label={caption ?? "Reduction from A_TM to REG_TM"}>
-            <defs>
-              <ArrowHead id={arrowId} />
-            </defs>
-
-            <Box x={28} y={34} w={104} h={38} label="<M,w>" state="highlight" fontWeight={700} />
-            <Box x={192} y={34} w={70} h={38} label="f" tint fontWeight={700} />
-            <Box x={324} y={34} w={108} h={38} label="<M'>" state="highlight" fontWeight={700} />
-            <Box x={522} y={34} w={110} h={38} label="R_REG" fontWeight={700} />
-            <Arrow from={{ x: 132, y: 53 }} to={{ x: 192, y: 53 }} markerId={arrowId} />
-            <Arrow from={{ x: 262, y: 53 }} to={{ x: 324, y: 53 }} markerId={arrowId} />
-            <Arrow from={{ x: 432, y: 53 }} to={{ x: 522, y: 53 }} markerId={arrowId} />
-
-            <Frame x={50} y={108} w={560} h={216} title="M' on input y">
-              <Box x={88} y={172} w={126} h={42} label="y in B?" tint fontWeight={700} />
-              <Box x={302} y={142} w={88} h={36} label="accept" state="highlight" fontWeight={700} />
-              <Box x={286} y={240} w={136} h={42} label="run M on w" tint fontWeight={700} />
-              <Box x={496} y={214} w={84} h={36} label="accept" state="highlight" fontWeight={700} />
-              <Box x={496} y={266} w={84} h={36} label="no accept" state="new" fontWeight={700} />
-
-              <Arrow from={{ x: 214, y: 193 }} to={{ x: 302, y: 160 }} markerId={arrowId} label="yes" />
-              <Arrow from={{ x: 214, y: 193 }} to={{ x: 286, y: 261 }} markerId={arrowId} label="no" />
-              <Arrow from={{ x: 422, y: 261 }} to={{ x: 496, y: 232 }} markerId={arrowId} label="accepts" />
-              <Arrow from={{ x: 422, y: 261 }} to={{ x: 496, y: 284 }} markerId={arrowId} label="otherwise" />
-            </Frame>
-
-            <Lines
-              x={330}
-              y={350}
-              lines={["if M accepts w: L(M') = Sigma^*", "otherwise: L(M') = B = {0^n1^n | n >= 0}"]}
-              fill={COLOR.caption}
-              lineH={15}
-            />
-          </DiagramSvg>
-        }
-        mobile={
-          <DiagramSvg w={310} h={508} label={caption ?? "Reduction from A_TM to REG_TM"}>
-            <defs>
-              <ArrowHead id={`${arrowId}-mobile`} />
-            </defs>
-
-            <Box x={10} y={24} w={62} h={36} label="<M,w>" state="highlight" fontWeight={700} />
-            <Box x={96} y={24} w={42} h={36} label="f" tint fontWeight={700} />
-            <Box x={162} y={24} w={62} h={36} label="<M'>" state="highlight" fontWeight={700} />
-            <Box x={248} y={24} w={52} h={36} label="R_REG" fontWeight={700} />
-            <Arrow from={{ x: 72, y: 42 }} to={{ x: 96, y: 42 }} markerId={`${arrowId}-mobile`} />
-            <Arrow from={{ x: 138, y: 42 }} to={{ x: 162, y: 42 }} markerId={`${arrowId}-mobile`} />
-            <Arrow from={{ x: 224, y: 42 }} to={{ x: 248, y: 42 }} markerId={`${arrowId}-mobile`} />
-
-            <Frame x={16} y={92} w={278} h={326} title="M' on input y">
-              <Box x={42} y={150} w={110} h={40} label="y in B?" tint fontWeight={700} />
-              <Box x={200} y={151} w={70} h={38} label="accept" state="highlight" fontWeight={700} />
-              <Box x={90} y={244} w={130} h={42} label="run M on w" tint fontWeight={700} />
-              <Box x={42} y={342} w={90} h={36} label="no accept" state="new" fontWeight={700} />
-              <Box x={204} y={342} w={70} h={36} label="accept" state="highlight" fontWeight={700} />
-
-              <Arrow from={{ x: 152, y: 170 }} to={{ x: 200, y: 170 }} markerId={`${arrowId}-mobile`} label="yes" />
-              <Arrow from={{ x: 98, y: 190 }} to={{ x: 136, y: 244 }} markerId={`${arrowId}-mobile`} label="no" />
-              <Arrow
-                from={{ x: 136, y: 286 }}
-                to={{ x: 87, y: 342 }}
-                markerId={`${arrowId}-mobile`}
-                label="otherwise"
-                labelSize={10}
-              />
-              <Arrow
-                from={{ x: 178, y: 286 }}
-                to={{ x: 239, y: 342 }}
-                markerId={`${arrowId}-mobile`}
-                label="accepts"
-                labelSize={10}
-              />
-            </Frame>
-
-            <Lines
-              x={155}
-              y={452}
-              lines={["if M accepts w: L(M') = Sigma^*", "otherwise:", "L(M') = B = {0^n1^n | n >= 0}"]}
-              fill={COLOR.caption}
-              lineH={15}
-            />
-          </DiagramSvg>
-        }
-      />
-    </DiagramFigure>
+      <Col gap={20}>
+        <Row wrap gap={36}>
+          <Node id="mw" title="<M,w>" mono />
+          <Node id="f" title="f" />
+          <Node id="m2" title="<M'>" mono />
+          <Node id="reg" title="R_{REG}" />
+        </Row>
+        <Group title="M' on input y" dir="row" gap={40}>
+          <Node id="yb" title="y in B?" />
+          <Col gap={20} align="start">
+            <Node id="acc1" title="accept" />
+            <Row gap={40}>
+              <Node id="run" title="run M on w" />
+              <Col gap={12} align="start">
+                <Node id="acc2" title="accept" />
+                <Node id="rej" title="no accept" state="placeholder" />
+              </Col>
+            </Row>
+          </Col>
+        </Group>
+        <Col gap={2}>{notes(["if M accepts w: L(M') = Σ^*", "otherwise: L(M') = B = {0^n1^n | n ≥ 0}"])}</Col>
+      </Col>
+      <Edge from="mw" to="f" />
+      <Edge from="f" to="m2" />
+      <Edge from="m2" to="reg" />
+      <Edge from="yb" to="acc1" label="yes" />
+      <Edge from="yb" to="run" label="no" />
+      <Edge from="run" to="acc2" label="accepts" />
+      <Edge from="run" to="rej" label="otherwise" />
+    </Diagram>
   );
 }

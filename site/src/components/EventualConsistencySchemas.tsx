@@ -1,797 +1,277 @@
-import type { ReactNode } from "react";
-import {
-  Arrow,
-  ArrowHead,
-  Box,
-  Bracket,
-  CellStrip,
-  COLOR,
-  DiagramFigure,
-  DiagramSvg,
-  FONT,
-  Label,
-  RADIUS,
-  STROKE,
-  r2,
-  stableId,
-  type BoxState,
-} from "@/components/diagram";
+import { Cells, Col, Diagram, Edge, Grid, Group, measure, Node, Row, Space, Text, type CellItem, type State, type Tone } from "@/components/figure";
+import { FONT } from "@/components/figure/theme";
+import { ScheduleGrid, TX_TONE, type ScheduleOp } from "@/components/ScheduleGrid";
 
-type Anchor = "start" | "middle" | "end";
-type Weight = 400 | 600 | 700;
-
-function Lines({
-  x,
-  y,
-  lines,
-  size = FONT.note,
-  weight = 400,
-  fill = COLOR.fg,
-  anchor = "middle",
-  lineH = 15,
-}: {
-  x: number;
-  y: number;
-  lines: string[];
-  size?: number;
-  weight?: Weight;
-  fill?: string;
-  anchor?: Anchor;
-  lineH?: number;
-}) {
-  return (
-    <g>
-      {lines.map((line, i) => (
-        <Label
-          key={`${line}-${i}`}
-          x={x}
-          y={y + i * lineH}
-          text={line}
-          size={size}
-          weight={weight}
-          fill={fill}
-          anchor={anchor}
-        />
-      ))}
-    </g>
-  );
-}
-
-function Frame({
-  x,
-  y,
-  w,
-  h,
-  title,
-  children,
-}: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+interface FigureProps {
   title?: string;
-  children: ReactNode;
-}) {
+  caption?: string;
+  className?: string;
+}
+
+/** Rows matching age=30 take the tone of the transaction that touches them: T2's inserted row, T1's locked gap. */
+const PHANTOM: { title: string; ops: ScheduleOp[]; rows: { title: string; tone?: Tone; state?: State }[]; note: [string, string] }[] = [
+  {
+    title: "Tuple locks only",
+    ops: [
+      { tx: 1, text: "count age=30" },
+      { tx: 1, text: "result 5" },
+      { tx: 2, text: "insert age=30" },
+      { tx: 2, text: "COMMIT" },
+      { tx: 1, text: "result 6", state: "strong" },
+    ],
+    rows: [{ title: "row 30" }, { title: "row 30" }, { title: "new 30", tone: TX_TONE[2] }],
+    note: ["The second SELECT sees a row", "that T_1 never protected."],
+  },
+  {
+    title: "Range or predicate lock",
+    ops: [
+      { tx: 1, text: "lock age=30" },
+      { tx: 1, text: "result 5" },
+      { tx: 2, text: "insert waits", state: "placeholder" },
+      { tx: 1, text: "result 5" },
+      { tx: 1, text: "COMMIT" },
+    ],
+    rows: [{ title: "row 30" }, { title: "gap", tone: TX_TONE[1] }, { title: "new 30", state: "placeholder" }],
+    note: ["The insert conflicts with the", "protected predicate range."],
+  },
+];
+
+export function PhantomReadSchema({ title, caption, className }: FigureProps) {
   return (
-    <g>
-      <rect
-        x={r2(x)}
-        y={r2(y)}
-        width={r2(w)}
-        height={r2(h)}
-        rx={RADIUS.frame}
-        fill={COLOR.node}
-        stroke={COLOR.border}
-        strokeWidth={STROKE.frame}
-      />
-      {title && (
-        <Label
-          x={x + 14}
-          y={y + 22}
-          text={title}
-          size={FONT.label}
-          weight={700}
-          anchor="start"
-        />
-      )}
-      {children}
-    </g>
+    <Diagram
+      title={title}
+      caption={caption ?? "Tuple locks protect existing rows; range or predicate locks protect the set a scan depends on."}
+      className={className}
+    >
+      <Row wrap gap={16} align="stretch">
+        {PHANTOM.map((p) => (
+          <Group key={p.title} title={p.title} gap={14}>
+            <ScheduleGrid txs={[1, 2]} ops={p.ops} />
+            <Row gap={8}>
+              {p.rows.map((r, i) => (
+                <Node key={i} title={r.title} tone={r.tone} state={r.state} />
+              ))}
+            </Row>
+            <Col gap={2}>
+              {p.note.map((l) => (
+                <Text key={l} text={l} size="note" muted />
+              ))}
+            </Col>
+          </Group>
+        ))}
+      </Row>
+    </Diagram>
   );
 }
 
-type ScheduleStep = {
-  tx: 1 | 2;
-  y: number;
-  text: string;
-  state?: BoxState;
-};
+const KEYS = [10, 12, 14, 16];
+/** Strip positions: key i at 2i, the gap after it at 2i + 1. */
+const KEY_MODES: { title: string; locked: number[]; span?: string; note: string }[] = [
+  { title: "Key-value lock", locked: [4], note: "protects key 14, but not its neighboring gaps" },
+  { title: "Gap lock", locked: [5], span: "(14,16)", note: "blocks inserts into the protected open interval" },
+  { title: "Next-key lock", locked: [4, 5], span: "[14,16)", note: "locks key 14 plus the gap to the next key" },
+  { title: "Prev-key lock", locked: [3, 4], span: "(12,14]", note: "locks the previous gap plus key 14" },
+];
+const KEY_CELL = 32;
+const SPAN_TEXT = { size: "note", weight: 600 } as const;
 
-function TwoColumnSchedule({
-  x,
-  y,
-  w,
-  h,
-  steps,
-}: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  steps: ScheduleStep[];
-}) {
-  const colW = w / 2;
+/** The index order as one strip: keys and the gaps between them (hatched), with the locked span active and its interval centred above it. */
+function KeyStrip({ locked, span }: { locked: number[]; span?: string }) {
+  const items: CellItem[] = Array.from({ length: 2 * KEYS.length - 1 }, (_, i) => {
+    const on = locked.includes(i);
+    return i % 2 === 0 ? { label: String(KEYS[i / 2]), state: on ? "active" : undefined } : { state: on ? "active" : "free" };
+  });
+  const centre = ((Math.min(...locked) + Math.max(...locked) + 1) / 2) * KEY_CELL;
   return (
-    <g>
-      <rect
-        x={r2(x)}
-        y={r2(y)}
-        width={r2(w)}
-        height={r2(h)}
-        rx={RADIUS.box}
-        fill={COLOR.bg}
-        stroke={COLOR.fg}
-        strokeWidth={STROKE.frame}
-      />
-      <line
-        x1={r2(x + colW)}
-        y1={r2(y)}
-        x2={r2(x + colW)}
-        y2={r2(y + h)}
-        stroke={COLOR.border}
-        strokeWidth={STROKE.divider}
-      />
-      <Label x={x + colW / 2} y={y + 16} text="T_1" size={FONT.note} weight={700} />
-      <Label x={x + colW + colW / 2} y={y + 16} text="T_2" size={FONT.note} weight={700} />
-      <line
-        x1={r2(x)}
-        y1={r2(y + 30)}
-        x2={r2(x + w)}
-        y2={r2(y + 30)}
-        stroke={COLOR.border}
-        strokeWidth={STROKE.divider}
-      />
-      {steps.map((step, i) => {
-        const sx = x + (step.tx === 1 ? 7 : colW + 7);
-        return (
-          <Box
-            key={`${step.text}-${i}`}
-            x={sx}
-            y={y + step.y}
-            w={colW - 14}
-            h={24}
-            label={step.text}
-            state={step.state}
-            tint={step.state !== "highlight"}
-            fontSize={10.1}
-            fontWeight={step.text === "COMMIT" ? 700 : 400}
-          />
-        );
+    <Col gap={6} align="start">
+      {span ? (
+        <Row gap={0}>
+          <Space w={centre - measure(span, FONT.note, { weight: SPAN_TEXT.weight }) / 2} />
+          <Text text={span} {...SPAN_TEXT} />
+        </Row>
+      ) : (
+        <Space h={Math.round(FONT.note * 1.4)} />
+      )}
+      <Cells cell={KEY_CELL} items={items} />
+    </Col>
+  );
+}
+
+export function KeyRangeLockingSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "Key-range locking turns an index order into locks on both existing keys and the gaps where new matching keys could appear."}
+      className={className}
+    >
+      <Grid cols={2} gap={12} align="stretch">
+        {KEY_MODES.map((m) => (
+          <Group key={m.title} title={m.title} gap={10}>
+            <KeyStrip locked={m.locked} span={m.span} />
+            <Text text={m.note} size="note" muted />
+          </Group>
+        ))}
+      </Grid>
+    </Diagram>
+  );
+}
+
+const REPLICAS = ["R1", "R2", "R3", "R4"];
+const WRITE_QUORUM = [0, 1];
+const QUORUMS = [
+  { title: "N=4, W=2, R=1", read: [3], verdict: "no forced overlap" },
+  { title: "N=4, W=2, R=3", read: [1, 2, 3], verdict: "overlap exists" },
+];
+const QUORUM_CELL = 40;
+
+export function QuorumOverlapSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram title={title} caption={caption ?? "When R + W > N, every read quorum intersects every completed write quorum."} className={className}>
+      <Col gap={12}>
+        <Row wrap gap={12} align="stretch">
+          {QUORUMS.map((q) => (
+            <Group key={q.title} title={q.title} gap={14}>
+              <Grid cols={2} colGap={10} rowGap={4}>
+                <Space />
+                <Cells cell={QUORUM_CELL} items={REPLICAS} />
+                <Text text="W" size="note" weight={600} />
+                <Cells cell={QUORUM_CELL} items={REPLICAS.map((_, i) => (WRITE_QUORUM.includes(i) ? { label: "ack", tone: "orange" } : null))} />
+                <Text text="R" size="note" weight={600} />
+                <Cells
+                  cell={QUORUM_CELL}
+                  items={REPLICAS.map((_, i) =>
+                    !q.read.includes(i) ? null : WRITE_QUORUM.includes(i) ? { label: "both", state: "active" } : { label: "read", tone: "green" },
+                  )}
+                />
+              </Grid>
+              <Text text={q.verdict} weight={600} />
+            </Group>
+          ))}
+        </Row>
+        <Text text="R + W > N is the overlap test." size="note" muted />
+      </Col>
+    </Diagram>
+  );
+}
+
+/** One stage, so each replica keeps its place: writers on the left, the reader on the right, numbered edges in the order the versions travel. */
+export function DynamoSiblingsSchema({ title, caption, className }: FigureProps) {
+  const replica = (id: string, name: string) => <Node id={id} shape="cylinder" title={name} sub="x0=5" />;
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "Dynamo-style systems preserve conflicting versions as siblings and ask the application to reconcile them."}
+      className={className}
+    >
+      <Col gap={16}>
+        <Grid cols={3} colGap={88} rowGap={56}>
+          <Space />
+          {replica("r1", "R1")}
+          <Space />
+          <Node id="A" title="A writes" />
+          {replica("r2", "R2")}
+          <Node id="C" title="C reads" sub="{xA, xB}" />
+          <Node id="B" title="B writes" />
+          {replica("r3", "R3")}
+          <Space />
+        </Grid>
+        <Col gap={2}>
+          <Text text="W=1 accepts both writes" size="note" muted />
+          <Text text="background propagation converges later" size="note" muted />
+        </Col>
+      </Col>
+      <Edge from="A" to="r2" label="1 xA=7" />
+      <Edge from="B" to="r3" label="1 xB=9" />
+      <Edge from="r2" to="C" label="2 xA" route="arc" bend={-28} />
+      <Edge from="r3" to="C" label="2 xB" fromSide="right" toSide="bottom" />
+      <Edge from="C" to="r2" label="3 xC=11" route="arc" bend={-28} />
+      <Edge from="r2" to="r1" label="4 xC" />
+      <Edge from="r2" to="r3" label="4 xC" />
+    </Diagram>
+  );
+}
+
+type Timeline = { process: string; events: [number, string][] };
+const CAUSAL: { title: string; slots: number; lanes: Timeline[]; causal: [string, string][]; verdict: string; violation?: boolean }[] = [
+  {
+    title: "Dependent writes",
+    slots: 5,
+    lanes: [
+      { process: "P1", events: [[0, "W(a)"]] },
+      { process: "P2", events: [[1, "R(a)"], [2, "W(b)"]] },
+      { process: "P3", events: [[3, "R(b)"], [4, "R(a)"]] },
+    ],
+    causal: [
+      ["P1.0", "P2.1"],
+      ["P2.2", "P3.3"],
+    ],
+    verdict: "R(b) before R(a) violates order",
+    violation: true,
+  },
+  {
+    title: "Concurrent writes",
+    slots: 3,
+    lanes: [
+      { process: "P1", events: [[0, "W(a)"]] },
+      { process: "P2", events: [[0, "W(b)"]] },
+      { process: "P3", events: [[1, "R(b)"], [2, "R(a)"]] },
+      { process: "P4", events: [[1, "R(a)"], [2, "R(b)"]] },
+    ],
+    causal: [],
+    verdict: "both read orders are allowed",
+  },
+];
+const LANE_LEAD = 10;
+
+/** Space-time lanes: each process is a line through its events, and read-from arrows cross between lanes. */
+function Lanes({ id, slots, lanes, causal }: { id: string; slots: number; lanes: Timeline[]; causal: [string, string][] }) {
+  return (
+    <>
+      <Grid cols={slots + 3} colGap={6} rowGap={16}>
+        {lanes.flatMap(({ process, events }) => {
+          const at = new Map(events);
+          return [
+            <Text key={process} text={process} size="note" weight={600} />,
+            <Row key={`${process}.s`} gap={0}>
+              <Space id={`${id}.${process}.s`} />
+              <Space w={LANE_LEAD} />
+            </Row>,
+            ...Array.from({ length: slots }, (_, s) =>
+              at.has(s) ? <Node key={s} id={`${id}.${process}.${s}`} title={at.get(s)} w={48} /> : <Space key={s} />,
+            ),
+            <Row key={`${process}.e`} gap={0}>
+              <Space w={LANE_LEAD} />
+              <Space id={`${id}.${process}.e`} />
+            </Row>,
+          ];
+        })}
+      </Grid>
+      {lanes.flatMap(({ process, events }) => {
+        const stops = [`${id}.${process}.s`, ...events.map(([s]) => `${id}.${process}.${s}`), `${id}.${process}.e`];
+        return stops.slice(1).map((to, i) => <Edge key={to} from={stops[i]} to={to} head="none" />);
       })}
-    </g>
-  );
-}
-
-export function PhantomReadSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
-  return (
-    <DiagramFigure
-      title={title}
-      caption={
-        caption ??
-        "Tuple locks protect existing rows; range or predicate locks protect the set a scan depends on."
-      }
-      className={className}
-    >
-      <DiagramSvg w={660} h={296} label={caption ?? "Phantom reads and range protection"}>
-        <Frame x={12} y={14} w={312} h={258} title="Tuple locks only">
-          <TwoColumnSchedule
-            x={30}
-            y={54}
-            w={174}
-            h={180}
-            steps={[
-              { tx: 1, y: 43, text: "count age=30" },
-              { tx: 1, y: 73, text: "result 5" },
-              { tx: 2, y: 101, text: "insert age=30", state: "new" },
-              { tx: 2, y: 131, text: "COMMIT" },
-              { tx: 1, y: 154, text: "result 6", state: "highlight" },
-            ]}
-          />
-          <Box x={226} y={76} w={76} h={28} label="row 30" tint fontSize={FONT.note} />
-          <Box x={226} y={116} w={76} h={28} label="row 30" tint fontSize={FONT.note} />
-          <Box x={226} y={156} w={76} h={28} label="new 30" state="new" fontSize={FONT.note} />
-          <Lines
-            x={168}
-            y={253}
-            lines={["The second SELECT sees a row", "that T_1 never protected."]}
-            fill={COLOR.caption}
-          />
-        </Frame>
-
-        <Frame x={336} y={14} w={312} h={258} title="Range or predicate lock">
-          <TwoColumnSchedule
-            x={354}
-            y={54}
-            w={174}
-            h={180}
-            steps={[
-              { tx: 1, y: 43, text: "lock age=30", state: "highlight" },
-              { tx: 1, y: 73, text: "result 5" },
-              { tx: 2, y: 101, text: "insert waits" },
-              { tx: 1, y: 131, text: "result 5" },
-              { tx: 1, y: 154, text: "COMMIT" },
-            ]}
-          />
-          <Box x={550} y={76} w={76} h={28} label="row 30" state="highlight" fontSize={FONT.note} />
-          <Box x={550} y={116} w={76} h={28} label="gap" state="highlight" fontSize={FONT.note} />
-          <Box x={550} y={156} w={76} h={28} label="new 30" state="new" fontSize={FONT.note} />
-          <Lines
-            x={492}
-            y={253}
-            lines={["The insert conflicts with the", "protected predicate range."]}
-            fill={COLOR.caption}
-          />
-        </Frame>
-      </DiagramSvg>
-    </DiagramFigure>
-  );
-}
-
-function LeafRow({
-  x,
-  y,
-  focusKey,
-  focusGap,
-  bracket,
-}: {
-  x: number;
-  y: number;
-  focusKey?: 10 | 12 | 14 | 16;
-  focusGap?: "12-14" | "14-16";
-  bracket?: { x1: number; x2: number; label: string };
-}) {
-  const keyXs = [0, 64, 128, 192];
-  const keys = [10, 12, 14, 16] as const;
-  return (
-    <g>
-      <rect
-        x={r2(x - 10)}
-        y={r2(y - 8)}
-        width={r2(258)}
-        height={r2(66)}
-        rx={RADIUS.box}
-        fill={COLOR.bg}
-        stroke={COLOR.border}
-        strokeWidth={STROKE.frame}
-      />
-      {focusGap && (
-        <rect
-          x={r2(x + (focusGap === "12-14" ? 104 : 168))}
-          y={r2(y + 4)}
-          width={r2(42)}
-          height={r2(30)}
-          rx={RADIUS.box}
-          fill={COLOR.hiBg}
-          opacity={0.14}
-          stroke={COLOR.fg}
-          strokeWidth={STROKE.bold}
-        />
-      )}
-      {keys.map((key, i) => (
-        <Box
-          key={key}
-          x={x + keyXs[i]}
-          y={y + 6}
-          w={38}
-          h={26}
-          label={String(key)}
-          state={focusKey === key ? "highlight" : undefined}
-          tint={focusKey !== key}
-          fontSize={FONT.note}
-          fontWeight={700}
-        />
+      {causal.map(([from, to]) => (
+        <Edge key={from} from={`${id}.${from}`} to={`${id}.${to}`} />
       ))}
-      <Label x={x + 84} y={y + 45} text="gap" size={9.5} fill={COLOR.caption} />
-      <Label x={x + 148} y={y + 45} text="gap" size={9.5} fill={COLOR.caption} />
-      <Label x={x + 212} y={y + 45} text="gap" size={9.5} fill={COLOR.caption} />
-      {bracket && (
-        <Bracket
-          x1={x + bracket.x1}
-          x2={x + bracket.x2}
-          y={y - 2}
-          label={bracket.label}
-          drop={8}
-        />
-      )}
-    </g>
+    </>
   );
 }
 
-export function KeyRangeLockingSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
+export function CausalConsistencySchema({ title, caption, className }: FigureProps) {
   return (
-    <DiagramFigure
+    <Diagram
       title={title}
-      caption={
-        caption ??
-        "Key-range locking turns an index order into locks on both existing keys and the gaps where new matching keys could appear."
-      }
+      caption={caption ?? "Causal consistency preserves cause-before-effect order, while concurrent writes may be observed in different orders."}
       className={className}
     >
-      <DiagramSvg w={660} h={326} label={caption ?? "Key, gap, and key-range locks"}>
-        <Frame x={12} y={16} w={312} h={132} title="Key-value lock">
-          <LeafRow x={44} y={68} focusKey={14} />
-          <Label
-            x={168}
-            y={132}
-            text="protects key 14, but not its neighboring gaps"
-            size={FONT.note}
-            fill={COLOR.caption}
-          />
-        </Frame>
-
-        <Frame x={336} y={16} w={312} h={132} title="Gap lock">
-          <LeafRow x={370} y={68} focusGap="14-16" bracket={{ x1: 168, x2: 230, label: "(14,16)" }} />
-          <Label
-            x={492}
-            y={132}
-            text="blocks inserts into the protected open interval"
-            size={FONT.note}
-            fill={COLOR.caption}
-          />
-        </Frame>
-
-        <Frame x={12} y={176} w={312} h={132} title="Next-key lock">
-          <LeafRow
-            x={44}
-            y={228}
-            focusKey={14}
-            focusGap="14-16"
-            bracket={{ x1: 128, x2: 230, label: "[14,16)" }}
-          />
-          <Label
-            x={168}
-            y={292}
-            text="locks key 14 plus the gap to the next key"
-            size={FONT.note}
-            fill={COLOR.caption}
-          />
-        </Frame>
-
-        <Frame x={336} y={176} w={312} h={132} title="Prev-key lock">
-          <LeafRow
-            x={370}
-            y={228}
-            focusKey={14}
-            focusGap="12-14"
-            bracket={{ x1: 64, x2: 166, label: "(12,14]" }}
-          />
-          <Label
-            x={492}
-            y={292}
-            text="locks the previous gap plus key 14"
-            size={FONT.note}
-            fill={COLOR.caption}
-          />
-        </Frame>
-      </DiagramSvg>
-    </DiagramFigure>
-  );
-}
-
-function QuorumPanel({
-  x,
-  title,
-  readCells,
-  writeCells,
-  verdict,
-  verdictState,
-}: {
-  x: number;
-  title: string;
-  readCells: Array<string | { label: string; state?: BoxState; tint?: boolean }>;
-  writeCells: Array<string | { label: string; state?: BoxState; tint?: boolean }>;
-  verdict: string;
-  verdictState?: BoxState;
-}) {
-  return (
-    <Frame x={x} y={18} w={304} h={208} title={title}>
-      <CellStrip
-        x={x + 58}
-        y={62}
-        cellH={30}
-        widths={[54, 54, 54, 54]}
-        cells={["R1", "R2", "R3", "R4"]}
-        tint
-        fontSize={FONT.note}
-      />
-      <Label x={x + 34} y={113} text="W" size={FONT.note} weight={700} />
-      <CellStrip
-        x={x + 58}
-        y={98}
-        cellH={30}
-        widths={[54, 54, 54, 54]}
-        cells={writeCells}
-        fontSize={FONT.note}
-      />
-      <Label x={x + 34} y={147} text="R" size={FONT.note} weight={700} />
-      <CellStrip
-        x={x + 58}
-        y={132}
-        cellH={30}
-        widths={[54, 54, 54, 54]}
-        cells={readCells}
-        fontSize={FONT.note}
-      />
-      <Box
-        x={x + 53}
-        y={180}
-        w={198}
-        h={30}
-        label={verdict}
-        state={verdictState}
-        tint={!verdictState}
-        fontSize={FONT.note}
-        fontWeight={700}
-      />
-    </Frame>
-  );
-}
-
-export function QuorumOverlapSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
-  return (
-    <DiagramFigure
-      title={title}
-      caption={
-        caption ??
-        "When R + W > N, every read quorum intersects every completed write quorum."
-      }
-      className={className}
-    >
-      <DiagramSvg w={660} h={254} label={caption ?? "Read and write quorum overlap"}>
-        <QuorumPanel
-          x={16}
-          title="N=4, W=2, R=1"
-          writeCells={[
-            { label: "ack", state: "highlight" },
-            { label: "ack", state: "highlight" },
-            "",
-            "",
-          ]}
-          readCells={["", "", "", { label: "read", tint: true }]}
-          verdict="no forced overlap"
-          verdictState="highlight"
-        />
-        <QuorumPanel
-          x={340}
-          title="N=4, W=2, R=3"
-          writeCells={[
-            { label: "ack", state: "highlight" },
-            { label: "ack", state: "highlight" },
-            "",
-            "",
-          ]}
-          readCells={["", { label: "both", state: "highlight" }, { label: "read", tint: true }, { label: "read", tint: true }]}
-          verdict="overlap exists"
-        />
-        <Label x={330} y={242} text="R + W > N is the overlap test." size={FONT.note} fill={COLOR.caption} />
-      </DiagramSvg>
-    </DiagramFigure>
-  );
-}
-
-function Replica({
-  x,
-  y,
-  label,
-  state,
-}: {
-  x: number;
-  y: number;
-  label: string;
-  state?: BoxState;
-}) {
-  const fill = state === "highlight" ? COLOR.hiBg : state === "new" ? COLOR.bg : COLOR.node;
-  const stroke = state === "highlight" ? COLOR.hiBg : COLOR.fg;
-  const text = state === "highlight" ? COLOR.hiFg : COLOR.fg;
-  return (
-    <g>
-      <ellipse
-        cx={r2(x)}
-        cy={r2(y)}
-        rx={28}
-        ry={8}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={STROKE.frame}
-        strokeDasharray={state === "new" ? STROKE.dash : undefined}
-      />
-      <rect
-        x={r2(x - 28)}
-        y={r2(y)}
-        width={56}
-        height={32}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={STROKE.frame}
-        strokeDasharray={state === "new" ? STROKE.dash : undefined}
-      />
-      <ellipse
-        cx={r2(x)}
-        cy={r2(y + 32)}
-        rx={28}
-        ry={8}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={STROKE.frame}
-        strokeDasharray={state === "new" ? STROKE.dash : undefined}
-      />
-      <Label x={x} y={y + 17} text={label} size={FONT.note} weight={700} fill={text} />
-    </g>
-  );
-}
-
-function ReplicaSet({
-  x,
-  y,
-  labels,
-}: {
-  x: number;
-  y: number;
-  labels: Array<{ text: string; state?: BoxState }>;
-}) {
-  const pts = [
-    { x: x + 26, y: y + 42 },
-    { x: x + 76, y },
-    { x: x + 126, y: y + 42 },
-  ];
-  return (
-    <g>
-      {pts.map((pt, i) => (
-        <Replica key={i} x={pt.x} y={pt.y} label={labels[i].text} state={labels[i].state} />
-      ))}
-    </g>
-  );
-}
-
-export function DynamoSiblingsSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
-  const arrowId = stableId("dynamo-siblings", { title, caption });
-  return (
-    <DiagramFigure
-      title={title}
-      caption={
-        caption ??
-        "Dynamo-style systems preserve conflicting versions as siblings and ask the application to reconcile them."
-      }
-      className={className}
-    >
-      <DiagramSvg w={660} h={304} label={caption ?? "Dynamo siblings and reconciliation"}>
-        <defs>
-          <ArrowHead id={arrowId} />
-        </defs>
-
-        <Frame x={12} y={16} w={204} h={252} title="1. Concurrent writes">
-          <Box x={45} y={56} w={58} h={26} label="A writes" tint fontSize={FONT.note} />
-          <Box x={125} y={56} w={58} h={26} label="B writes" tint fontSize={FONT.note} />
-          <ReplicaSet
-            x={36}
-            y={138}
-            labels={[
-              { text: "x0=5" },
-              { text: "xA=7", state: "highlight" },
-              { text: "xB=9", state: "highlight" },
-            ]}
-          />
-          <Arrow from={{ x: 74, y: 84 }} to={{ x: 112, y: 138 }} markerId={arrowId} />
-          <Arrow from={{ x: 154, y: 84 }} to={{ x: 162, y: 180 }} markerId={arrowId} />
-          <Label x={114} y={238} text="W=1 accepts both writes" size={FONT.note} fill={COLOR.caption} />
-        </Frame>
-
-        <Frame x={228} y={16} w={204} h={252} title="2. Read returns siblings">
-          <Box x={300} y={56} w={64} h={26} label="C reads" tint fontSize={FONT.note} />
-          <ReplicaSet
-            x={252}
-            y={138}
-            labels={[
-              { text: "x0=5" },
-              { text: "xA=7", state: "highlight" },
-              { text: "xB=9", state: "highlight" },
-            ]}
-          />
-          <Arrow from={{ x: 332, y: 84 }} to={{ x: 328, y: 138 }} markerId={arrowId} />
-          <Arrow from={{ x: 332, y: 84 }} to={{ x: 378, y: 180 }} markerId={arrowId} />
-          <Box x={268} y={222} w={128} h={30} label="{xA, xB}" state="highlight" fontSize={FONT.note} />
-        </Frame>
-
-        <Frame x={444} y={16} w={204} h={252} title="3. Reconcile and spread">
-          <Box x={515} y={56} w={70} h={26} label="merge xC" state="highlight" fontSize={FONT.note} />
-          <ReplicaSet
-            x={468}
-            y={138}
-            labels={[
-              { text: "xC=11", state: "highlight" },
-              { text: "xC=11", state: "highlight" },
-              { text: "xC=11", state: "highlight" },
-            ]}
-          />
-          <Arrow from={{ x: 550, y: 84 }} to={{ x: 544, y: 138 }} markerId={arrowId} />
-          <Arrow from={{ x: 546, y: 178 }} to={{ x: 494, y: 182 }} markerId={arrowId} bend={18} />
-          <Arrow from={{ x: 546, y: 178 }} to={{ x: 594, y: 182 }} markerId={arrowId} bend={-18} />
-          <Lines
-            x={546}
-            y={234}
-            lines={["background propagation", "converges later"]}
-            fill={COLOR.caption}
-          />
-        </Frame>
-      </DiagramSvg>
-    </DiagramFigure>
-  );
-}
-
-type TimelineEvent = {
-  process: number;
-  x: number;
-  label: string;
-  state?: BoxState;
-};
-
-function Timelines({
-  x,
-  y,
-  w,
-  processes,
-  events,
-}: {
-  x: number;
-  y: number;
-  w: number;
-  processes: string[];
-  events: TimelineEvent[];
-}) {
-  const gap = 44;
-  return (
-    <g>
-      {processes.map((p, i) => (
-        <g key={p}>
-          <Label x={x} y={y + i * gap} text={p} size={FONT.note} weight={700} anchor="start" />
-          <line
-            x1={r2(x + 24)}
-            y1={r2(y + i * gap)}
-            x2={r2(x + w)}
-            y2={r2(y + i * gap)}
-            stroke={COLOR.muted}
-            strokeWidth={STROKE.line}
-          />
-        </g>
-      ))}
-      {events.map((event, i) => (
-        <Box
-          key={`${event.label}-${i}`}
-          x={x + event.x}
-          y={y + event.process * gap - 13}
-          w={52}
-          h={26}
-          label={event.label}
-          state={event.state}
-          tint={event.state !== "highlight"}
-          fontSize={FONT.note}
-          fontWeight={700}
-        />
-      ))}
-    </g>
-  );
-}
-
-export function CausalConsistencySchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
-  const arrowId = stableId("causal-consistency", { title, caption });
-  return (
-    <DiagramFigure
-      title={title}
-      caption={
-        caption ??
-        "Causal consistency preserves cause-before-effect order, while concurrent writes may be observed in different orders."
-      }
-      className={className}
-    >
-      <DiagramSvg w={660} h={300} label={caption ?? "Causal consistency examples"}>
-        <defs>
-          <ArrowHead id={arrowId} />
-        </defs>
-
-        <Frame x={12} y={16} w={312} h={252} title="Dependent writes">
-          <Timelines
-            x={36}
-            y={78}
-            w={250}
-            processes={["P1", "P2", "P3"]}
-            events={[
-              { process: 0, x: 40, label: "W(a)", state: "highlight" },
-              { process: 1, x: 94, label: "R(a)" },
-              { process: 1, x: 156, label: "W(b)", state: "highlight" },
-              { process: 2, x: 136, label: "R(b)", state: "highlight" },
-              { process: 2, x: 198, label: "R(a)" },
-            ]}
-          />
-          <Arrow from={{ x: 128, y: 78 }} to={{ x: 156, y: 122 }} markerId={arrowId} />
-          <Arrow from={{ x: 182, y: 122 }} to={{ x: 194, y: 122 }} markerId={arrowId} />
-          <Box
-            x={66}
-            y={220}
-            w={216}
-            h={30}
-            label="R(b) before R(a) violates order"
-            state="highlight"
-            fontSize={FONT.note}
-            fontWeight={700}
-          />
-        </Frame>
-
-        <Frame x={336} y={16} w={312} h={252} title="Concurrent writes">
-          <Timelines
-            x={360}
-            y={78}
-            w={250}
-            processes={["P1", "P2", "P3", "P4"]}
-            events={[
-              { process: 0, x: 40, label: "W(a)", state: "highlight" },
-              { process: 1, x: 152, label: "W(b)", state: "highlight" },
-              { process: 2, x: 112, label: "R(b)" },
-              { process: 2, x: 174, label: "R(a)" },
-              { process: 3, x: 112, label: "R(a)" },
-              { process: 3, x: 174, label: "R(b)" },
-            ]}
-          />
-          <Box
-            x={396}
-            y={236}
-            w={200}
-            h={30}
-            label="both read orders are allowed"
-            tint
-            fontSize={FONT.note}
-            fontWeight={700}
-          />
-        </Frame>
-      </DiagramSvg>
-    </DiagramFigure>
+      <Row wrap gap={12} align="stretch">
+        {CAUSAL.map((c, k) => (
+          <Group key={c.title} title={c.title} gap={16}>
+            <Lanes id={`cc${k}`} slots={c.slots} lanes={c.lanes} causal={c.causal} />
+            <Node title={c.verdict} state={c.violation ? "strong" : undefined} />
+          </Group>
+        ))}
+      </Row>
+    </Diagram>
   );
 }
