@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./diagram-tokens.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -45,24 +46,6 @@
   :root {
     color-scheme: light;
 
-    /* Diagram palette - light. Clean inverse of the reference: a white card,
-       a faintly grey node container, element boxes read by their border, and
-       a darker box as the highlight. Every diagram, Mermaid included,
-       references these as var(--mm-*), so figures and frames re-theme
-       together. */
-    --mm-bg: #ffffff; /* card + element-box fill */
-    --mm-node: #f6f6f5; /* node container fill */
-    --mm-fg: #21201c; /* container titles */
-    --mm-border: #e2e1de; /* element-box border */
-    --mm-line: #cfceca; /* connectors */
-    --mm-muted: #63635e; /* element-box labels */
-    --mm-accent: #8d8d86; /* junction dot centre */
-    --mm-dot-ring: #e6e5e2; /* junction dot ring */
-    --mm-caption: #8d8d86; /* caption */
-    --mm-hi-bg: #21201c; /* highlight box fill */
-    --mm-hi-fg: #ffffff; /* highlight box text */
-    --mm-frame-border: var(--color-border); /* card + container ring */
-
     /* Viewport primitives: classic units are the fallback; modern browsers
        swap to dynamic units so fixed panels stay inside Safari chrome. */
     --app-viewport-width: 100vw;
@@ -84,23 +67,6 @@
   @media screen {
     html.dark {
       color-scheme: dark;
-
-      /* Diagram palette - dark. Tuned for contrast: a near-black card,
-         a clearly-lighter node container, element boxes that drop back to the
-         card colour and read by a visible border, brighter connectors and dot,
-         and an inverted highlight box. */
-      --mm-bg: #0a0a0a; /* card + element-box fill */
-      --mm-node: #1c1c1f; /* node container fill (clear step up from the card) */
-      --mm-fg: #f5f5f5; /* container titles */
-      --mm-border: #383840; /* element-box border */
-      --mm-line: #4a4a52; /* connectors */
-      --mm-muted: #c6c6c6; /* element-box labels */
-      --mm-accent: #9a9aa0; /* junction dot centre + arrowheads */
-      --mm-dot-ring: #303036; /* junction dot ring */
-      --mm-caption: #8a8a8a; /* caption */
-      --mm-hi-bg: #f5f5f5; /* highlight box fill */
-      --mm-hi-fg: #0a0a0a; /* highlight box text */
-      --mm-frame-border: rgba(255, 255, 255, 0.14); /* card + container ring */
 
       --color-gray-100: #111110;
       --color-gray-200: #191918;
@@ -614,67 +580,6 @@ html:has(.home-pane) main {
   }
 }
 
-/* Mermaid diagram */
-@layer components {
-  .mermaid-graph {
-    margin-block: 1.4em;
-  }
-
-  /* The card. Caption lives outside it (below), matching the reference. */
-  .mermaid-graph__card {
-    display: flex;
-    justify-content: center;
-    padding: 2rem 1.25rem;
-    background: var(--mm-bg);
-    border-radius: 12px;
-    box-shadow: 0 0 0 1px var(--mm-frame-border);
-    overflow: hidden;
-  }
-
-  .mermaid-graph__canvas {
-    display: flex;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .mermaid-graph__canvas svg {
-    max-width: 100%;
-    height: auto;
-    display: block;
-  }
-
-  .mermaid-graph__caption {
-    margin-top: 1rem;
-    color: var(--mm-caption);
-    font-size: 0.8125rem;
-    line-height: 1.6;
-    text-align: center;
-    text-wrap: pretty;
-  }
-
-  /* Fallback when the source can't be parsed: a quiet source dump rather
-     than a broken build. */
-  .mermaid-graph--error pre {
-    margin: 0;
-    width: 100%;
-    color: var(--mm-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    overflow-x: auto;
-  }
-
-  /* A diagram tightens up when it sits inside a Split pane. */
-  .split__pane .mermaid-graph {
-    margin-block: 0;
-  }
-
-  .split__pane .mermaid-graph__card {
-    padding: 0.9rem 0.6rem;
-  }
-}
-
 /* Split - two columns on wider screens, stacked on narrow ones. Each Pane
    carries the same vertical rhythm as the surrounding prose. */
 @layer components {
@@ -725,33 +630,22 @@ html:has(.home-pane) main {
   }
 }
 
-/* Shared shell for the bespoke diagrams (Automaton, BPlusTree, PageLayout,
-   IndexMap, ERDiagram, ...). Mirrors the Mermaid card so the whole diagram
-   family reads as one thing. */
+/* Figure shell: an optional short title, the canvas on the page itself (no
+   card, no backdrop), and a muted caption. Figures are static images. */
 @layer components {
   .diagram {
-    margin-block: 1.4em;
+    margin-block: 2em;
     min-width: 0;
     max-width: 100%;
   }
 
-  .diagram__card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 1.25rem 0.75rem;
-    background: var(--mm-bg);
-    border-radius: 12px;
-    box-shadow: 0 0 0 1px var(--mm-frame-border);
-    overflow: hidden;
-  }
-
   .diagram__title {
-    margin-bottom: 0.75rem;
-    font-size: 0.8125rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    color: var(--mm-fg);
+    color: var(--dg-ink);
     text-align: center;
+    text-wrap: balance;
   }
 
   .diagram__canvas {
@@ -766,9 +660,24 @@ html:has(.home-pane) main {
     display: block;
   }
 
+  /* A figure with a wrapping Row renders both layouts; only one shows. */
+  .diagram__canvas--narrow {
+    display: none;
+  }
+
+  @media (max-width: 520px) {
+    .diagram__canvas--wide {
+      display: none;
+    }
+
+    .diagram__canvas--narrow {
+      display: flex;
+    }
+  }
+
   .diagram__caption {
     margin-top: 1rem;
-    color: var(--mm-caption);
+    color: var(--dg-muted);
     font-size: 0.8125rem;
     line-height: 1.6;
     text-align: center;
@@ -777,65 +686,6 @@ html:has(.home-pane) main {
 
   .split__pane .diagram {
     margin-block: 0;
-  }
-
-  .split__pane .diagram__card {
-    padding: 0.9rem 0.6rem;
-  }
-
-  .reduction-diagram__desktop,
-  .reduction-diagram__mobile {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .reduction-diagram__desktop svg,
-  .reduction-diagram__mobile svg {
-    width: 100%;
-  }
-
-  .reduction-diagram__desktop {
-    display: flex;
-  }
-
-  .reduction-diagram__mobile {
-    display: none;
-  }
-
-  @media (max-width: 520px) {
-    .reduction-diagram__desktop {
-      display: none;
-    }
-
-    .reduction-diagram__mobile {
-      display: flex;
-    }
-  }
-}
-
-/* Complexity diagrams are sourced from MDX files outside the Next app tree in
-   development, so keep their responsive switch outside Tailwind's layer pass. */
-.complexity-diagram__desktop,
-.complexity-diagram__mobile {
-  width: 100%;
-  justify-content: center;
-}
-
-.complexity-diagram__desktop {
-  display: flex;
-}
-
-.complexity-diagram__mobile {
-  display: none;
-}
-
-@media (max-width: 520px) {
-  .complexity-diagram__desktop {
-    display: none;
-  }
-
-  .complexity-diagram__mobile {
-    display: flex;
   }
 }
 
@@ -1477,18 +1327,12 @@ html:has(.home-pane) main {
     word-break: break-word;
   }
 
-  .diagram__card,
-  .mermaid-graph__card,
   .prose .katex-display,
   .prose table {
     overflow: visible;
   }
 
-  /* Box-shadow rings don't print; restate the diagram and Mermaid frames as
-     real borders so every card keeps its outline on paper. */
-  .diagram__card,
-  .mermaid-graph__card {
-    box-shadow: none;
-    border: 1px solid var(--mm-frame-border);
+  .diagram {
+    break-inside: avoid;
   }
 }

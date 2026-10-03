@@ -1,0 +1,76 @@
+/* Figure palette. Neutrals share the site's warm sand hue. Every tone has the
+   same four roles at the same lightness and chroma, so no hue shouts louder
+   than another: a tint fill, a line (borders), a solid (strokes, swatches) and
+   an ink (text on the tint, >= 4.5:1). Dark is screen-only so print stays
+   light. */
+
+:root {
+  --dg-canvas: var(--color-bg);
+  --dg-panel: oklch(0.968 0.003 100);
+  --dg-panel-edge: oklch(0.925 0.004 100);
+  --dg-surface: oklch(1 0 0);
+  --dg-rule: oklch(0.86 0.005 100);
+  --dg-ink: oklch(0.245 0.007 100);
+  --dg-text: oklch(0.4 0.006 100);
+  --dg-muted: oklch(0.53 0.006 100);
+  --dg-faint: oklch(0.8 0.004 100);
+  --dg-line: oklch(0.7 0.006 100);
+  --dg-hatch: oklch(0.93 0.004 100);
+
+  --dg-blue-tint: oklch(0.962 0.018 255);
+  --dg-blue-line: oklch(0.81 0.085 255);
+  --dg-blue-solid: oklch(0.63 0.15 255);
+  --dg-blue-ink: oklch(0.525 0.14 255);
+  --dg-orange-tint: oklch(0.962 0.02 45);
+  --dg-orange-line: oklch(0.81 0.085 45);
+  --dg-orange-solid: oklch(0.63 0.15 45);
+  --dg-orange-ink: oklch(0.525 0.14 45);
+  --dg-green-tint: oklch(0.962 0.02 138);
+  --dg-green-line: oklch(0.81 0.085 138);
+  --dg-green-solid: oklch(0.63 0.15 138);
+  --dg-green-ink: oklch(0.525 0.14 138);
+  --dg-purple-tint: oklch(0.962 0.019 290);
+  --dg-purple-line: oklch(0.81 0.085 290);
+  --dg-purple-solid: oklch(0.63 0.15 290);
+  --dg-purple-ink: oklch(0.525 0.14 290);
+  --dg-red-tint: oklch(0.962 0.018 22);
+  --dg-red-line: oklch(0.81 0.085 22);
+  --dg-red-solid: oklch(0.63 0.15 22);
+  --dg-red-ink: oklch(0.525 0.14 22);
+}
+
+@media screen {
+  html.dark {
+    --dg-panel: oklch(0.215 0.003 100);
+    --dg-panel-edge: oklch(0.265 0.004 100);
+    --dg-surface: oklch(0.178 0.002 100);
+    --dg-rule: oklch(0.36 0.005 100);
+    --dg-ink: oklch(0.945 0.004 100);
+    --dg-text: oklch(0.83 0.005 100);
+    --dg-muted: oklch(0.7 0.006 100);
+    --dg-faint: oklch(0.36 0.004 100);
+    --dg-line: oklch(0.52 0.006 100);
+    --dg-hatch: oklch(0.25 0.004 100);
+
+    --dg-blue-tint: oklch(0.25 0.03 255);
+    --dg-blue-line: oklch(0.46 0.075 255);
+    --dg-blue-solid: oklch(0.68 0.13 255);
+    --dg-blue-ink: oklch(0.84 0.079 255);
+    --dg-orange-tint: oklch(0.25 0.03 45);
+    --dg-orange-line: oklch(0.46 0.075 45);
+    --dg-orange-solid: oklch(0.68 0.13 45);
+    --dg-orange-ink: oklch(0.84 0.085 45);
+    --dg-green-tint: oklch(0.25 0.03 138);
+    --dg-green-line: oklch(0.46 0.075 138);
+    --dg-green-solid: oklch(0.68 0.13 138);
+    --dg-green-ink: oklch(0.84 0.085 138);
+    --dg-purple-tint: oklch(0.25 0.03 290);
+    --dg-purple-line: oklch(0.46 0.075 290);
+    --dg-purple-solid: oklch(0.68 0.13 290);
+    --dg-purple-ink: oklch(0.84 0.084 290);
+    --dg-red-tint: oklch(0.25 0.03 22);
+    --dg-red-line: oklch(0.46 0.075 22);
+    --dg-red-solid: oklch(0.68 0.13 22);
+    --dg-red-ink: oklch(0.84 0.085 22);
+  }
+}

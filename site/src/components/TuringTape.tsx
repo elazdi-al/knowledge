@@ -1,19 +1,5 @@
-import {
-  Arrow,
-  ArrowHead,
-  CellStrip,
-  COLOR,
-  DiagramFigure,
-  DiagramSvg,
-  FONT,
-  SPACE,
-  type BoxState,
-  Box,
-  DotsEllipsis,
-  measureLabel,
-  stableId,
-  type Cell,
-} from "@/components/diagram";
+import { Cells, Col, Diagram, Edge, Node, Row, Space, type CellItem } from "@/components/figure";
+import { CELL } from "@/components/figure/theme";
 
 export type TapeCell =
   | string
@@ -21,7 +7,7 @@ export type TapeCell =
   | null
   | {
       label?: string;
-      state?: BoxState;
+      state?: "normal" | "emphasis" | "new" | "highlight";
       tint?: boolean;
       color?: string;
     };
@@ -37,98 +23,53 @@ interface Props {
   className?: string;
 }
 
-const CELL_W = 42;
-const CELL_H = 34;
-const STATE_H = 30;
-const TAPE_Y = 74;
-const STATE_Y = 15;
+const STATE = { normal: undefined, emphasis: "strong", new: "active", highlight: "strong" } as const;
+/** Tape cells read larger than the default strip so the head motion is easy to follow. */
+const TAPE = 36;
+const HEAD_W = 2 * TAPE;
 
-const toCell = (cell: TapeCell): Cell =>
-  cell === null
-    ? {}
-    : typeof cell === "object"
-      ? cell
-      : { label: String(cell) };
+interface TapeProps {
+  /** control state, label syntax (`q_0`) */
+  q: string;
+  cells: CellItem[];
+  head: number;
+  /** cells to reserve width for, so a trace keeps one width while its tape grows */
+  span?: number;
+  left?: boolean;
+  right?: boolean;
+  /** the machine halted: the state is drawn strong instead of active */
+  done?: boolean;
+}
 
-export function TuringTape({
-  cells,
-  head = 0,
-  state = "q",
-  title,
-  caption,
-  leftEllipsis = false,
-  rightEllipsis = false,
-  className,
-}: Props) {
-  const shown = cells.length > 0 ? cells : [null];
-  const headIndex = Math.min(Math.max(head, 0), shown.length - 1);
-  const stateW = Math.max(54, measureLabel(state, FONT.node, 700) + 24);
-  const ellipsisW = 24;
-  let tapeX = SPACE.margin + (leftEllipsis ? ellipsisW : 0);
-  const headCenterBase = tapeX + headIndex * CELL_W + CELL_W / 2;
-  const stateLeftBase = headCenterBase - stateW / 2;
-
-  if (stateLeftBase < SPACE.margin) {
-    tapeX += SPACE.margin - stateLeftBase;
-  }
-
-  const headCenter = tapeX + headIndex * CELL_W + CELL_W / 2;
-  const stateX = headCenter - stateW / 2;
-  const tapeW = shown.length * CELL_W;
-  const contentRight = Math.max(
-    tapeX + tapeW + (rightEllipsis ? ellipsisW : 0),
-    stateX + stateW,
-  );
-  const width = contentRight + SPACE.margin;
-  const height = 124;
-  const arrowId = stableId("tm-head", { shown, headIndex, state, caption });
-
-  const renderedCells = shown.map((cell, index) => {
-    const c = toCell(cell);
-    if (index !== headIndex || c.state) return c;
-    return { ...c, state: "highlight" as BoxState };
-  });
-
+/** One configuration: the control state centred over the head cell, which is active. */
+export function Tape({ q, cells, head, span = cells.length, left = false, right = false, done = false }: TapeProps) {
+  const before = (left ? CELL.ellipsis : 0) + head * TAPE;
+  const after = (span - 1 - head) * TAPE + (right ? CELL.ellipsis : 0);
+  const items = cells.map((c, i) => ({ ...c, state: c.state ?? (i === head ? ("active" as const) : undefined) }));
   return (
-    <DiagramFigure title={title} caption={caption} className={className}>
-      <DiagramSvg w={width} h={height} label={caption ?? "Turing machine tape"}>
-        <defs>
-          <ArrowHead id={arrowId} />
-        </defs>
-        {leftEllipsis && (
-          <DotsEllipsis x={tapeX - ellipsisW / 2} y={TAPE_Y + CELL_H / 2} />
-        )}
-        <Box
-          x={stateX}
-          y={STATE_Y}
-          w={stateW}
-          h={STATE_H}
-          label={state}
-          fontSize={FONT.node}
-          fontWeight={700}
-          tint
-        />
-        <Arrow
-          from={{ x: headCenter, y: STATE_Y + STATE_H + 3 }}
-          to={{ x: headCenter, y: TAPE_Y - 5 }}
-          markerId={arrowId}
-          color={COLOR.muted}
-        />
-        <CellStrip
-          x={tapeX}
-          y={TAPE_Y}
-          cellW={CELL_W}
-          cellH={CELL_H}
-          cells={renderedCells}
-          fontSize={FONT.node}
-        />
-        {rightEllipsis && (
-          <DotsEllipsis
-            x={tapeX + tapeW + ellipsisW / 2}
-            y={TAPE_Y + CELL_H / 2}
-          />
-        )}
-      </DiagramSvg>
-    </DiagramFigure>
+    <>
+      <Col gap={18} align="start">
+        <Row gap={0}>
+          <Space w={before} />
+          <Node id="q" title={q} w={HEAD_W} state={done ? "strong" : "active"} />
+          <Space w={after} />
+        </Row>
+        <Row gap={0}>
+          <Space w={(HEAD_W - TAPE) / 2} />
+          <Cells id="tape" cell={TAPE} items={items} ellipsis={left && right ? "both" : left ? "start" : right ? "end" : undefined} />
+        </Row>
+      </Col>
+      <Edge id="head" from="q" to={`tape.${head}`} state="active" />
+    </>
+  );
+}
+
+export function TuringTape({ cells, head = 0, state = "q", title, caption, leftEllipsis = false, rightEllipsis = false, className }: Props) {
+  const shown = cells.length > 0 ? cells : [null];
+  const items = shown.map((c) => (c === null ? {} : typeof c === "object" ? { label: c.label, state: STATE[c.state ?? "normal"] } : { label: String(c) }));
+  return (
+    <Diagram title={title} caption={caption} className={className}>
+      <Tape q={state} cells={items} head={Math.min(Math.max(head, 0), shown.length - 1)} left={leftEllipsis} right={rightEllipsis} />
+    </Diagram>
   );
 }

@@ -1,34 +1,11 @@
-import {
-  ArrowHead,
-  COLOR,
-  DiagramFigure,
-  DiagramSvg,
-  FONT,
-  Label,
-  STROKE,
-  measureLabel,
-  r2,
-  ref,
-  stableId,
-} from "@/components/diagram";
+import { Col, Diagram, Edge, Free, Node, Row, Space, type Side } from "@/components/figure";
+import { nodeTitleW } from "@/components/figure/layout";
 
 /**
- * A finite-automaton diagram in the textbook style: light-grey circular
- * states on a single baseline, a bare arrow into the start state, a double
- * ring for accepting states, curved labelled transitions, and self-loops
- * drawn above each node.
- *
- * Why a bespoke SVG instead of Mermaid: the academic automaton look - clean
- * round states, a start arrow with no source node, paired arcs that bow apart,
- * and tidy self-loops - is exactly what flowchart engines render badly. Here
- * we lay states out on a row and draw every edge as a single quadratic (or the
- * self-loop as one cubic), so the geometry is fully under our control.
- *
- * Rendered once on the server (no client JS, no flash). Chrome, text and
- * palette come from the shared diagram core, so it reads as one family with
- * the other figures and re-themes live on the light/dark switch.
- * `currentColor` (the core sets it to the figure ink) drives strokes, text
- * and arrowheads as one ink.
+ * A finite-automaton diagram in the textbook style: round states (one
+ * diameter per figure), a bare arrow into the start state, a double ring for
+ * accepting states, arcs that bow apart, and self-loops on the free side of
+ * their state. States sit on one baseline unless the author places them.
  */
 
 export interface AutoState {
@@ -81,371 +58,122 @@ interface Props {
   className?: string;
 }
 
-// --- geometry constants ---------------------------------------------------
-
-const R = 28; // state radius (also the ellipse ry for wide labels)
-const ACCEPT_INSET = 5; // gap between outer ring and accepting inner ring
-const GAP = 150; // default centre-to-centre spacing
-const START_LEN = 40; // length of the bare start arrow
-const MARGIN = 12; // svg padding around the content
-const LOOP_RISE = 36; // how far a self-loop bows above the node
-const BEND_BASE = 38; // arc bow for adjacent states
-const BEND_STEP = 28; // extra bow per skipped state
-
-const EDGE_FONT = 14; // transition labels (between note and node scale)
-const LOOP_LABEL_OUT = 7; // gap from the loop apex to its label
-
-// Outward (`o`) and tangent (`t`) unit vectors per side. The self-loop attaches
-// at o ± 0.55·t on the node boundary and bows outward along o; `up` reproduces
-// the historical geometry exactly, so existing diagrams are untouched.
-const DIRS: Record<Dir, { o: Pt; t: Pt }> = {
-  up: { o: { x: 0, y: -1 }, t: { x: 1, y: 0 } },
-  down: { o: { x: 0, y: 1 }, t: { x: -1, y: 0 } },
-  left: { o: { x: -1, y: 0 }, t: { x: 0, y: -1 } },
-  right: { o: { x: 1, y: 0 }, t: { x: 0, y: 1 } },
-};
-
-// --- node + edge maths ----------------------------------------------------
-
-interface Node extends AutoState {
-  index: number;
-  cx: number;
-  cy: number;
-  rx: number;
-  ry: number;
-  text: string;
-  isAccepting: boolean;
-}
-
+const START = "__start";
+const START_LEN = 40;
+const SIDE: Record<Dir, Side> = { up: "top", down: "bottom", left: "left", right: "right" };
 type Pt = { x: number; y: number };
-
-/** Point on a node's ellipse boundary along the direction (dx, dy) from centre. */
-function edgePoint(n: Node, dx: number, dy: number): Pt {
-  const s = 1 / Math.sqrt((dx / n.rx) ** 2 + (dy / n.ry) ** 2);
-  return { x: n.cx + dx * s, y: n.cy + dy * s };
-}
-
-const quadAt = (t: number, p0: Pt, c: Pt, p1: Pt): Pt => {
-  const u = 1 - t;
-  return {
-    x: u * u * p0.x + 2 * u * t * c.x + t * t * p1.x,
-    y: u * u * p0.y + 2 * u * t * c.y + t * t * p1.y,
-  };
+const UNIT: Record<Dir, Pt> = {
+  up: { x: 0, y: -1 },
+  down: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
 };
+const avg = (xs: number[]) => xs.reduce((a, x) => a + x, 0) / (xs.length || 1);
+/** The engine's `arc` control point: the chord midpoint moved `bend` px along the travel normal. */
+function ctrlOf(a: Pt, b: Pt, bend: number): Pt {
+  const dx = b.x - a.x, dy = b.y - a.y, k = bend / (Math.hypot(dx, dy) || 1);
+  return { x: (a.x + b.x) / 2 - dy * k, y: (a.y + b.y) / 2 + dx * k };
+}
+/** Edge labels are mono and print literally, so digit subscripts (`N_1`) become subscript glyphs. */
+const edgeLabel = (s?: string) => s?.replace(/_(\d)/g, (_, d: string) => String.fromCharCode(0x2080 + Number(d)));
 
-export function Automaton({
-  states,
-  transitions,
-  start,
-  startDir = "left",
-  accepting,
-  gap = GAP,
-  title,
-  caption,
-  className,
-}: Props) {
-  const acceptingSet = new Set(accepting ?? []);
+export function Automaton({ states, transitions, start, startDir = "left", accepting, gap = 150, title, caption, className }: Props) {
   const startId = start ?? states[0]?.id;
+  const index = new Map(states.map((s, i) => [s.id, i]));
+  const manual = states.some((s) => s.x !== undefined || s.y !== undefined);
+  const pos = new Map(states.map((s, i) => [s.id, manual ? { x: s.x ?? i * gap, y: s.y ?? 0 } : { x: i * gap, y: 0 }]));
+  const D = Math.max(48, ...states.map((s) => nodeTitleW({ title: s.label ?? s.id, state: "default", shape: "circle" }) + 24));
 
-  // Lay the states out on one baseline; widen the ellipse for long labels so
-  // text never clips, while keeping the height (ry) uniform across the row.
-  const nodes: Node[] = states.map((s, index) => {
-    const text = s.label ?? s.id;
-    const rx = Math.max(R, measureLabel(text, FONT.node) / 2 + 13);
-    return {
-      ...s,
-      index,
-      text,
-      rx,
-      ry: R,
-      cx: 0,
-      cy: 0,
-      isAccepting: acceptingSet.has(s.id) || !!s.accepting,
-    };
-  });
-  const byId = new Map(nodes.map((n) => [n.id, n] as const));
+  const known = transitions.filter((t) => index.has(t.from) && index.has(t.to));
+  const arcs = known.filter((t) => t.from !== t.to);
+  const centre = { x: avg([...pos.values()].map((p) => p.x)), y: avg([...pos.values()].map((p) => p.y)) };
 
-  const isManualLayout = nodes.some(
-    (n) => typeof n.x === "number" || typeof n.y === "number",
+  // Bow in px along the travel normal, as the engine's `arc` reads it. Rows bow on screen (up = above the
+  // baseline). Placed figures bow relative to travel, and an edge with no `bend` bows away from the figure's centre.
+  const bendOf = (t: AutoTransition) => {
+    const ia = index.get(t.from)!, ib = index.get(t.to)!;
+    const mag = t.curve ?? 38 + (Math.abs(ia - ib) - 1) * 28;
+    const forced = t.bend && (t.bend === "up" ? -1 : 1);
+    if (!manual) return (forced || (ia < ib ? -1 : 1)) * mag * (ib > ia ? 1 : -1);
+    if (forced) return forced * mag;
+    const a = pos.get(t.from)!, b = pos.get(t.to)!, mid = ctrlOf(a, b, 0), n = ctrlOf(a, b, 1);
+    const inward = (n.x - mid.x) * (centre.x - mid.x) + (n.y - mid.y) * (centre.y - mid.y);
+    return (Math.abs(inward) < 1 ? (ia < ib ? -1 : 1) : inward > 0 ? -1 : 1) * mag;
+  };
+  // Both edges of an anti-parallel pair take one value so they bow apart; an author's `bend` on either one leads.
+  const bend = new Map<AutoTransition, number>();
+  for (const t of arcs) {
+    if (bend.has(t)) continue;
+    const pair = [t, ...arcs.filter((u) => u.from === t.to && u.to === t.from)];
+    const v = bendOf(pair.find((u) => u.bend) ?? t);
+    for (const u of pair) bend.set(u, v);
+  }
+
+  // A loop goes on top unless an edge leaves its state within 45 degrees of straight up; then on the clearest side.
+  const leaving = (id: string) => {
+    const c = pos.get(id)!;
+    const dirs = arcs.flatMap((t) => {
+      if (t.from !== id && t.to !== id) return [];
+      const ctrl = ctrlOf(pos.get(t.from)!, pos.get(t.to)!, bend.get(t)!);
+      return [{ x: ctrl.x - c.x, y: ctrl.y - c.y }];
+    });
+    if (id === startId) dirs.push(UNIT[startDir]);
+    return dirs.map((d) => ({ x: d.x / (Math.hypot(d.x, d.y) || 1), y: d.y / (Math.hypot(d.x, d.y) || 1) }));
+  };
+  const loopSide = (t: AutoTransition): Side => {
+    if (t.loop) return SIDE[t.loop];
+    const dirs = leaving(t.from);
+    const crowd = (d: Dir) => Math.max(-1, ...dirs.map((v) => v.x * UNIT[d].x + v.y * UNIT[d].y));
+    if (crowd("up") <= Math.SQRT1_2) return "top";
+    const best = (["down", "right", "left"] as const).reduce((a, d) => (crowd(d) < crowd(a) ? d : a));
+    return SIDE[best];
+  };
+
+  const node = (s: AutoState, x?: number, y?: number) => (
+    <Node key={s.id} id={s.id} shape="circle" w={D} title={s.label ?? s.id} double={!!s.accepting || !!accepting?.includes(s.id)} x={x} y={y} />
   );
 
-  if (isManualLayout) {
-    nodes.forEach((n, i) => {
-      n.cx = n.x ?? MARGIN + START_LEN + n.rx + i * gap;
-      n.cy = n.y ?? R + LOOP_RISE + 24;
-    });
+  let body;
+  if (manual) {
+    const p = pos.get(startId)!, u = UNIT[startDir];
+    const anchor = { x: p.x + u.x * (D / 2 + START_LEN), y: p.y + u.y * (D / 2 + START_LEN) };
+    const minX = Math.min(anchor.x, ...[...pos.values()].map((q) => q.x - D / 2));
+    const minY = Math.min(anchor.y, ...[...pos.values()].map((q) => q.y - D / 2));
+    body = (
+      <Free>
+        {states.map((s) => node(s, pos.get(s.id)!.x - D / 2 - minX, pos.get(s.id)!.y - D / 2 - minY))}
+        <Space id={START} w={0} h={0} x={anchor.x - minX} y={anchor.y - minY} />
+      </Free>
+    );
   } else {
-    let cx = MARGIN + START_LEN + (nodes[0]?.rx ?? R);
-    nodes.forEach((n, i) => {
-      if (i > 0) cx += gap;
-      n.cx = cx;
-    });
+    const anchor = <Space id={START} w={0} h={0} />;
+    const blank = <Space w={0} h={0} />;
+    const withStart = (s: AutoState) => {
+      const n = node(s);
+      if (startDir === "left") return <Row key={s.id} gap={START_LEN}>{anchor}{n}</Row>;
+      if (startDir === "right") return <Row key={s.id} gap={START_LEN}>{n}{anchor}</Row>;
+      return (
+        <Col key={s.id} gap={START_LEN}>
+          {startDir === "up" ? anchor : blank}
+          {n}
+          {startDir === "down" ? anchor : blank}
+        </Col>
+      );
+    };
+    body = <Row gap={gap - D}>{states.map((s) => (s.id === startId ? withStart(s) : node(s)))}</Row>;
   }
-
-  const bendDir = (t: AutoTransition): -1 | 1 => {
-    if (t.bend) return t.bend === "up" ? -1 : 1;
-    const a = byId.get(t.from);
-    const b = byId.get(t.to);
-    return a && b && a.index < b.index ? -1 : 1; // forward bows up
-  };
-
-  const hasSelf = transitions.some((t) => t.from === t.to);
-  const hasUp = transitions.some((t) => t.from !== t.to && bendDir(t) === -1);
-  const hasDown = transitions.some((t) => t.from !== t.to && bendDir(t) === 1);
-
-  const topPad = hasSelf ? 88 : hasUp ? 60 : R + 16;
-  const bottomPad = hasDown ? 60 : R + 16;
-  const cy = topPad;
-  if (!isManualLayout) {
-    nodes.forEach((n) => (n.cy = cy));
-  }
-
-  // Edge geometry is computed before the svg is sized, so manual layouts can
-  // include arcs and labels in the viewBox (a vertical edge's side label used
-  // to fall outside the node-extent bounds and get clipped).
-  interface EdgeLabel {
-    x: number;
-    y: number;
-    text: string;
-    anchor: "start" | "middle" | "end";
-    baseline: "central" | "baseline";
-  }
-  interface EdgeGeom {
-    key: number;
-    d: string;
-    maxX: number;
-    maxY: number;
-    label?: EdgeLabel;
-  }
-
-  const edgeGeoms = transitions.flatMap((t, i): EdgeGeom[] => {
-    const a = byId.get(t.from);
-    const b = byId.get(t.to);
-    if (!a || !b) return [];
-
-    if (a === b) {
-      // Self-loop: one cubic bowing out to one side of the node, arrow
-      // returning to the boundary. `up` reproduces the original geometry.
-      const { o, t: tan } = DIRS[t.loop ?? "up"];
-      const lp = edgePoint(a, o.x - 0.55 * tan.x, o.y - 0.55 * tan.y);
-      const rp = edgePoint(a, o.x + 0.55 * tan.x, o.y + 0.55 * tan.y);
-      const c0 = {
-        x: lp.x + o.x * LOOP_RISE - tan.x * 11,
-        y: lp.y + o.y * LOOP_RISE - tan.y * 11,
-      };
-      const c1 = {
-        x: rp.x + o.x * LOOP_RISE + tan.x * 11,
-        y: rp.y + o.y * LOOP_RISE + tan.y * 11,
-      };
-      const apex = {
-        x: 0.125 * lp.x + 0.375 * c0.x + 0.375 * c1.x + 0.125 * rp.x,
-        y: 0.125 * lp.y + 0.375 * c0.y + 0.375 * c1.y + 0.125 * rp.y,
-      };
-      const horizontal = o.x !== 0;
-      return [
-        {
-          key: i,
-          d: `M${r2(lp.x)},${r2(lp.y)} C${r2(c0.x)},${r2(c0.y)} ${r2(c1.x)},${r2(c1.y)} ${r2(rp.x)},${r2(rp.y)}`,
-          maxX: Math.max(lp.x, rp.x, c0.x, c1.x),
-          maxY: Math.max(lp.y, rp.y, c0.y, c1.y),
-          label: t.label
-            ? {
-                x: apex.x + o.x * LOOP_LABEL_OUT,
-                y: apex.y + o.y * LOOP_LABEL_OUT,
-                text: t.label,
-                anchor: horizontal
-                  ? o.x > 0
-                    ? "start"
-                    : "end"
-                  : "middle",
-                baseline: o.y < 0 && !horizontal ? "baseline" : "central",
-              }
-            : undefined,
-        },
-      ];
-    }
-
-    const dir = bendDir(t);
-    const span = Math.abs(a.index - b.index);
-    const mag = t.curve ?? BEND_BASE + (span - 1) * BEND_STEP;
-    const apex = isManualLayout
-      ? (() => {
-          const dx = b.cx - a.cx;
-          const dy = b.cy - a.cy;
-          const len = Math.hypot(dx, dy) || 1;
-          const normal = { x: -dy / len, y: dx / len };
-          return {
-            x: (a.cx + b.cx) / 2 + normal.x * dir * mag,
-            y: (a.cy + b.cy) / 2 + normal.y * dir * mag,
-          };
-        })()
-      : { x: (a.cx + b.cx) / 2, y: cy + dir * mag };
-    const p0 = edgePoint(a, apex.x - a.cx, apex.y - a.cy);
-    const p1 = edgePoint(b, apex.x - b.cx, apex.y - b.cy);
-    const mid = quadAt(0.5, p0, apex, p1);
-
-    // Offset the label along the arc's outward normal so it clears the curve
-    // whatever its orientation (vertical edges in manual layouts used to get
-    // a vertical offset that left the text on the arc); the halo keeps it
-    // readable when the gap to the arc is tight.
-    const chordMid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
-    let nx = apex.x - chordMid.x;
-    let ny = apex.y - chordMid.y;
-    let nl = Math.hypot(nx, ny);
-    if (nl < 0.5) {
-      // Straight edge (curve ≈ 0): there is no arc apex to push off, so offset
-      // the label along the chord's perpendicular, on the side `dir` chooses.
-      const cdx = p1.x - p0.x;
-      const cdy = p1.y - p0.y;
-      const cl = Math.hypot(cdx, cdy) || 1;
-      nx = (-cdy / cl) * dir;
-      ny = (cdx / cl) * dir;
-      nl = 1;
-    }
-    nx /= nl;
-    ny /= nl;
-    const anchor = nx > 0.35 ? "start" : nx < -0.35 ? "end" : "middle";
-    return [
-      {
-        key: i,
-        d: `M${r2(p0.x)},${r2(p0.y)} Q${r2(apex.x)},${r2(apex.y)} ${r2(p1.x)},${r2(p1.y)}`,
-        maxX: mid.x,
-        maxY: mid.y,
-        label: t.label
-          ? {
-              x: mid.x + nx * 12,
-              y: mid.y + ny * 12,
-              text: t.label,
-              anchor,
-              baseline: "central",
-            }
-          : undefined,
-      },
-    ];
-  });
-
-  // Right/bottom extent of a placed edge label, from real font metrics.
-  const labelMaxX = (l: EdgeLabel) => {
-    const w = measureLabel(l.text, EDGE_FONT);
-    return l.anchor === "start" ? l.x + w : l.anchor === "end" ? l.x : l.x + w / 2;
-  };
-  const labelMaxY = (l: EdgeLabel) =>
-    l.baseline === "central" ? l.y + EDGE_FONT * 0.6 : l.y;
-
-  // The bare start arrow enters from `startDir`; its tail can poke past the
-  // node extents (e.g. a down-entering arrow), so size for it too.
-  const startNode = byId.get(startId);
-  const startGeom = startNode
-    ? (() => {
-        const s = DIRS[startDir].o;
-        const tip = edgePoint(startNode, s.x, s.y);
-        const tail = { x: tip.x + s.x * START_LEN, y: tip.y + s.y * START_LEN };
-        return { tip, tail };
-      })()
-    : null;
-
-  const last = nodes[nodes.length - 1];
-  const width = isManualLayout
-    ? Math.max(
-        ...nodes.map((n) => n.cx + n.rx),
-        ...edgeGeoms.map((e) => Math.max(e.maxX, e.label ? labelMaxX(e.label) : 0)),
-        startGeom?.tail.x ?? 0,
-        0,
-      ) + MARGIN
-    : (last?.cx ?? 0) + (last?.rx ?? R) + MARGIN;
-  const height = isManualLayout
-    ? Math.max(
-        ...nodes.map((n) => n.cy + n.ry),
-        ...edgeGeoms.map((e) => Math.max(e.maxY, e.label ? labelMaxY(e.label) : 0)),
-        startGeom?.tail.y ?? 0,
-        0,
-      ) + MARGIN
-    : topPad + bottomPad;
-
-  // A per-instance marker id keeps multiple automata on one page valid, even
-  // when two diagrams share state names (e.g. M and M' in a complement proof).
-  const arrowId = stableId("aut-arrow", { states, transitions, start, accepting });
-
-  const edges = edgeGeoms.map((e) => (
-    <g key={e.key}>
-      <path
-        d={e.d}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={STROKE.line}
-        markerEnd={ref(arrowId)}
-      />
-      {e.label && (
-        <Label
-          x={e.label.x}
-          y={e.label.y}
-          text={e.label.text}
-          size={EDGE_FONT}
-          fill="currentColor"
-          anchor={e.label.anchor}
-          baseline={e.label.baseline}
-          halo
-        />
-      )}
-    </g>
-  ));
-
-  const startArrow = startGeom ? (
-    <path
-      d={`M${r2(startGeom.tail.x)},${r2(startGeom.tail.y)} L${r2(startGeom.tip.x)},${r2(startGeom.tip.y)}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={STROKE.line}
-      markerEnd={ref(arrowId)}
-    />
-  ) : null;
 
   return (
-    <DiagramFigure title={title} caption={caption} className={className}>
-      <DiagramSvg
-        w={width}
-        h={height}
-        label={caption ?? "Finite automaton diagram"}
-      >
-        <defs>
-          <ArrowHead id={arrowId} color="currentColor" />
-        </defs>
-
-        {startArrow}
-        {edges}
-
-        {nodes.map((n) => (
-          <g key={n.id}>
-            <ellipse
-              cx={r2(n.cx)}
-              cy={r2(n.cy)}
-              rx={r2(n.rx)}
-              ry={r2(n.ry)}
-              fill={COLOR.node}
-              stroke="currentColor"
-              strokeWidth={STROKE.frame}
-            />
-            {n.isAccepting && (
-              <ellipse
-                cx={r2(n.cx)}
-                cy={r2(n.cy)}
-                rx={r2(n.rx - ACCEPT_INSET)}
-                ry={r2(n.ry - ACCEPT_INSET)}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={STROKE.frame}
-              />
-            )}
-            <Label
-              x={n.cx}
-              y={n.cy}
-              text={n.text}
-              size={FONT.node}
-              fill="currentColor"
-            />
-          </g>
-        ))}
-      </DiagramSvg>
-    </DiagramFigure>
+    <Diagram title={title} caption={caption} className={className}>
+      {body}
+      {startId && <Edge from={START} to={startId} route="straight" />}
+      {known.map((t, i) =>
+        t.from === t.to ? (
+          <Edge key={i} from={t.from} to={t.to} loop={loopSide(t)} label={edgeLabel(t.label)} />
+        ) : (
+          <Edge key={i} from={t.from} to={t.to} route="arc" bend={bend.get(t)} label={edgeLabel(t.label)} />
+        ),
+      )}
+    </Diagram>
   );
 }

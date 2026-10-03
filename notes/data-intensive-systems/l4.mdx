@@ -153,16 +153,18 @@ Two layers turn physical storage into clean page operations, the bottom two of t
 
 A DBMS can only process data that is currently in DRAM. The buffer manager hides the fact that most pages still live on disk, much as a hardware cache hides the gap between CPU and main memory.
 
-<Mermaid
-  caption="The DBMS asks the buffer manager for pages in memory; the buffer manager turns misses into disk reads and dirty evictions into disk writes."
-  chart={`flowchart TB
-    DB["DBMS access methods"] -- "request page" --> BM["Buffer manager"]
-    BM -- "return frame" --> DB
-    BM -- "read page on miss" --> DISK["Disk (database file)"]
-    DISK -- "page in" --> BM
-    BM -- "write back dirty page" --> DISK
-  `}
-/>
+<Diagram caption="The DBMS asks the buffer manager for pages in memory; the buffer manager turns misses into disk reads and dirty evictions into disk writes.">
+  <Col gap={56} align="stretch">
+    <Node id="db" title="DBMS access methods" w={380} />
+    <Node id="bm" title="Buffer manager" w={380} />
+    <Node id="disk" shape="cylinder" title="Disk (database file)" w={380} />
+  </Col>
+  <Edge from="db" to="bm" label="1 request page" />
+  <Edge from="bm" to="db" label="4 return frame" />
+  <Edge from="bm" to="disk" label="2 read page on miss" />
+  <Edge from="disk" to="bm" label="3 page in" />
+  <Edge from="bm" to="disk" label="write back dirty page" dashed />
+</Diagram>
 
 The OS already provides a file system and a block cache, yet a DBMS still manages pages its own way, for four reasons.
 

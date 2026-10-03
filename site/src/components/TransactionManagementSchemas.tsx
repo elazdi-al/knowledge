@@ -1,512 +1,142 @@
-import type { ReactNode } from "react";
-import {
-  Arrow,
-  ArrowHead,
-  Box,
-  CellStrip,
-  COLOR,
-  DiagramFigure,
-  DiagramSvg,
-  FONT,
-  Label,
-  RADIUS,
-  STROKE,
-  r2,
-  stableId,
-  type BoxState,
-} from "@/components/diagram";
+import { Col, Diagram, Edge, Grid, Group, Node, Row, Table, Text } from "@/components/figure";
+import { ScheduleGrid, TX_TONE, type ScheduleOp, type TxId } from "@/components/ScheduleGrid";
 
-type Anchor = "start" | "middle" | "end";
-type Weight = 400 | 600 | 700;
-
-function Lines({
-  x,
-  y,
-  lines,
-  size = FONT.note,
-  weight = 400,
-  fill = COLOR.fg,
-  anchor = "middle",
-  lineH = 15,
-}: {
-  x: number;
-  y: number;
-  lines: string[];
-  size?: number;
-  weight?: Weight;
-  fill?: string;
-  anchor?: Anchor;
-  lineH?: number;
-}) {
-  return (
-    <g>
-      {lines.map((line, i) => (
-        <Label
-          key={`${line}-${i}`}
-          x={x}
-          y={y + i * lineH}
-          text={line}
-          size={size}
-          weight={weight}
-          fill={fill}
-          anchor={anchor}
-        />
-      ))}
-    </g>
-  );
-}
-
-function Frame({
-  x,
-  y,
-  w,
-  h,
-  title,
-  children,
-}: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  title?: string;
-  children: ReactNode;
-}) {
-  return (
-    <g>
-      <rect
-        x={r2(x)}
-        y={r2(y)}
-        width={r2(w)}
-        height={r2(h)}
-        rx={RADIUS.frame}
-        fill={COLOR.node}
-        stroke={COLOR.border}
-        strokeWidth={STROKE.frame}
-      />
-      {title && (
-        <Label
-          x={x + 14}
-          y={y + 22}
-          text={title}
-          size={FONT.label}
-          weight={700}
-          anchor="start"
-        />
-      )}
-      {children}
-    </g>
-  );
-}
-
-export function TransactionLogSchema({
-  title,
-  caption,
-  className,
-}: {
+interface FigureProps {
   title?: string;
   caption?: string;
   className?: string;
-}) {
-  const arrowId = stableId("tx-log", { title, caption });
-  const records = [
-    { label: "T_1: W(A)", state: "highlight" as BoxState },
-    { label: "T_2: W(C)", state: "normal" as BoxState },
-    { label: "T_1: W(B)", state: "highlight" as BoxState },
-    { label: "T_2: W(D)", state: "normal" as BoxState },
-    { label: "T_1: COMMIT", state: "highlight" as BoxState },
-    { label: "T_2: COMMIT", state: "normal" as BoxState },
-  ];
-  const x0 = 26;
-  const y = 88;
-  const w = 96;
-  const h = 36;
-  const gap = 9;
-  const xs = records.map((_, i) => x0 + i * (w + gap));
+}
 
+const txChip = (tx: TxId) => ({ text: `T_${tx}`, tone: TX_TONE[tx], mono: false });
+
+const LOG: { tx: TxId; op: string }[] = [
+  { tx: 1, op: "W(A)" },
+  { tx: 2, op: "W(C)" },
+  { tx: 1, op: "W(B)" },
+  { tx: 2, op: "W(D)" },
+  { tx: 1, op: "COMMIT" },
+  { tx: 2, op: "COMMIT" },
+];
+
+/** Each record points back to the previous record of its transaction: T1 on the right, T2 on the left, so the chains never cross. */
+export function TransactionLogSchema({ title, caption, className }: FigureProps) {
   return (
-    <DiagramFigure
-      title={title}
-      caption={caption ?? "A log is append-only; prev-pointers link each transaction's records."}
-      className={className}
-    >
-      <DiagramSvg w={660} h={312} label={caption ?? "Transaction log organization"}>
-        <defs>
-          <ArrowHead id={arrowId} />
-        </defs>
+    <Diagram title={title} caption={caption ?? "A log is append-only; prev-pointers link each transaction's records."} className={className}>
+      <Col gap={14} align="stretch">
+        <Group title="Append-only log" gap={10}>
+          <Text text="prev-pointers chain records from the same transaction" size="note" muted />
+          <Table id="log" rows={LOG.map((r, i) => ({ id: `log.${i}`, cells: [`#${i}`, txChip(r.tx), r.op] }))} />
+        </Group>
+        <Group title="One update log record" gap={10}>
+          <Table columns={["TxID", "Page ID", "Offset", "Length", "Before-image", "After-image"]} rows={[[txChip(1), "P42", "128", "8", "$10", "$12"]]} />
+          <Text text="before-image enables UNDO; after-image enables REDO" size="note" muted />
+        </Group>
+      </Col>
+      {LOG.map((r, i) => {
+        const prev = LOG.slice(0, i).findLastIndex((p) => p.tx === r.tx);
+        if (prev < 0) return null;
+        const side = r.tx === 1 ? "right" : "left";
+        return <Edge key={i} from={`log.${i}`} to={`log.${prev}`} fromSide={side} toSide={side} route="curve" tone={TX_TONE[r.tx]} />;
+      })}
+    </Diagram>
+  );
+}
 
-        <Label x={330} y={26} text="Append-only log" size={FONT.title} weight={700} />
-        <Label
-          x={330}
-          y={45}
-          text="prev-pointers chain records from the same transaction"
-          size={FONT.note}
-          fill={COLOR.caption}
-        />
+/** Both rules order writes: the log record before the page, and the forced log flush before the commit returns. */
+export function WalRulesSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram title={title} caption={caption ?? "Write-ahead logging requires log-before-page and log-before-commit."} className={className}>
+      <Row wrap gap={16} align="stretch">
+        <Group title="Rule 1: log before page" gap={14}>
+          <Grid cols={3} colGap={16} rowGap={56} align="stretch">
+            <Text text="memory" size="note" muted />
+            <Node id="pg" title="Page P42 dirty" />
+            <Node id="lr" title="log record" />
+            <Text text="disk" size="note" muted />
+            <Node id="pgd" title="Page P42 stale" />
+            <Node id="lrd" title="log record" />
+          </Grid>
+          <Text text="a dirty page may reach disk only after its log record" size="note" muted />
+        </Group>
+        <Group title="Rule 2: commit boundary">
+          <Col gap={6}>
+            <Text text="log buffer" size="note" muted />
+            <Row id="buf" gap={6}>
+              <Node title="W(A)" mono />
+              <Node title="W(B)" mono />
+              <Node title="W(C)" mono />
+              <Node title="COMMIT" mono state="active" />
+            </Row>
+          </Col>
+          <Node id="persist" title="all log records persisted" />
+          <Node id="ok" title="return success" />
+        </Group>
+      </Row>
+      <Edge from="lr" to="lrd" label="1 write log" />
+      <Edge from="pg" to="pgd" label="2 write page" />
+      <Edge from="buf" to="persist" label="1 forced flush" />
+      <Edge from="persist" to="ok" label="2 only then" />
+    </Diagram>
+  );
+}
 
-        {records.map((record, i) => (
-          <g key={record.label}>
-            <Box
-              x={xs[i]}
-              y={y}
-              w={w}
-              h={h}
-              label={record.label}
-              state={record.state}
-              tint={record.state !== "highlight"}
-              fontSize={FONT.note}
-              fontWeight={700}
-            />
-            <Label
-              x={xs[i] + w / 2}
-              y={y + h + 18}
-              text={`#${i}`}
-              size={FONT.note}
-              fill={COLOR.caption}
-            />
-          </g>
+const SCHEDULES: { title: string; ops: [TxId, string][]; result: string; bad?: boolean }[] = [
+  {
+    title: "Serial",
+    ops: [[1, "A=A-100"], [1, "B=B+100"], [1, "COMMIT"], [2, "A=A*1.06"], [2, "B=B*1.06"]],
+    result: "A=954, B=1166",
+  },
+  {
+    title: "Equivalent interleaving",
+    ops: [[1, "A=A-100"], [2, "A=A*1.06"], [1, "B=B+100"], [1, "COMMIT"], [2, "B=B*1.06"]],
+    result: "A=954, B=1166",
+  },
+  {
+    title: "Bad interleaving",
+    ops: [[1, "A=A-100"], [2, "A=A*1.06"], [2, "B=B*1.06"], [2, "COMMIT"], [1, "B=B+100"]],
+    result: "A=954, B=1160",
+    bad: true,
+  },
+];
+
+export function ScheduleEquivalenceSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram title={title} caption={caption ?? "A valid interleaving has the same effect as some serial schedule."} className={className}>
+      <Row wrap gap={8} align="start">
+        {SCHEDULES.map((s) => (
+          <Group key={s.title} title={s.title} gap={12} pad={12} align="stretch">
+            <ScheduleGrid txs={[1, 2]} ops={s.ops.map(([tx, text]): ScheduleOp => ({ tx, text }))} />
+            <Node title={s.result} mono state={s.bad ? "strong" : undefined} />
+          </Group>
         ))}
-
-        <Arrow
-          from={{ x: xs[2] + w / 2, y: y }}
-          to={{ x: xs[0] + w / 2, y: y }}
-          markerId={arrowId}
-          bend={36}
-        />
-        <Arrow
-          from={{ x: xs[4] + w / 2, y: y }}
-          to={{ x: xs[2] + w / 2, y: y }}
-          markerId={arrowId}
-          bend={36}
-        />
-        <Arrow
-          from={{ x: xs[3] + w / 2, y: y + 4 }}
-          to={{ x: xs[1] + w / 2, y: y + 4 }}
-          markerId={arrowId}
-          bend={54}
-          dashed
-        />
-        <Arrow
-          from={{ x: xs[5] + w / 2, y: y + 4 }}
-          to={{ x: xs[3] + w / 2, y: y + 4 }}
-          markerId={arrowId}
-          bend={54}
-          dashed
-        />
-        <Label x={330} y={174} text="One update log record" size={FONT.title} weight={700} />
-        <CellStrip
-          x={52}
-          y={200}
-          cellH={30}
-          widths={[58, 78, 70, 70, 156, 156]}
-          cells={[
-            { label: "TxID", state: "highlight" },
-            { label: "Page ID", state: "highlight" },
-            { label: "Offset", state: "highlight" },
-            { label: "Length", state: "highlight" },
-            { label: "Before-image", state: "highlight" },
-            { label: "After-image", state: "highlight" },
-          ]}
-          fontSize={FONT.note}
-        />
-        <CellStrip
-          x={52}
-          y={230}
-          cellH={30}
-          widths={[58, 78, 70, 70, 156, 156]}
-          cells={["T_1", "P42", "128", "8", "$10", "$12"]}
-          fontSize={FONT.note}
-        />
-        <Label
-          x={330}
-          y={284}
-          text="before-image enables UNDO; after-image enables REDO"
-          size={FONT.note}
-          fill={COLOR.caption}
-        />
-      </DiagramSvg>
-    </DiagramFigure>
+      </Row>
+    </Diagram>
   );
 }
 
-export function WalRulesSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
-  const arrowId = stableId("wal-rules", { title, caption });
+const PHASES = [
+  { title: "1. Analysis", lines: ["scan log forward", "find committed txns", "find in-flight txns"] },
+  { title: "2. Redo", lines: ["replay committed", "restore after-images", "make effects durable"] },
+  { title: "3. Undo", lines: ["walk log backward", "restore before-images", "remove in-flight effects"] },
+];
+
+export function RecoveryPhasesSchema({ title, caption, className }: FigureProps) {
   return (
-    <DiagramFigure
-      title={title}
-      caption={caption ?? "Write-ahead logging requires log-before-page and log-before-commit."}
-      className={className}
-    >
-      <DiagramSvg w={660} h={286} label={caption ?? "Write-ahead logging rules"}>
-        <defs>
-          <ArrowHead id={arrowId} />
-        </defs>
-
-        <Frame x={14} y={22} w={308} h={242} title="Rule 1: log before page">
-          <Label x={44} y={64} text="memory" anchor="start" size={FONT.note} fill={COLOR.caption} />
-          <Box x={42} y={78} w={98} h={42} label={["Page P42", "dirty"].join(" ")} tint />
-          <Box x={190} y={78} w={100} h={42} label="log record" />
-
-          <Label x={44} y={158} text="disk" anchor="start" size={FONT.note} fill={COLOR.caption} />
-          <Box x={42} y={176} w={98} h={42} label={["Page P42", "stale"].join(" ")} />
-          <Box x={190} y={176} w={100} h={42} label="log record" state="highlight" />
-
-          <Arrow
-            from={{ x: 240, y: 120 }}
-            to={{ x: 240, y: 176 }}
-            markerId={arrowId}
-            label="1"
-            labelOffset={16}
-          />
-          <Arrow
-            from={{ x: 91, y: 120 }}
-            to={{ x: 91, y: 176 }}
-            markerId={arrowId}
-            dashed
-            label="2"
-            labelOffset={16}
-          />
-          <Label
-            x={168}
-            y={244}
-            text="a dirty page may reach disk only after its log record"
-            size={FONT.note}
-            fill={COLOR.caption}
-          />
-        </Frame>
-
-        <Frame x={338} y={22} w={308} h={242} title="Rule 2: commit boundary">
-          <Label x={366} y={66} text="log buffer" anchor="start" size={FONT.note} fill={COLOR.caption} />
-          <CellStrip
-            x={366}
-            y={82}
-            cellH={34}
-            widths={[58, 58, 58, 82]}
-            cells={[
-              { label: "W(A)", tint: true },
-              { label: "W(B)", tint: true },
-              { label: "W(C)", tint: true },
-              { label: "COMMIT", state: "highlight" },
-            ]}
-            fontSize={FONT.note}
-          />
-          <Arrow
-            from={{ x: 495, y: 122 }}
-            to={{ x: 495, y: 170 }}
-            markerId={arrowId}
-            label="forced flush"
-            labelOffset={48}
-          />
-          <Box x={386} y={170} w={218} h={38} label="all log records persisted" />
-          <Arrow from={{ x: 495, y: 208 }} to={{ x: 495, y: 238 }} markerId={arrowId} />
-          <Box x={416} y={238} w={158} h={24} label="return success" state="highlight" fontSize={FONT.note} />
-        </Frame>
-      </DiagramSvg>
-    </DiagramFigure>
-  );
-}
-
-type ScheduleStep = {
-  tx: 1 | 2;
-  y: number;
-  text: string;
-  state?: BoxState;
-};
-
-function SchedulePanel({
-  x,
-  y,
-  title,
-  result,
-  resultState,
-  steps,
-}: {
-  x: number;
-  y: number;
-  title: string;
-  result: string;
-  resultState?: BoxState;
-  steps: ScheduleStep[];
-}) {
-  const w = 200;
-  const h = 232;
-  const colW = (w - 24) / 2;
-  const leftX = x + 12;
-  const rightX = leftX + colW;
-  return (
-    <g>
-      <Frame x={x} y={y} w={w} h={h} title={title}>
-        <Label x={leftX + colW / 2} y={y + 48} text="T_1" weight={700} />
-        <Label x={rightX + colW / 2} y={y + 48} text="T_2" weight={700} />
-        <line
-          x1={r2(rightX)}
-          y1={r2(y + 60)}
-          x2={r2(rightX)}
-          y2={r2(y + h - 48)}
-          stroke={COLOR.border}
-          strokeWidth={STROKE.divider}
-        />
-        {steps.map((step, i) => {
-          const sx = step.tx === 1 ? leftX : rightX;
-          return (
-            <Box
-              key={`${step.text}-${i}`}
-              x={sx + 7}
-              y={y + step.y}
-              w={colW - 14}
-              h={22}
-              label={step.text}
-              state={step.state}
-              tint={step.state !== "highlight"}
-              fontSize={10.4}
-              fontWeight={step.text === "COMMIT" ? 700 : 400}
-            />
-          );
-        })}
-        <Box
-          x={x + 28}
-          y={y + h - 36}
-          w={w - 56}
-          h={24}
-          label={result}
-          state={resultState}
-          fontSize={FONT.note}
-          fontWeight={700}
-        />
-      </Frame>
-    </g>
-  );
-}
-
-export function ScheduleEquivalenceSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
-  return (
-    <DiagramFigure
-      title={title}
-      caption={caption ?? "A valid interleaving has the same effect as some serial schedule."}
-      className={className}
-    >
-      <DiagramSvg w={660} h={288} label={caption ?? "Serial and interleaved transaction schedules"}>
-        <SchedulePanel
-          x={14}
-          y={24}
-          title="Serial"
-          result="A=954, B=1166"
-          steps={[
-            { tx: 1, y: 66, text: "A=A-100" },
-            { tx: 1, y: 94, text: "B=B+100" },
-            { tx: 1, y: 122, text: "COMMIT" },
-            { tx: 2, y: 150, text: "A=A*1.06" },
-            { tx: 2, y: 178, text: "B=B*1.06" },
-          ]}
-        />
-        <SchedulePanel
-          x={230}
-          y={24}
-          title="Equivalent interleaving"
-          result="A=954, B=1166"
-          steps={[
-            { tx: 1, y: 66, text: "A=A-100" },
-            { tx: 2, y: 92, text: "A=A*1.06" },
-            { tx: 1, y: 118, text: "B=B+100" },
-            { tx: 1, y: 144, text: "COMMIT" },
-            { tx: 2, y: 170, text: "B=B*1.06" },
-          ]}
-        />
-        <SchedulePanel
-          x={446}
-          y={24}
-          title="Bad interleaving"
-          result="A=954, B=1160"
-          resultState="highlight"
-          steps={[
-            { tx: 1, y: 66, text: "A=A-100" },
-            { tx: 2, y: 92, text: "A=A*1.06" },
-            { tx: 2, y: 118, text: "B=B*1.06" },
-            { tx: 2, y: 144, text: "COMMIT" },
-            { tx: 1, y: 170, text: "B=B+100" },
-          ]}
-        />
-      </DiagramSvg>
-    </DiagramFigure>
-  );
-}
-
-export function RecoveryPhasesSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
-  const arrowId = stableId("recovery-phases", { title, caption });
-  return (
-    <DiagramFigure
-      title={title}
-      caption={caption ?? "Crash recovery scans, replays committed work, and undoes in-flight work."}
-      className={className}
-    >
-      <DiagramSvg w={660} h={226} label={caption ?? "Recovery phases"}>
-        <defs>
-          <ArrowHead id={arrowId} />
-        </defs>
-
-        <Frame x={18} y={24} w={186} h={142} title="1. Analysis">
-          <Lines
-            x={42}
-            y={68}
-            anchor="start"
-            lines={["scan log forward", "find committed txns", "find in-flight txns"]}
-            fill={COLOR.caption}
-          />
-        </Frame>
-        <Frame x={237} y={24} w={186} h={142} title="2. Redo">
-          <Lines
-            x={261}
-            y={68}
-            anchor="start"
-            lines={["replay committed", "restore after-images", "make effects durable"]}
-            fill={COLOR.caption}
-          />
-        </Frame>
-        <Frame x={456} y={24} w={186} h={142} title="3. Undo">
-          <Lines
-            x={480}
-            y={68}
-            anchor="start"
-            lines={["walk log backward", "restore before-images", "remove in-flight effects"]}
-            fill={COLOR.caption}
-          />
-        </Frame>
-
-        <Arrow from={{ x: 204, y: 95 }} to={{ x: 237, y: 95 }} markerId={arrowId} />
-        <Arrow from={{ x: 423, y: 95 }} to={{ x: 456, y: 95 }} markerId={arrowId} />
-        <Box
-          x={88}
-          y={184}
-          w={484}
-          h={26}
-          label="Recovery may crash too, so each phase must be safe to repeat."
-          tint
-          fontSize={FONT.note}
-        />
-      </DiagramSvg>
-    </DiagramFigure>
+    <Diagram title={title} caption={caption ?? "Crash recovery scans, replays committed work, and undoes in-flight work."} className={className}>
+      <Col gap={16}>
+        <Row wrap gap={36} align="stretch">
+          {PHASES.map((p, i) => (
+            <Group key={p.title} id={`phase${i}`} title={p.title} gap={4} align="start">
+              {p.lines.map((l) => (
+                <Text key={l} text={l} size="note" />
+              ))}
+            </Group>
+          ))}
+        </Row>
+        <Node title="Recovery may crash too, so each phase must be safe to repeat." />
+      </Col>
+      <Edge from="phase0" to="phase1" />
+      <Edge from="phase1" to="phase2" />
+    </Diagram>
   );
 }

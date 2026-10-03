@@ -25,11 +25,11 @@ import {
   PhantomReadSchema,
   QuorumOverlapSchema,
 } from "@/components/EventualConsistencySchemas";
+import { figureComponents } from "@/components/figure";
 import { HashDiagram } from "@/components/HashDiagram";
 import { IdeaBreak } from "@/components/IdeaBreak";
 import { IndexMap } from "@/components/IndexMap";
 import { LanguageClasses } from "@/components/LanguageClasses";
-import { Mermaid } from "@/components/Mermaid";
 import { PageLayout } from "@/components/PageLayout";
 import { QueryTree } from "@/components/QueryTree";
 import {
@@ -66,6 +66,7 @@ export function useMDXComponents(
 ): MDXComponents {
   return {
     ...components,
+    ...figureComponents,
     Automaton,
     BPlusTree,
     BufferQueue,
@@ -85,7 +86,6 @@ export function useMDXComponents(
     LanguageClasses,
     LockGranularitySchema,
     LockPhaseSchema,
-    Mermaid,
     MultiGranularityLockingSchema,
     NpCompletenessChainSchema,
     PageLayout,
