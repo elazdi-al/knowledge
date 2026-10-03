@@ -18,7 +18,7 @@ knowledge/
 └── site/
     ├── src/app/                  routes: home, notes/[...slug], search-index.json
     ├── src/components/           page chrome and the components notes use
-    ├── src/components/diagram/   shared SVG primitives, palette, text metrics
+    ├── src/components/figure/    the static figure engine: primitives, layout, routing, SVG
     ├── src/lib/                  note loader, MDX pipeline, search engine
     ├── src/mdx-components.tsx    components every note can use
     ├── worker/index.ts           the Worker that serves /api/search
@@ -51,8 +51,10 @@ Run these from `site/` as well:
 
 Create an `.mdx` file in a course folder under `notes/`. Its path inside
 `notes/` becomes the URL, so `notes/data-intensive-systems/l9.mdx` is served at
-`/notes/data-intensive-systems/l9`. The homepage lists notes by path and
-compares numbers as numbers, so `l2` comes before `l10`. The loader also picks
+`/notes/data-intensive-systems/l9`. The homepage shows one tab per course
+folder and lists its notes by path, comparing numbers as numbers, so `l2`
+comes before `l10`. Titles in a course share a prefix (`Theory of
+Computation: Lecture 1`): the prefix names the tab and the rest labels the note. The loader also picks
 up `.md` files. Both compile as MDX.
 
 Every note starts with YAML frontmatter:
@@ -93,13 +95,15 @@ component, so a new one goes there. The notes use these:
 - `Split` lays out its `Pane` children side by side on wide screens and
   stacks them on narrow ones.
 - `Automaton` draws a finite automaton in the textbook style.
-- The diagram family draws course figures as SVG at build time. It includes
-  `BPlusTree`, `IndexMap`, `PageLayout`, `ERDiagram`, `HashDiagram`,
-  `QueryTree`, `TuringTape`, `TuringTrace`, and the figures in the
-  `*Schemas.tsx` files. They share the primitives in
-  `site/src/components/diagram/` and the `--mm-*` palette in `globals.css`,
-  so they follow light and dark mode.
-- `Mermaid` renders a Mermaid diagram in the same palette.
+- Course figures (`BPlusTree`, `IndexMap`, `PageLayout`, `ERDiagram`,
+  `HashDiagram`, `QueryTree`, `TuringTape`, `TuringTrace`, and the figures in
+  the `*Schemas.tsx` files) are thin adapters over the figure engine in
+  `site/src/components/figure/`. They compose primitives (`Row`, `Col`,
+  `Grid`, `Group`, `Graph`, `Node`, `Cells`, `Table`, `Edge`, ...); the engine
+  lays them out, routes the connectors, and renders one static SVG on the
+  server. A note can also write `<Diagram>` with those primitives directly.
+  Colours are the OKLCH `--dg-*` tokens in `site/src/app/diagram-tokens.css`,
+  light and dark.
 - A `---` line in the body renders as `IdeaBreak`, a short row of dashes
   between ideas.
 
@@ -122,13 +126,17 @@ engine from `site/src/lib/search-core.ts` against the live index route.
 
 Run these from `site/`:
 
-- `bun run gallery` renders every example in `scripts/gallery/` into
-  `site/preview-all.html`, with light and dark side by side.
 - `bun run verify ../notes/data-intensive-systems/l9.mdx` compiles and renders
   one note the way the site does. It fails on MDX syntax errors and unknown
   components.
+- `bun run lint:figures` renders every note and prints the figure engine's
+  warnings: overlapping items, text wider than its box, edge labels over
+  items, figures wider than 660px.
+- `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots every figure,
+  light and dark, into `/tmp/figures`. It needs `bun run dev` running and
+  Playwright's headless Chromium.
 - `bun scripts/gen-font-metrics.mjs` downloads Inter and regenerates
-  `src/components/diagram/font-metrics.ts`, the glyph widths that size diagram
+  `src/components/figure/font-metrics.ts`, the glyph widths that size figure
   boxes. Rerun it only when the glyph list in the script changes.
 
 ## Stack
