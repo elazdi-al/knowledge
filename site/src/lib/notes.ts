@@ -96,6 +96,38 @@ async function load(): Promise<Note[]> {
   return notes;
 }
 
+export interface Course {
+  slug: string;
+  name: string;
+  notes: { note: Note; label: string }[];
+}
+
+/**
+ * Notes grouped by their top-level folder, in listing order. The course name
+ * is the title prefix every note in the folder shares ("Theory of
+ * Computation: Lecture 1"), and each note's label is the rest of its title.
+ */
+export function groupByCourse(notes: Note[]): Course[] {
+  const bySlug = new Map<string, Note[]>();
+  for (const note of notes) {
+    const key = note.slugSegments.length > 1 ? note.slugSegments[0] : "";
+    bySlug.set(key, [...(bySlug.get(key) ?? []), note]);
+  }
+  return [...bySlug].map(([slug, group]) => {
+    const prefixes = new Set(group.map((n) => n.frontmatter.title.split(": ")[0]));
+    const shared = prefixes.size === 1 && group.every((n) => n.frontmatter.title.includes(": "));
+    const name = shared ? [...prefixes][0] : slug.replace(/-/g, " ");
+    return {
+      slug,
+      name,
+      notes: group.map((note) => ({
+        note,
+        label: shared ? note.frontmatter.title.slice(name.length + 2) : note.frontmatter.title,
+      })),
+    };
+  });
+}
+
 export async function getNoteBySlug(slug: string): Promise<Note | undefined> {
   const all = await getAllNotes();
   return all.find((n) => n.slug === slug);
