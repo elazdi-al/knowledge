@@ -8,46 +8,68 @@ updated: 2026-06-11
 
 ## From Data to a DBMS
 
-Modern software is useful only when data can be stored, shared, and queried correctly over time. The starting point is the difference between raw facts and meaning.
+Modern software is useful only when data can be stored,
+shared, and queried correctly over time. 
 
-**Data.** Raw facts, used as input for reasoning and computation. Data may be useful, irrelevant, or redundant; on its own it carries no meaning.
+**Data.** Raw facts, used as input for reasoning and computation, 
+**on its own it carries no meaning**
 
-**Information.** Data that has been organized and processed so that it is relevant to a problem and actionable for a decision; information in turn supports knowledge.
+**Information.** Data that has been organized and processed so that 
+it is relevant to a problem and actionable for a decision.
 
 $$\text{data} \xrightarrow{\;\text{organize}+\text{process}\;} \text{information}$$
 
 Once facts carry meaning, they need structure.
 
-**Database.** A large, integrated, structured collection of data, modeling a real-world enterprise. It records *entities*, the kinds of objects we store data about, and *relationships*, the meaningful associations between them.
+**Database.** A large, integrated, structured collection of data, modeling a real-world enterprise. 
+It records: 
+- **Entities.** the kinds of objects we store data about
+- **Relationships.** the meaningful associations between them.
 
 *A university database stores students, courses, and professors, together with who enrolls in which course and who teaches it.*
 
-A database on its own is passive; software has to manage it.
+A database on its own is passive, software has to manage it.
 
-**Database Management System (DBMS).** A software system that stores, manages, and provides access to databases. Its core role is efficient, reliable, convenient, and safe multi-user access to massive persistent data.
+**Database Management System (DBMS).** A software system that stores, manages, and provides access to databases. 
+
+Its main role is efficient, reliable, convenient, and safe multi-user access to massive persistent data.
 
 $$\text{DBMS} = \text{database} + \text{programs to access and manage it}$$
 
-That core role packs several guarantees that a plain file system does not state.
+That role gives several guarantees that a plain file system does not state.
 
 - **Persistence.** Data outlives any single program execution.
 - **Concurrency control.** Simultaneous operations are coordinated so the outcome stays correct.
 - **Recovery.** Hardware, software, and power failures do not corrupt the stored data.
-- **Declarative access.** Queries state *what* data is wanted, not how to fetch it from the bytes on disk.
+- **Declarative access.** Queries state *what* data is wanted, not *how* to fetch it from the bytes on disk.
 
-To see why a file system is not enough, run two thought experiments. Two collaborators save the same file at nearly the same time: whose changes survive? Power fails halfway through a save: which changes survive? In both cases the honest answer is *unclear*, and over a platform whose promise is "unclear", every application must re-implement correctness on its own.
+To understand why a file system is not enough let's run two thought experiments.
+1. Two collaborators save the same file at almost the same time. Whose changes survive ? 
+2. Power fails halfway through a save: which changes survive? 
 
-**Transactional semantics.** The guarantee that operations behave as complete, correct units of work (*transactions*), even under concurrency and failures. This is precisely the contract a file system leaves unstated; a DBMS provides it systematically.
+In both cases the answer is it's *unclear*. Each application needs to re-implement correctness on its own.
 
-The web has the same gap in a different form: it is strong at retrieval, but its data is unstructured and untyped, completeness is not guaranteed, and freshness and cross-item consistency are weak. Serious websites therefore place a DBMS behind the web layer rather than treat the web as one. A language model is not a DBMS either: it can sit in front of one, but by itself it offers no schema, no transactions, and no declarative data manipulation.
+**Transactional semantics.** The guarantee that operations behave as complete, correct units of work (*transactions*), even under concurrency and failures.
 
-**Ad-hoc query.** A query formed for a specific immediate need rather than predefined as part of a fixed workflow. Convenient ad-hoc querying is the most visible capability a DBMS adds on top of storage: a question does not have to be anticipated by any program to be answerable.
+This is precisely the contract a file system leaves unstated and that a DBMS provides systematically.
+
+The web has the same gap in a different form: it is strong at retrieval, but its data is unstructured and untyped, completeness is not guaranteed, and freshness and cross-item consistency are weak. 
+
+Serious websites place a DBMS behind the web layer instead of treating the web as one. 
+
+**Ad-hoc query.** A query formed for a specific immediate need rather than predefined as part of a fixed workflow. 
+
+A DBMS adds convenient ad-hoc querying on top of storage: a question does not have to be anticipated by any program to be answerable.
 
 ## Schemas and Data Independence
 
-The central architectural question is how to keep one coherent meaning of the data while serving many users and storing bytes efficiently. The answer is to describe data with a model, and to split that description into levels.
+A central architectural question is how we can keep one coherent meaning for data while serving many users and storing bytes efficiently. 
 
-**Data model.** A collection of concepts for describing data. A model is a deliberate abstraction: it hides storage detail so that structure and meaning come first. The dominant family is the **relational model**, where all data lives in flat tables; nested models (hierarchies, arrays, graphs, objects) instead admit structured values directly.
+The answer is to describe data with a model (Data model), and to split that description into levels.
+
+**Data model.** A collection of concepts for describing data. A model is an abstraction that hides storage detail so structure and meaning become the main concern. 
+
+The dominant family is the **relational model**. In this type of data modeling: all data lives in flat tables. Nested models (hierarchies, arrays, graphs, objects) store structured values directly.
 
 **Relation.** A named table whose rows are *tuples* and whose columns are *attributes*.
 
