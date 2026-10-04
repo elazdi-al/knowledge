@@ -17,7 +17,9 @@ shared, and queried correctly over time.
 **Information.** Data that has been organized and processed so that 
 it is relevant to a problem and actionable for a decision.
 
-$$\text{data} \xrightarrow{\;\text{organize}+\text{process}\;} \text{information}$$
+$$
+\text{data} \xrightarrow{\;\text{organize}+\text{process}\;} \text{information}
+$$
 
 Once facts carry meaning, they need structure.
 
@@ -34,7 +36,9 @@ A database on its own is passive, software has to manage it.
 
 Its main role is efficient, reliable, convenient, and safe multi-user access to massive persistent data.
 
-$$\text{DBMS} = \text{database} + \text{programs to access and manage it}$$
+$$
+\text{DBMS} = \text{database} + \text{programs to access and manage it}
+$$
 
 That role gives several guarantees that a plain file system does not state.
 
@@ -79,7 +83,7 @@ The dominant family is the **relational model**. In this type of data modeling: 
 
 **Example 1. University schema.**
 
-```
+```schema
 Students(sid: string, name: string, login: string, age: integer, gpa: real)
 Enrolled(sid: string, cid: string, grade: string)
 Courses(cid: string, cname: string, credits: integer)
@@ -99,7 +103,9 @@ The same database is described at three levels of abstraction, each a schema in 
 
 The mapping runs
 
-$$\text{external schemas} \;\rightarrow\; \text{logical schema} \;\rightarrow\; \text{physical schema}$$
+$$
+\text{external schemas} \;\rightarrow\; \text{logical schema} \;\rightarrow\; \text{physical schema}
+$$
 
 with many external views onto one logical schema, realized by one physical layout.
 
