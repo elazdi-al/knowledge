@@ -17,39 +17,43 @@ const routerTone = (n?: number): Tone | undefined => (n === undefined ? undefine
 
 /** Next hop: a router number (a solid chip in its hue) or an interface/text like `eth0` or `direct`. */
 export type Hop = number | string;
-/** One forwarding entry: prefix, next hop, and optionally `active` (the longest-prefix match) or `light` (derived, less specific). */
-export type Route = [prefix: string, hop: Hop, mark?: "active" | "light"];
+/**
+ * One forwarding entry: prefix, next hop, how the packet in focus treats it, and optionally the outgoing interface.
+ * `used`: the entry the packet takes, outlined (neutral, so no router hue gains a second meaning);
+ * `light`: matching but less specific, or derived, drawn lighter.
+ */
+export type Route = [prefix: string, hop: Hop, mark?: "used" | "light" | null, via?: string];
 
-/** A router's forwarding table, tethered to router `of` by a short dashed line; place it under the router. */
-export function ForwardingTable({ of, rows }: { of: string; rows: Route[] }) {
+/** A router's forwarding table, tethered to router `of` by a short dashed line; `columns` adds a header row. */
+export function ForwardingTable({ of, rows, columns }: { of: string; rows: Route[]; columns?: string[] }) {
   const id = `${of}-fib`;
-  const toRow = ([prefix, hop, mark]: Route): TableRow => {
+  const toRow = ([prefix, hop, mark, via]: Route): TableRow => {
     const tone = typeof hop === "number" ? routerTone(hop) : undefined;
-    const light = mark === "light";
-    return {
-      cells: [prefix, tone ? { text: String(hop), tone, solid: !light } : String(hop)],
-      state: mark === "active" ? "active" : light ? "placeholder" : undefined,
-    };
+    const chip = tone ? { text: String(hop), tone, solid: mark !== "light" } : String(hop);
+    return { cells: via ? [prefix, chip, via] : [prefix, chip], state: mark === "used" ? "strong" : mark === "light" ? "placeholder" : undefined };
   };
   return (
     <>
-      <Table id={id} rows={rows.map(toRow)} />
+      <Table id={id} columns={columns} rows={rows.map(toRow)} />
       <Edge from={of} to={id} dashed head="none" />
     </>
   );
 }
 
-/** A router: square box, number badge in its hue, 3x3 switching glyph; `lit` cells (0-8, row-major) hint at the path; `table` hangs its forwarding table below (align a row of these to `start`). */
-export function Router({ id, n, lit = [], label, table }: { id: string; n?: number; lit?: number[]; label?: string; table?: Route[] }) {
+/** Side of a router box: 3 glyph cells of 10px plus 6px padding each side. */
+export const ROUTER_SIZE = 42;
+
+/** A router: square box, number badge in its hue, 3x3 switching glyph; `lit` cells (0-8, row-major) hint at the path; `table` hangs its forwarding table below; `x`/`y` place it inside a `Free`. */
+export function Router({ id, n, lit = [], label, table, x, y }: { id: string; n?: number; lit?: number[]; label?: string; table?: Route[]; x?: number; y?: number }) {
   const tone = routerTone(n);
   const box = (
-    <Group id={id} title={label} badge={n === undefined ? undefined : String(n)} tone={tone} pad={6}>
+    <Group id={id} title={label} badge={n === undefined ? undefined : String(n)} tone={tone} pad={6} x={table ? undefined : x} y={table ? undefined : y}>
       <Cells cols={3} cell={10} items={Array.from({ length: 9 }, (_, i) => (lit.includes(i) ? { tone, state: "strong" } : {}))} />
     </Group>
   );
   if (!table) return box;
   return (
-    <Col gap={14} align="center">
+    <Col gap={14} align="center" x={x} y={y}>
       {box}
       <ForwardingTable of={id} rows={table} />
     </Col>
@@ -61,10 +65,10 @@ export function Host({ id, name, addr }: { id: string; name: string; addr?: stri
   return <Node id={id} title={name} sub={addr} />;
 }
 
-/** A link-layer switch: a wide flat box with a port strip, no number (it has no IP identity). */
-export function Switch({ id }: { id: string }) {
+/** A link-layer switch: a wide flat box with a port strip, no number (it has no IP identity); `label` titles it like a router's. */
+export function Switch({ id, label }: { id: string; label?: string }) {
   return (
-    <Group id={id} pad={6}>
+    <Group id={id} title={label} pad={6}>
       <Cells cell={10} items={Array(6).fill(null)} />
     </Group>
   );

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Cells, Col, Diagram, Edge, Free, Group, Node, Row, Space, Table, Text } from "@/components/figure";
-import { Host, Link, NET_TONE, Router, Subnet, Switch } from "@/components/NetworkFigures";
+import { GROUP } from "@/components/figure/theme";
+import { Host, Link, Router, Subnet, Switch } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
 
 interface FigureProps {
@@ -56,11 +57,11 @@ export function Nat64Schema({ title, caption, className }: FigureProps) {
         lanes={["client6", "DNS64", "NAT64", "server4"]}
         messages={[
           { from: 0, to: 1, label: "AAAA query", note: "only an A record exists" },
-          { from: 1, to: 0, label: "AAAA answer", note: "synthesized" },
-          { from: 0, to: 2, label: "IPv6 packet", note: "to 64:ff9b::cb00:7105" },
+          { from: 1, to: 0, label: "AAAA answer", note: "64:ff9b::cb00:7105" },
+          { from: 0, to: 2, label: "IPv6 packet", note: "routed to NAT64" },
           { from: 2, to: 3, label: "IPv4 packet", note: "to 203.0.113.5" },
           { from: 3, to: 2, label: "IPv4 reply" },
-          { from: 2, to: 0, label: "IPv6 reply" },
+          { from: 2, to: 0, label: "IPv6 reply", note: "translated back" },
         ]}
       />
     </Diagram>
@@ -81,9 +82,9 @@ export function DhcpRelaySchema({ title, caption, className }: FigureProps) {
         messages={[
           { from: 0, to: 1, label: "DISCOVER", dashed: true, note: "from 0.0.0.0:68 to 255.255.255.255:67" },
           { from: 1, to: 2, label: "DISCOVER", note: "relayed to the server" },
-          { from: 2, to: 0, label: "OFFER", note: "proposes a configuration" },
-          { from: 0, to: 2, label: "REQUEST", note: "commits to the offer" },
-          { from: 2, to: 0, label: "ACK", note: "confirms; the server records the lease" },
+          { from: 2, to: 0, label: "OFFER", relayed: true, note: "proposes a configuration" },
+          { from: 0, to: 2, label: "REQUEST", relayed: true, note: "commits to the offer" },
+          { from: 2, to: 0, label: "ACK", relayed: true, note: "confirms; the server records the lease" },
         ]}
       />
     </Diagram>
@@ -94,33 +95,32 @@ const SUBNETS = ["cc00", "cc01", "cc02", "cc03", "cc04", "cc05", "cc06", "cc07",
 
 /** The ISP delegates a /60 to the home router, which advertises one /64 of it on the home LAN. */
 export function PrefixDelegationSchema({ title, caption, className }: FigureProps) {
-  const r0 = NET_TONE.router[1];
   return (
     <Diagram
       title={title}
-      caption={caption ?? "Prefix delegation: the ISP's DHCP server hands R0 a /60, R0 advertises cc02::/64 on the home LAN, and the hosts configure themselves by SLAAC."}
+      caption={caption ?? "Prefix delegation: the ISP's DHCP server hands R0 a /60. R0 advertises one /64 of it, 2004:aaaa:bbbb:cc02::/64, on the home LAN, where the hosts configure themselves by SLAAC."}
       className={className}
     >
       <Col gap={28}>
         <Row gap={150}>
           <Node id="isp" title="ISP DHCP server" sub="delegating router" />
-          <Router id="r0" n={1} label="R0" />
-          <Node id="lan" title="Home hosts" sub="cc02::EUI_B, cc02::EUI_C" mono />
+          <Router id="r0" label="R0" />
+          <Node id="lan" title="Home hosts" sub="B and C, by SLAAC" />
         </Row>
         <Group title="2004:aaaa:bbbb:cc00::/60 holds 16 /64 prefixes" gap={10}>
           <Cells
             cols={8}
             cell={44}
-            items={SUBNETS.map((s, i) => (i === 1 ? { label: s, state: "placeholder" } : i === 2 ? { label: s, tone: r0, state: "strong" } : { label: s }))}
+            items={SUBNETS.map((s, i) => (i === 1 ? { label: s, state: "placeholder" } : i === 2 ? { label: s, state: "active" } : { label: s }))}
           />
           <Row gap={20}>
             <Text text="cc01: ISP link, excluded" size="note" muted />
-            <Text text="cc02: home LAN" size="note" tone={r0} />
+            <Text text="cc02: home LAN" size="note" state="active" />
           </Row>
         </Group>
       </Col>
-      <Edge from="isp" to="r0" label="DHCP: cc00::/60" />
-      <Edge from="r0" to="lan" label="RA: cc02::/64" />
+      <Edge from="isp" to="r0" label="DHCP: the /60" />
+      <Edge from="r0" to="lan" label="RA: the cc02 /64" />
     </Diagram>
   );
 }
@@ -137,10 +137,10 @@ export function TracerouteSchema({ title, caption, className }: FigureProps) {
         id="tr"
         lanes={["Source", "R1", "R2", "Destination"]}
         messages={[
-          { from: 0, to: 1, label: "TTL=1", drop: true, note: "R1 takes it to 0" },
-          { from: 1, to: 0, label: "ICMP error", note: "hop 1 = sender, R1" },
-          { from: 0, to: 2, label: "TTL=2", drop: true, note: "R2 takes it to 0" },
-          { from: 2, to: 0, label: "ICMP error", note: "hop 2 = sender, R2" },
+          { from: 0, to: 1, label: "TTL=1", drop: true, note: "expires at R1" },
+          { from: 1, to: 0, label: "ICMP error", note: "reveals R1's address" },
+          { from: 0, to: 2, label: "TTL=2", drop: true, note: "expires at R2" },
+          { from: 2, to: 0, label: "ICMP error", note: "reveals R2's address" },
           { from: 0, to: 3, label: "TTL=3", note: "reaches the host" },
           { from: 3, to: 0, label: "reply", note: "trace complete" },
         ]}
@@ -155,18 +155,21 @@ const bytes = (hex: string) => hex.match(/../g)!;
 /** A point edges attach to. */
 const pin = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
 
-/** One row: a title line, then the address as byte cells starting at column `col`; `copied` bytes take the network hue. */
-function ByteRow({ id, name, value, hex, col = 0, copied, y }: { id: string; name: string; value: string; hex: string; col?: number; copied: number[]; y: number }): ReactNode[] {
+/** Copied bits: blue, since purple means "network prefix" in the course's bit figures and these are host bits. */
+const COPY = "blue" as const;
+
+/** One row: a title line, then the address as byte cells from column `col`; `copied` bytes (B's last 24 bits) are drawn strong, `carried` ones (the rest of the 32 bits the MAC takes) light. */
+function ByteRow({ id, name, value, hex, col = 0, copied, carried = [], y }: { id: string; name: string; value: string; hex: string; col?: number; copied: number[]; carried?: number[]; y: number }): ReactNode[] {
   return [
-    <Text key={`${id}.n`} text={name} weight={500} x={col * CELL} y={y} />,
-    <Text key={`${id}.v`} text={value} mono muted x={col * CELL + 132} y={y} />,
+    <Text key={`${id}.n`} text={name} weight={500} x={0} y={y} />,
+    <Text key={`${id}.v`} text={value} mono muted x={132} y={y} />,
     <Cells
       key={id}
       id={id}
       x={col * CELL}
       y={y + 22}
       cell={CELL}
-      items={bytes(hex).map((b, i) => ({ label: b, tone: copied.includes(i) ? NET_TONE.network : undefined }))}
+      items={bytes(hex).map((b, i) => (copied.includes(i) ? { label: b, tone: COPY, state: "strong" } : carried.includes(i) ? { label: b, tone: COPY } : { label: b }))}
     />,
   ];
 }
@@ -179,13 +182,13 @@ export function SolicitedNodeSchema({ title, caption, className }: FigureProps) 
   return (
     <Diagram
       title={title}
-      caption={caption ?? "Where an NS for B goes: the last 24 bits of B's address complete the solicited-node prefix ff02::1:ff00:0/104, and 33:33 plus the last 32 bits of that group give the multicast MAC."}
+      caption={caption ?? "Where an NS for B goes. The last 24 bits of B's address complete the solicited-node prefix ff02::1:ff00:0/104. The multicast MAC is 33:33 followed by the last 32 bits of that group."}
       className={className}
     >
       <Free>
         {ByteRow({ id: "tgt", name: "B's address", value: "2001:620:618:1a6:1:80b2:f66:1", hex: "20010620061801a6000180b20f660001", copied: [13, 14, 15], y: row(0) })}
-        {ByteRow({ id: "sn", name: "Solicited node", value: "ff02::1:ff66:1", hex: "ff0200000000000000000001ff660001", copied: [13, 14, 15], y: row(1) })}
-        {ByteRow({ id: "mac", name: "Multicast MAC", value: "33:33:ff:66:00:01", hex: "3333ff660001", col: 10, copied: [3, 4, 5], y: row(2) })}
+        {ByteRow({ id: "sn", name: "Solicited node", value: "ff02::1:ff66:1", hex: "ff0200000000000000000001ff660001", copied: [13, 14, 15], carried: [12], y: row(1) })}
+        {ByteRow({ id: "mac", name: "Multicast MAC", value: "33:33:ff:66:00:01", hex: "3333ff660001", col: 10, copied: [3, 4, 5], carried: [2], y: row(2) })}
         {pin("a0", 14.5 * CELL, bottom(0))}
         {pin("a1", 14.5 * CELL, top(1))}
         {pin("b0", 14 * CELL, bottom(1))}
@@ -202,42 +205,32 @@ export function GatewayResolutionSchema({ title, caption, className }: FigurePro
   return (
     <Diagram
       title={title}
-      caption={caption ?? "M3 sits in another subnet, so M1 hands its packet to the router: the address M1 must resolve is the gateway's, p.1."}
+      caption={caption ?? "Two subnets joined by one router, whose interfaces are p.1 (MAC address M9) on subnet p and q.1 (MAC address M8) on subnet q."}
       className={className}
     >
-      <Row gap={110} align="end">
+      <Row gap={110} align="center">
         <Subnet prefix="subnet p">
-          <Row gap={14}>
-            <Host id="m1" name="M1" addr="p.h1" />
-            <Host id="m2" name="M2" addr="p.h2" />
-          </Row>
+          <Host id="m1" name="M1" addr="p.h1" />
           <Switch id="sp" />
+          <Host id="m2" name="M2" addr="p.h2" />
         </Subnet>
-        <Router id="rt" label="Router" />
+        {/* the subnets' title band, so the router sits level with the switches */}
+        <Col gap={0}>
+          <Space h={GROUP.titleBand} />
+          <Router id="rt" label="Router" />
+        </Col>
         <Subnet prefix="subnet q">
-          <Row gap={14}>
-            <Host id="m3" name="M3" addr="q.h1" />
-            <Host id="m4" name="M4" addr="q.h3" />
-          </Row>
+          <Host id="m3" name="M3" addr="q.h1" />
           <Switch id="sq" />
+          <Host id="m4" name="M4" addr="q.h3" />
         </Subnet>
       </Row>
-      <Link from="m1" to="sp" route="ortho" />
-      <Link from="m2" to="sp" route="ortho" />
-      <Link from="m3" to="sq" route="ortho" />
-      <Link from="m4" to="sq" route="ortho" />
+      <Link from="m1" to="sp" />
+      <Link from="sp" to="m2" />
+      <Link from="m3" to="sq" />
+      <Link from="sq" to="m4" />
       <Link from="sp" to="rt" label="p.1, M9" />
       <Link from="rt" to="sq" label="q.1, M8" />
     </Diagram>
   );
 }
-
-export const ipServicesSchemas = {
-  HolePunchingSchema,
-  Nat64Schema,
-  DhcpRelaySchema,
-  PrefixDelegationSchema,
-  TracerouteSchema,
-  SolicitedNodeSchema,
-  GatewayResolutionSchema,
-};
