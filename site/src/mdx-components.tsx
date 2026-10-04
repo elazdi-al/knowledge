@@ -29,7 +29,12 @@ import { figureComponents } from "@/components/figure";
 import { HashDiagram } from "@/components/HashDiagram";
 import { IdeaBreak } from "@/components/IdeaBreak";
 import { IndexMap } from "@/components/IndexMap";
+import { internetArchitectureSchemas } from "@/components/InternetArchitectureSchemas";
+import { ipAddressingSchemas } from "@/components/IpAddressingSchemas";
+import { ipServicesSchemas } from "@/components/IpServicesSchemas";
 import { LanguageClasses } from "@/components/LanguageClasses";
+import { networkFigures } from "@/components/NetworkFigures";
+import { packetFigures } from "@/components/PacketFigures";
 import { PageLayout } from "@/components/PageLayout";
 import { QueryTree } from "@/components/QueryTree";
 import {
@@ -67,6 +72,11 @@ export function useMDXComponents(
   return {
     ...components,
     ...figureComponents,
+    ...networkFigures,
+    ...packetFigures,
+    ...internetArchitectureSchemas,
+    ...ipAddressingSchemas,
+    ...ipServicesSchemas,
     Automaton,
     BPlusTree,
     BufferQueue,
