@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CopyPageButton } from "@/components/CopyPageButton";
-import { CourseIcon } from "@/components/CourseIcon";
 import { Highlightable } from "@/components/Highlightable";
 import { KatexAutoFit } from "@/components/KatexAutoFit";
+import { NoteToc } from "@/components/NoteToc";
 import { renderMDX } from "@/lib/mdx";
 import { getAllNotes, getNoteBySlug, formatDate, groupByCourse } from "@/lib/notes";
 
@@ -49,47 +48,23 @@ export default async function NotePage({
   const course = groupByCourse(await getAllNotes()).find((c) => c.slug && c.notes.some((n) => n.note.slug === note.slug));
   const heading = course?.notes.find((n) => n.note.slug === note.slug)?.label ?? note.frontmatter.title;
 
-  // A clean Markdown reconstruction for the copy button: title as an H1, the
-  // description, then the raw source. Compact and well-structured for an LLM.
-  const pageMarkdown = [
-    `# ${note.frontmatter.title}`,
-    note.frontmatter.description,
-    note.body.trim(),
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  // A clean Markdown reconstruction for the copy button: title as an H1, then
+  // the raw source. Compact and well-structured for an LLM.
+  const pageMarkdown = `# ${note.frontmatter.title}\n\n${note.body.trim()}`;
 
   return (
     <article className="flex min-w-0 flex-col">
-      <header className="mb-6">
-        {course && (
-          <Link
-            href={`/#${course.slug}`}
-            className="mb-3 inline-flex items-center gap-1.5 text-sm text-[color:var(--color-muted)] no-underline transition-colors duration-150 hover:text-[color:var(--color-text)]"
-          >
-            <CourseIcon course={course.slug} className="size-3.5" />
-            {course.name}
-          </Link>
-        )}
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-[color:var(--color-text)] text-[1.5rem] font-medium tracking-[-0.025em] leading-[1.2] mb-2">
-            {heading}
-          </h1>
-          <CopyPageButton markdown={pageMarkdown} className="-mt-1" />
+      <NoteToc courseSlug={course?.slug} />
+      <header className="mx-auto mb-6 flex w-full max-w-measure items-center justify-between gap-4">
+        <div className="flex flex-col gap-1 text-sm/5 tracking-[-0.0064em]">
+          <h1 className="font-medium text-balance text-[color:var(--color-text)]">{heading}</h1>
+          {date && (
+            <time dateTime={date.toISOString()} className="font-[460] text-gray-1200/40">
+              {formatDate(date)}
+            </time>
+          )}
         </div>
-        {note.frontmatter.description && (
-          <p className="text-[color:var(--color-muted)] italic leading-snug text-balance">
-            {note.frontmatter.description}
-          </p>
-        )}
-        {date && (
-          <time
-            dateTime={date.toISOString()}
-            className="block mt-4 text-xs text-[color:var(--color-faint)] tabular-nums"
-          >
-            {formatDate(date)}
-          </time>
-        )}
+        <CopyPageButton markdown={pageMarkdown} />
       </header>
 
       <Highlightable slug={note.slug} className="prose min-w-0">

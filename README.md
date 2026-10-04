@@ -74,7 +74,7 @@ The zod schema in `site/src/lib/notes.ts` accepts these fields:
 | Field         | Type     | Required | Effect                                           |
 | ------------- | -------- | -------- | ------------------------------------------------ |
 | `title`       | string   | yes      | Page title and homepage entry.                   |
-| `description` | string   | no       | Shown under the title and on the homepage.       |
+| `description` | string   | no       | Page meta description and search text.           |
 | `tags`        | string[] | no       | Parsed. The site does not show them.             |
 | `created`     | date     | no       | Shown as the date under the title.               |
 | `updated`     | date     | no       | Parsed. The site does not show it.               |
@@ -143,10 +143,11 @@ Run these from `site/`:
 
 - Next.js 16 with the App Router and `output: "export"`, React 19, TypeScript.
 - Tailwind CSS 4. The palette and prose styles live in
-  `site/src/app/globals.css`, and the reading column is 692px wide
-  (`--container-prose`).
-- Inter and JetBrains Mono, loaded through `next/font` in
-  `site/src/app/layout.tsx`.
+  `site/src/app/globals.css`. Text sits in a 33rem reading measure
+  (`--container-measure`, about 70 characters at 16px); figures, code, splits
+  and display math break out to the 660px page width (`--container-page`).
+- Inter (with its `opsz` optical-size axis) and JetBrains Mono, loaded
+  through `next/font` in `site/src/app/layout.tsx`.
 - `@mdx-js/mdx` with remark-gfm, remark-math, rehype-katex,
   rehype-pretty-code (Shiki), rehype-slug, and rehype-autolink-headings, wired
   up in `site/src/lib/mdx.tsx`.

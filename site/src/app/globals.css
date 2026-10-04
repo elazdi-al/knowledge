@@ -39,7 +39,11 @@
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular,
     Menlo, monospace;
 
-  --container-prose: 692px;
+  /* The reading measure: ~70 characters of Inter at 16px, inside the 45-75
+     range where comprehension holds up. Figures, code, tables and splits
+     break out to the page width (the figure engine's 660px max). */
+  --container-measure: 33rem;
+  --container-page: calc(660px + 3rem);
 }
 
 @layer base {
@@ -109,6 +113,10 @@
     /* Themed scrollbars: transparent track, a mid-grey thumb that reads in
        both palettes. Inherits into every nested scroller. */
     scrollbar-color: var(--color-gray-900) transparent;
+
+    /* Outline jumps glide, and land the heading below the top scroll fade. */
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
   }
 
   body {
@@ -116,7 +124,6 @@
     color: var(--color-text);
     font-family: var(--font-sans);
     font-feature-settings: "cv01", "ss03";
-    font-variation-settings: "opsz" auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -378,21 +385,41 @@ html:has(.home-pane) main {
 
 /* Prose (note body) */
 @layer components {
+  /* Small, slightly heavy, tightly tracked text: 14/20 Inter at weight 460. */
   .prose {
     color: var(--color-text);
-    font-size: 0.9375rem;
-    line-height: 1.6;
+    font-size: 0.875rem;
+    font-weight: 460;
+    line-height: 1.43;
+    letter-spacing: -0.0064em;
     min-width: 0;
   }
 
+  /* Figures are measured against untracked Inter 400, and code and math set
+     their own metrics; keep the body's weight and tracking out of them. */
+  .prose :is(svg, code, .katex) {
+    letter-spacing: normal;
+  }
+
+  .prose svg {
+    font-weight: 400;
+  }
+
+  /* Text and tables sit in the reading measure, centred; figures, code,
+     splits and display math take the full page width so they never shrink. */
   .prose > * {
     min-width: 0;
+    max-width: min(100%, var(--container-measure));
+    margin-inline: auto;
+  }
+
+  .prose > :is(.diagram, .split, figure, pre, .katex-display) {
     max-width: 100%;
   }
 
-  /* Even, gentle rhythm. New paragraphs and definitions sit only slightly
-     apart from the lines around them - enough to read as separate, not enough
-     to fragment the page. Headings carry a little more space before them. */
+  /* Spacing follows grouping: list items < lines of one idea < concepts <
+     visual blocks < sections < parts (IdeaBreak). Each step reads as a
+     bigger break than the one before it. */
   .prose > * + * {
     margin-top: 0.9em;
   }
@@ -401,30 +428,47 @@ html:has(.home-pane) main {
     margin-top: 0;
   }
 
+  /* Headings sit barely above the body size, so a section is marked by a
+     hairline running out to the measure's edge rather than by scale. They hug
+     what follows so each one reads as the label of its section. */
   .prose h2,
   .prose h3,
   .prose h4 {
     color: var(--color-text);
-    font-weight: 500;
-    letter-spacing: -0.025em;
+    font-weight: 600;
     line-height: 1.3;
-    /* Headings hug what follows; the modest space before them sets sections off. */
+    text-wrap: balance;
     margin-bottom: 0;
   }
 
+  .prose h2,
+  .prose h3 {
+    font-size: 0.9375rem;
+    letter-spacing: -0.0087em;
+  }
+
   .prose h2 {
-    font-size: 1.0625rem;
-    margin-top: 1.9em;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 2.5em;
+  }
+
+  .prose h2::after {
+    content: "";
+    flex: 1;
+    min-width: 2rem;
+    height: 1px;
+    background: var(--color-border);
   }
 
   .prose h3 {
-    font-size: 1rem;
-    margin-top: 1.6em;
+    margin-top: 1.75em;
   }
 
   .prose h4 {
-    font-size: 0.9375rem;
-    margin-top: 1.4em;
+    font-size: 0.875rem;
+    margin-top: 1.5em;
     color: var(--color-muted);
   }
 
@@ -433,9 +477,20 @@ html:has(.home-pane) main {
     margin-top: 0.5em;
   }
 
-  /* A bold lead-in gets a hair more air than a run-on line - just a cue. */
+  /* A list belongs to the sentence that introduces it. */
+  .prose > p + :is(ul, ol) {
+    margin-top: 0.5em;
+  }
+
+  /* A bold lead-in starts a new concept, so it gets more air than a run-on line. */
   .prose > p:has(> strong:first-child) {
-    margin-top: 1.15em;
+    margin-top: 1.25em;
+  }
+
+  /* A figure, table, code block or split belongs to the line that introduces
+     it: close above, a full break below before the next idea. */
+  .prose > :is(.diagram, .split, figure, table) {
+    margin-block: 0.75em 1.5em;
   }
 
   /* …unless the heading already provided the separation. */
@@ -495,6 +550,8 @@ html:has(.home-pane) main {
     color: var(--color-text);
     padding: 0.15em 0.4em;
     border-radius: 4px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 
   .prose ul,
@@ -534,7 +591,7 @@ html:has(.home-pane) main {
 
   .prose pre {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     line-height: 1.6;
     background: var(--color-code-bg);
     border: 1px solid var(--color-border);
@@ -571,16 +628,8 @@ html:has(.home-pane) main {
   }
 
   .prose figure[data-rehype-pretty-code-figure] {
-    margin-block: 1.5rem;
     min-width: 0;
     max-width: 100%;
-  }
-
-  @media (min-width: 768px) {
-    .prose figure[data-rehype-pretty-code-figure] {
-      margin-top: 1.75rem;
-      margin-bottom: 2rem;
-    }
   }
 
   .prose [data-rehype-pretty-code-title] {
@@ -608,16 +657,16 @@ html:has(.home-pane) main {
 
   .prose table {
     width: 100%;
-    max-width: 100%;
+    max-width: min(100%, var(--container-measure));
     border-collapse: collapse;
     font-size: 0.9em;
-    margin-block: 1.4em;
   }
 
   @media (max-width: 639px) {
     .prose table {
       display: block;
       width: max-content;
+      margin-inline: 0;
       overflow-x: auto;
     }
   }
@@ -638,6 +687,15 @@ html:has(.home-pane) main {
 
   .prose tbody tr:last-child td {
     border-bottom: 0;
+  }
+
+  /* Outer cells drop their inset so table text lines up with the prose edge. */
+  .prose :is(th, td):first-child {
+    padding-left: 0;
+  }
+
+  .prose :is(th, td):last-child {
+    padding-right: 0;
   }
 
   .prose .katex-display {
@@ -667,6 +725,90 @@ html:has(.home-pane) main {
   }
 }
 
+/* Note side rail, after benji.org: an "Index" back link, then the h2
+   outline. On wide screens it is pinned at the left edge, level with the note
+   title; below that the back link sits above the title and the outline is
+   dropped. Every entry is the text ink at 40%, lifting to 80% on hover or
+   while its section is read. */
+@layer components {
+  .toc {
+    --toc-idle: color-mix(in oklab, var(--color-text) 40%, transparent);
+    --toc-lit: color-mix(in oklab, var(--color-text) 80%, transparent);
+
+    width: 100%;
+    max-width: var(--container-measure);
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+
+  .toc__back {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0;
+    font-size: 0.875rem;
+    font-weight: 460;
+    line-height: 1.25rem;
+    letter-spacing: -0.00563rem;
+  }
+
+  .toc__back,
+  .toc__nav a {
+    color: var(--toc-idle);
+    transition: color 100ms ease;
+  }
+
+  .toc__back:hover,
+  .toc__nav a:hover,
+  .toc__nav a[data-active] {
+    color: var(--toc-lit);
+  }
+
+  .toc__nav {
+    display: none;
+  }
+
+  .toc__nav ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .toc__nav a {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 460;
+    line-height: 1.2;
+    letter-spacing: -0.0025rem;
+  }
+
+  /* 75rem keeps the rail clear of figures, which break out to the page width. */
+  @media (min-width: 75rem) {
+    /* 9rem = the site header's height, so the back link lines up with the title. */
+    .toc {
+      position: fixed;
+      top: 9rem;
+      left: 5rem;
+      width: auto;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* benji.org parks its hidden page title above the list; 3.85rem is that
+       title's room plus the 1.875rem gap, so the list sits at the same depth. */
+    .toc__nav {
+      display: block;
+      max-width: 10rem;
+      padding-top: 3.85rem;
+      transition: opacity 200ms ease;
+
+      @starting-style {
+        opacity: 0;
+      }
+    }
+  }
+}
+
 /* Split - two columns on wider screens, stacked on narrow ones. Each Pane
    carries the same vertical rhythm as the surrounding prose. */
 @layer components {
@@ -674,7 +816,6 @@ html:has(.home-pane) main {
     display: grid;
     grid-template-columns: 1fr;
     gap: 1.1rem;
-    margin-block: 1.4em;
     min-width: 0;
     max-width: 100%;
   }
@@ -720,14 +861,21 @@ html:has(.home-pane) main {
 /* Figure shell: an optional short title, the canvas on the page itself (no
    card, no backdrop), and a muted caption. Figures are static images. */
 @layer components {
+  /* The SVG carries its own 10px margin, so the title and caption gaps are
+     set 10px under their visual target. */
   .diagram {
-    margin-block: 2em;
     min-width: 0;
     max-width: 100%;
   }
 
+  .diagram__title,
+  .diagram__caption {
+    max-width: var(--container-measure);
+    margin-inline: auto;
+  }
+
   .diagram__title {
-    margin-bottom: 1rem;
+    margin-bottom: 0.375rem;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--dg-ink);
@@ -763,7 +911,7 @@ html:has(.home-pane) main {
   }
 
   .diagram__caption {
-    margin-top: 1rem;
+    margin-top: 0.375rem;
     color: var(--dg-muted);
     font-size: 0.8125rem;
     line-height: 1.6;
@@ -1062,7 +1210,6 @@ html:has(.home-pane) main {
   /* The excerpt renders with the page's own typography - same ink, bold
      leads, muted italics, code chips, "- " list markers - a miniature of
      the note itself. */
-  .cmdk-preview-desc,
   .cmdk-preview-p,
   .cmdk-preview-li,
   .cmdk-preview-math {
@@ -1071,11 +1218,6 @@ html:has(.home-pane) main {
     margin-top: 0.65em;
     color: var(--color-text);
     text-wrap: pretty;
-  }
-
-  .cmdk-preview-desc {
-    font-style: italic;
-    color: var(--color-muted);
   }
 
   .cmdk-preview-inner strong {
