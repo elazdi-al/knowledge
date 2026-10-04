@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, measure, Node, Row, Space, Table, Text, type TableRow, type Tone } from "@/components/figure";
-import { Host, Link, NET_TONE, Router } from "@/components/NetworkFigures";
+import { Cells, Col, Diagram, Edge, FONT, Free, measure, Node, Space, Table, Text, type TableRow } from "@/components/figure";
+import { tableColumnWidths } from "@/components/figure/layout";
+import { GROUP } from "@/components/figure/theme";
+import { ForwardingTable, Host, Link, NET_TONE, Router, ROUTER_SIZE, type Route } from "@/components/NetworkFigures";
 import { HeaderFormat, type Field } from "@/components/PacketFigures";
 
 /** Advanced Networks, Lecture 2 figures: forwarding, IPv4 and IPv6 addresses, NAT. */
@@ -20,52 +22,31 @@ const dim = (id: string, x0: number, x1: number, y: number, label: string) => [
   <Edge key={id} from={`${id}.a`} to={`${id}.b`} route="straight" head="both" label={label} />,
 ];
 
-const ROUTER = 42;
-const routerTone = (n: number) => (NET_TONE.router as Record<number, Tone>)[n];
-
-/** A forwarding entry: prefix, next hop (a router number drawn as a chip in its hue, or text such as `direct`), and how the packet in focus treats it. */
-type Entry = [prefix: string, hop: number | string, mark?: "used" | "lost"];
-
-/** A forwarding table tethered under router `of`: the entry the packet uses is outlined, a matching but shorter entry drawn light. */
-function Fib({ of, rows, columns }: { of: string; rows: (Entry | [string, number | string, string])[]; columns?: string[] }) {
-  const toRow = (r: Entry | [string, number | string, string]): TableRow => {
-    const [prefix, hop, third] = r;
-    const lost = third === "lost";
-    const chip = typeof hop === "number" ? { text: String(hop), tone: routerTone(hop), solid: !lost } : hop;
-    const extra = third && third !== "used" && third !== "lost" ? [third] : [];
-    return { cells: [prefix, chip, ...extra], state: third === "used" ? "strong" : lost ? "placeholder" : undefined };
-  };
-  return (
-    <>
-      <Table id={`${of}-fib`} columns={columns} rows={rows.map(toRow)} />
-      <Edge from={of} to={`${of}-fib`} dashed head="none" />
-    </>
-  );
-}
-
 // --- longest prefix match across routers -------------------------------------------------------------------------
 
-const LPM_TABLES: Record<number, Entry[]> = {
+const LPM_TABLES: Record<number, Route[]> = {
   1: [["B.*", 2, "used"], ["A.*", "direct"]],
-  2: [["A.*", 1], ["B.D.*", "direct", "used"], ["B.*", 3, "lost"]],
+  2: [["A.*", 1], ["B.D.*", "direct", "used"], ["B.*", 3, "light"]],
   3: [["A.*", 2], ["B.D.*", 2], ["B.C.*", "direct"]],
 };
 /** Cells of each router's glyph that light up along the packet's path (0 to 8, row-major). */
-const LPM_LIT: Record<number, number[]> = { 1: [3, 4, 5], 2: [3, 4, 1], 3: [] };
+const LPM_LIT: Record<number, number[]> = { 1: [3, 4, 5], 2: [3, 4, 5, 2], 3: [] };
 
 export function LongestPrefixMatchSchema({ title, caption, className }: FigureProps) {
   const top = 92;
-  const xs = { 1: 168, 2: 318, 3: 468 } as Record<number, number>;
-  const tableW = (n: number) => Math.max(...LPM_TABLES[n].map(([p]) => measure(p, FONT.mono, { mono: true }))) + 16 + measure("direct", FONT.mono, { mono: true }) + 16;
-  const hostY = top + ROUTER / 2 - 23;
+  const half = ROUTER_SIZE / 2;
+  const xs: Record<number, number> = { 1: 140, 2: 285, 3: 430 };
+  const mono = (t: string) => measure(t, FONT.mono, { mono: true }) + 16;
+  // every table here holds a `direct` entry, the widest next hop
+  const colW = (n: number) => Math.max(ROUTER_SIZE, Math.max(...LPM_TABLES[n].map(([p]) => mono(p))) + mono("direct"));
+  const hostY = top + half - 23;
   const bobX = xs[2] + 13;
-  const pathText = "to B.D.H2";
   return (
     <Diagram
       title={title}
       caption={
         caption ??
-        "A packet from Alice to Bob (B.D.H2) takes the thick links. R1 uses B.*; at R2 both B.D.* and B.* match, and the longer B.D.* wins."
+        "Alice's packet to Bob (B.D.H2) takes the thick links. R1 uses its entry B.*. At R2 both B.D.* and B.* match, and the longer B.D.* wins."
       }
       className={className}
     >
@@ -73,22 +54,14 @@ export function LongestPrefixMatchSchema({ title, caption, className }: FigurePr
         <Col x={0} y={hostY}>
           <Host id="alice" name="Alice" addr="A.H1" />
         </Col>
-        <Text text={pathText} size="note" mono muted x={66} y={top - 4} />
         {[1, 2, 3].map((n) => (
-          <Col key={n} x={xs[n] - ROUTER / 2} y={top}>
-            <Router id={`r${n}`} n={n} lit={LPM_LIT[n]} />
-          </Col>
-        ))}
-        {[1, 2, 3].map((n) => (
-          <Col key={`t${n}`} x={xs[n] - tableW(n) / 2} y={top + ROUTER + 16}>
-            <Fib of={`r${n}`} rows={LPM_TABLES[n]} />
-          </Col>
+          <Router key={n} id={`r${n}`} n={n} lit={LPM_LIT[n]} table={LPM_TABLES[n]} x={xs[n] - colW(n) / 2} y={top} />
         ))}
         <Col x={bobX - 34} y={top - 36 - 46}>
           <Host id="bob" name="Bob" addr="B.D.H2" />
         </Col>
         {at("r2.port", bobX, top)}
-        <Col x={xs[3] + 21 + 54} y={hostY}>
+        <Col x={xs[3] + half + 56} y={hostY}>
           <Host id="bart" name="Bart" addr="B.C.H2" />
         </Col>
       </Free>
@@ -163,7 +136,7 @@ export function SubnetBitsSchema({ title, caption, className }: FigureProps) {
       title={title}
       caption={
         caption ??
-        "Under mask 255.255.254.0 the prefix is 23 bits. Both choices for H match the router's north interface on all 23; the south interface differs in three of them."
+        "Under mask 255.255.254.0 the prefix is 23 bits. Both choices for H match the router's north interface on all 23. Choice B differs only in a host bit (outlined). The south interface differs in three prefix bits (blue)."
       }
       className={className}
     >
@@ -216,25 +189,24 @@ export function Ipv6HeaderSchema({ title, caption, className }: FigureProps) {
 
 // --- a real forwarding table: ed0-swi at EPFL --------------------------------------------------------------------
 
-/** Name and address lines beside or under a router, right-aligned when `end`. */
-function Caption({ x, y, lines, end = false }: { x: number; y: number; lines: [string, string?, string?]; end?: boolean }) {
+/** Name, address and role lines beside or under a router; `align` anchors them at `x` by their start, end or centre. */
+function Caption({ x, y, lines, align = "start" }: { x: number; y: number; lines: [string, string?, string?]; align?: "start" | "end" | "center" }) {
   const [name, addr, role] = lines;
-  const width = (t: string, mono = false) => measure(t, FONT.note - (mono ? 0.5 : 0), { mono, weight: mono ? 400 : 400 });
-  const left = (t: string, mono = false) => (end ? x - width(t, mono) : x);
+  const shift = { start: 0, center: 0.5, end: 1 }[align];
+  const place = (t: string, w: number) => x - shift * w;
   return (
     <>
-      <Text text={name} size="note" weight={600} x={left(name)} y={y} />
-      {addr && <Text text={addr} size="note" mono x={left(addr, true)} y={y + 16} />}
-      {role && <Text text={role} size="note" muted x={left(role)} y={y + 32} />}
+      <Text text={name} size="note" weight={600} x={place(name, measure(name, FONT.note, { weight: 600 }))} y={y} />
+      {addr && <Text text={addr} size="note" mono x={place(addr, measure(addr, FONT.note - 0.5, { mono: true }))} y={y + 16} />}
+      {role && <Text text={role} size="note" muted x={place(role, measure(role, FONT.note))} y={y + 32} />}
     </>
   );
 }
 
 export function EpflForwardingSchema({ title, caption, className }: FigureProps) {
-  const cx = 250;
-  const y0 = 12, y1 = 112, yJ = y1 + ROUTER + 34, y2 = yJ + 30;
-  const half = ROUTER / 2;
-  const spread = 120;
+  const cx = 250, half = ROUTER_SIZE / 2, spread = 120;
+  // the backbone LAN joining ed0-swi, ed2-in and ed2-el runs at yB
+  const y0 = 12, y1 = 112, yB = y1 + ROUTER_SIZE + 64, y2 = yB - half;
   return (
     <Diagram
       title={title}
@@ -242,39 +214,30 @@ export function EpflForwardingSchema({ title, caption, className }: FigureProps)
       className={className}
     >
       <Free>
-        <Col x={cx - half} y={y0}>
-          <Router id="sw" n={1} />
-        </Col>
-        <Caption x={cx - half - 12} y={y0 - 2} end lines={["sw-la-01", "128.178.47.3", "toward the Internet"]} />
-        <Col x={cx - half} y={y1}>
-          <Router id="ed0" />
-        </Col>
-        <Caption x={cx - half - 12} y={y1 + 12} end lines={["ed0-swi"]} />
+        <Router id="sw" n={1} x={cx - half} y={y0} />
+        <Caption x={cx - half - 12} y={y0 - 2} align="end" lines={["sw-la-01", "128.178.47.3", "toward the Internet"]} />
+        <Router id="ed0" x={cx - half} y={y1} />
+        <Caption x={cx - half - 12} y={y1 + 12} align="end" lines={["ed0-swi"]} />
         <Col x={cx + half + 36} y={y1 + half - 52}>
-          <Fib
+          <ForwardingTable
             of="ed0"
             columns={["destination", "next hop", "interface"]}
             rows={[
-              ["128.178.29/24", 3, "south"],
-              ["128.178/16", 2, "south"],
-              ["0/0", 1, "north"],
+              ["128.178.29/24", 3, null, "south"],
+              ["128.178/16", 2, null, "south"],
+              ["0/0", 1, null, "north"],
             ]}
           />
         </Col>
-        {at("bb", cx, yJ)}
-        <Col x={cx - spread - half} y={y2}>
-          <Router id="in" n={2} />
-        </Col>
-        <Caption x={cx - spread - half} y={y2 + ROUTER + 10} lines={["ed2-in", "128.178.100.3", "rest of EPFL"]} />
-        <Col x={cx + spread - half} y={y2}>
-          <Router id="el" n={3} />
-        </Col>
-        <Caption x={cx + spread - half} y={y2 + ROUTER + 10} lines={["ed2-el", "128.178.100.2", "LEMA, 128.178.29/24"]} />
+        {at("bb", cx, yB)}
+        <Router id="in" n={2} x={cx - spread - half} y={y2} />
+        <Caption x={cx - spread} y={y2 + ROUTER_SIZE + 10} align="center" lines={["ed2-in", "128.178.100.3", "rest of EPFL"]} />
+        <Router id="el" n={3} x={cx + spread - half} y={y2} />
+        <Caption x={cx + spread} y={y2 + ROUTER_SIZE + 10} align="center" lines={["ed2-el", "128.178.100.2", "LEMA, 128.178.29/24"]} />
       </Free>
       <Link from="sw" to="ed0" label="north" route="straight" />
       <Link from="ed0" to="bb" label="south" route="straight" fromSide="bottom" />
-      <Link from="bb" to="in" route="ortho" fromSide="bottom" toSide="right" />
-      <Link from="bb" to="el" route="ortho" fromSide="bottom" toSide="left" />
+      <Link from="in" to="el" route="straight" />
     </Diagram>
   );
 }
@@ -306,7 +269,7 @@ export function Ipv6AddressSchema({ title, caption, className }: FigureProps) {
       title={title}
       caption={
         caption ??
-        "Two EPFL addresses on the same subnet 1a6. The global one nests inside EPFL's /48, itself inside SWITCH's /32; the private one starts with fd and 40 random bits."
+        "Two EPFL addresses with subnet ID 1a6. The global one nests inside EPFL's /48, itself inside SWITCH's /32; the private one starts with fd and 40 random bits."
       }
       className={className}
     >
@@ -314,7 +277,7 @@ export function Ipv6AddressSchema({ title, caption, className }: FigureProps) {
         {dim("sw", bx(0), bx(32) - 2, 8, "SWITCH /32")}
         {dim("epfl", bx(0), bx(48) - 2, 28, "EPFL /48")}
         {dim("lan", bx(0), bx(64) - 2, 48, "subnet /64")}
-        {dim("host", bx(64) + 1, bx(128), 48, "host part: 64 bits")}
+        {dim("host", bx(64) + 1, bx(128), 48, "host: 64 bits")}
         {items}
         {dim("rnd", bx(8) + 1, bx(48) - 2, rowY(1) + 34 + 14, "random: 40 bits")}
       </Free>
@@ -324,43 +287,52 @@ export function Ipv6AddressSchema({ title, caption, className }: FigureProps) {
 
 // --- NAT ---------------------------------------------------------------------------------------------------------
 
-/** A packet's address fields as a two-row strip; the row the NAT rewrites is the focus. */
-function Pkt({ id, src, dst, rewritten }: { id: string; src: string; dst: string; rewritten: "src" | "dst" }) {
-  return (
-    <Table
-      id={id}
-      rows={[
-        { cells: ["src", src], state: rewritten === "src" ? "active" : undefined },
-        { cells: ["dst", dst], state: rewritten === "dst" ? "active" : undefined },
-      ]}
-    />
-  );
-}
+/** A packet's address fields as two rows; the row the NAT rewrites is the focus. */
+const pkt = (src: string, dst: string, rewritten: "src" | "dst"): TableRow[] => [
+  { cells: ["src", src], state: rewritten === "src" ? "active" : undefined },
+  { cells: ["dst", dst], state: rewritten === "dst" ? "active" : undefined },
+];
+const tableW = (rows: TableRow[]) => tableColumnWidths(undefined, rows, true).reduce((a, w) => a + w, 0);
 
 export function NatTranslationSchema({ title, caption, className }: FigureProps) {
+  const LAN = "192.168.10.11:1029", WAN = "130.104.228.200:3441", DNS = "1.2.3.4:53";
+  const strips = { o1: pkt(LAN, DNS, "src"), i2: pkt(DNS, LAN, "dst"), o2: pkt(WAN, DNS, "src"), i1: pkt(DNS, WAN, "dst") };
+  // each side's two strips hold the same addresses, so they share a width
+  const wL = tableW(strips.o1), wR = tableW(strips.o2);
+  const GAP = 14, ARROW = 44, PKT_H = 2 * 26, NAT_H = ROUTER_SIZE + GROUP.titleBand;
+  const head = Math.round(FONT.note * 1.4) + GAP;
+  const xNat = wL + ARROW, xR = xNat + ROUTER_SIZE + ARROW;
+  const mid = head + PKT_H + GAP / 2;
+  // outbound above the NAT's centre, inbound below: four straight arrows, each meeting an outline
+  const yOut = mid - 20, yIn = mid + 20;
+  const heading = (t: string, x0: number, w: number) => <Text text={t} size="note" muted x={x0 + (w - measure(t, FONT.note)) / 2} y={0} />;
   return (
     <Diagram
       title={title}
       caption={
         caption ??
-        "Outbound, the NAT rewrites the source and records the mapping; inbound, it finds that mapping by exact match and rewrites the destination back."
+        "Outbound, the NAT rewrites the source and records the mapping. Inbound, it finds that mapping by exact match and rewrites the destination back."
       }
       className={className}
     >
-      <Col gap={14}>
-        <Row gap={44} align="center">
-          <Col gap={14} align="end">
-            <Text text="LAN side, private" size="note" muted />
-            <Pkt id="o1" src="192.168.10.11:1029" dst="1.2.3.4:53" rewritten="src" />
-            <Pkt id="i2" src="1.2.3.4:53" dst="192.168.10.11:1029" rewritten="dst" />
-          </Col>
-          <Router id="nat" label="NAT" />
-          <Col gap={14} align="start">
-            <Text text="Internet side, public" size="note" muted />
-            <Pkt id="o2" src="130.104.228.200:3441" dst="1.2.3.4:53" rewritten="src" />
-            <Pkt id="i1" src="1.2.3.4:53" dst="130.104.228.200:3441" rewritten="dst" />
-          </Col>
-        </Row>
+      <Col gap={GAP}>
+        <Free>
+          {heading("LAN side, private", 0, wL)}
+          {heading("Internet side, public", xR, wR)}
+          <Table id="o1" rows={strips.o1} x={0} y={head} />
+          <Table id="i2" rows={strips.i2} x={0} y={head + PKT_H + GAP} />
+          <Router id="nat" label="NAT" x={xNat} y={mid - NAT_H / 2} />
+          <Table id="o2" rows={strips.o2} x={xR} y={head} />
+          <Table id="i1" rows={strips.i1} x={xR} y={head + PKT_H + GAP} />
+          {at("o.a", wL, yOut)}
+          {at("o.b", xNat, yOut)}
+          {at("o.c", xNat + ROUTER_SIZE, yOut)}
+          {at("o.d", xR, yOut)}
+          {at("i.d", xR, yIn)}
+          {at("i.c", xNat + ROUTER_SIZE, yIn)}
+          {at("i.b", xNat, yIn)}
+          {at("i.a", wL, yIn)}
+        </Free>
         <Table
           id="nattab"
           columns={["internal IP", "port", "proto", "NAT IP", "NAT port"]}
@@ -370,21 +342,11 @@ export function NatTranslationSchema({ title, caption, className }: FigureProps)
           ]}
         />
       </Col>
-      <Edge from="o1" to="nat" />
-      <Edge from="nat" to="o2" />
-      <Edge from="i1" to="nat" />
-      <Edge from="nat" to="i2" />
+      <Edge from="o.a" to="o.b" route="straight" />
+      <Edge from="o.c" to="o.d" route="straight" />
+      <Edge from="i.d" to="i.c" route="straight" />
+      <Edge from="i.b" to="i.a" route="straight" />
       <Edge from="nat" to="nattab" dashed head="none" />
     </Diagram>
   );
 }
-
-export const ipAddressingSchemas = {
-  LongestPrefixMatchSchema,
-  SubnetBitsSchema,
-  Ipv4HeaderSchema,
-  EpflForwardingSchema,
-  Ipv6AddressSchema,
-  Ipv6HeaderSchema,
-  NatTranslationSchema,
-};

@@ -22,55 +22,71 @@ export interface Stack {
   title?: string;
   /** highest layer the device runs: a router stops at `network`, a switch at `link` */
   top?: Layer;
+  /** link technology per interface, e.g. `["Ethernet"]`; two names split the link and physical layers into one box per interface, the path entering by the first and leaving by the second */
+  link?: string[];
 }
 
-/** Devices' layer columns side by side, bottom-aligned so layers line up; `path` threads a packet down the first, over each middle device's top layer, and up the last; `highlight` keeps only that layer's hue. */
+/** Devices' layer columns side by side, bottom-aligned so layers line up; `path` threads a packet down the first, over each middle device's top layer, and up the last, always in the gutters beside the boxes; `highlight` keeps only that layer's hue. */
 export function ProtocolStack({ id = "stack", stacks, path = false, highlight }: { id?: string; stacks: Stack[]; path?: boolean; highlight?: Layer }) {
   const threaded = path && stacks.length > 1;
-  // the box width leaves a lane each side of the widest label for the path's verticals
-  const W = 128, H = 30, GAP = 4, IN = 13, WIRE = 24, TOP = threaded ? 12 : 0;
+  // G: gutter between a box and the path beside it; the ortho router turns a same-side elbow TURN px out
+  const H = 30, GAP = 4, G = threaded ? 9 : 0, TURN = 24, CLEAR = 10, TOP = threaded ? CLEAR : 0;
+  const split = (s: Stack) => (s.link?.length ?? 0) > 1;
+  // one width for whole boxes and one for half boxes, so a layer's boxes match across devices
+  const W = headWidth([...Object.values(LAYER_NAME), ...stacks.flatMap((s) => (split(s) ? [] : (s.link ?? [])))]);
+  const HALF = headWidth([LAYER_NAME.physical, ...stacks.flatMap((s) => (split(s) ? s.link! : []))]);
   const edges: ReactNode[] = [];
   const line = (from: string, to: string, head: "end" | "none" = "none") => edges.push(<Edge key={`${from}>${to}`} from={from} to={to} route="straight" head={head} />);
   const cols = stacks.map((s, i) => {
     const k = `${id}.${i}`;
     const layers = LAYERS.slice(LAYERS.indexOf(s.top ?? "application"));
     const bottom = TOP + layers.length * (H + GAP) - GAP;
+    const wide = split(s) ? 2 * HALF + GAP : W;
+    const L = 0, R = wide + 2 * G;
     const role = !threaded ? null : i === 0 ? "first" : i === stacks.length - 1 ? "last" : "middle";
     const anchors: ReactNode[] = [];
     if (role === "first") {
-      anchors.push(at(`${k}.top`, W - IN, 0), at(`${k}.out`, W - IN, bottom));
+      anchors.push(at(`${k}.top`, R, TOP), at(`${k}.out`, R, bottom));
       line(`${k}.top`, `${k}.out`);
     } else if (role === "middle") {
-      // up the left lane, over the top layer, down the right lane
-      anchors.push(at(`${k}.in`, IN, bottom), at(`${k}.up`, IN, WIRE), at(`${k}.dn`, W - IN, WIRE), at(`${k}.out`, W - IN, bottom));
+      // up the left gutter, over the top layer CLEAR px above it, down the right gutter
+      const turn = TOP - CLEAR + TURN;
+      anchors.push(at(`${k}.in`, L, bottom), at(`${k}.up`, L, turn), at(`${k}.dn`, R, turn), at(`${k}.out`, R, bottom));
       line(`${k}.in`, `${k}.up`);
       edges.push(<Edge key={`${k}.turn`} from={`${k}.up`} to={`${k}.dn`} route="ortho" fromSide="top" toSide="top" head="none" />);
       line(`${k}.dn`, `${k}.out`);
     } else if (role === "last") {
-      anchors.push(at(`${k}.in`, IN, bottom), at(`${k}.top`, IN, 0));
+      anchors.push(at(`${k}.in`, L, bottom), at(`${k}.top`, L, TOP));
       line(`${k}.in`, `${k}.top`, "end");
     }
     if (role && role !== "last")
       edges.push(<Edge key={`${k}.wire`} from={`${k}.out`} to={`${id}.${i + 1}.in`} route="ortho" fromSide="bottom" toSide="bottom" />);
+    const box = (l: Layer, key: string, x: number, w: number, title: string, y: number) => (
+      <Node
+        key={key}
+        id={`${k}.${key}`}
+        x={x}
+        y={y}
+        w={w}
+        h={H}
+        title={title}
+        tone={highlight && l !== highlight ? undefined : LAYER_TONE[l]}
+        state={l === highlight ? "strong" : undefined}
+      />
+    );
+    const boxes = layers.flatMap((l, j) => {
+      const y = TOP + j * (H + GAP);
+      if (split(s) && (l === "link" || l === "physical"))
+        return [0, 1].map((n) => box(l, `${l}${n}`, G + n * (HALF + GAP), HALF, l === "link" ? s.link![n] : LAYER_NAME[l], y));
+      return [box(l, l, G, wide, l === "link" ? (s.link?.[0] ?? LAYER_NAME.link) : LAYER_NAME[l], y)];
+    });
     return (
-      <Col key={k} gap={6}>
+      <Col key={k} gap={8}>
         <Free>
-          {layers.map((l, j) => (
-            <Node
-              key={l}
-              id={`${k}.${l}`}
-              x={0}
-              y={TOP + j * (H + GAP)}
-              w={W}
-              h={H}
-              title={LAYER_NAME[l]}
-              tone={highlight && l !== highlight ? undefined : LAYER_TONE[l]}
-              state={l === highlight ? "strong" : undefined}
-            />
-          ))}
+          {boxes}
           {anchors}
-          {/* room for the wire that runs under the stacks */}
-          {threaded && <Space x={0} y={bottom + WIRE + 4} />}
+          {/* room for the gutters and for the wire that runs under the stacks */}
+          {threaded && <Space x={R} y={bottom + TURN + 2} />}
         </Free>
         {s.title && <Text text={s.title} weight={500} />}
       </Col>
@@ -78,7 +94,7 @@ export function ProtocolStack({ id = "stack", stacks, path = false, highlight }:
   });
   return (
     <>
-      <Row gap={40} align="end">
+      <Row gap={threaded ? 32 : 40} align="end">
         {cols}
       </Row>
       {edges}
@@ -175,7 +191,7 @@ export function HeaderFormat({ fields, highlight = [], layer = "network" }: { fi
 
 // --- addresses ---------------------------------------------------------------------------------------------------
 
-/** An IPv4 address in CIDR form split into network prefix and host part, octets drawn to bit scale; `mask` adds the netmask row, `octet` (0 to 3) spells that octet out in bits. */
+/** An IPv4 address in CIDR form split into prefix and host part, octets drawn to bit scale; `mask` adds the netmask row in binary, so its 1s visibly span the prefix; `octet` (0 to 3) spells that octet out in bits. */
 export function AddressBits({ id = "addr", cidr, mask = false, octet }: { id?: string; cidr: string; mask?: boolean; octet?: number }) {
   const [ip, len] = cidr.split("/");
   const p = Number(len ?? 32);
@@ -185,21 +201,22 @@ export function AddressBits({ id = "addr", cidr, mask = false, octet }: { id?: s
   const tone = NET_TONE.network;
   const OW = 8 * BIT - SEAM;
   const rowY = (r: number) => 26 + r * (ROW_H + 8);
-  const row = (values: number[], r: number) =>
-    values.map((v, k) => <Node key={`${r}.${k}`} title={String(v)} mono x={8 * k * BIT} y={rowY(r)} w={OW} h={ROW_H} tone={inPrefix(k) ? tone : undefined} />);
+  const row = (values: string[], r: number) =>
+    values.map((v, k) => <Node key={`${r}.${k}`} title={v} mono x={8 * k * BIT} y={rowY(r)} w={OW} h={ROW_H} tone={inPrefix(k) ? tone : undefined} />);
+  const binary = (n: number) => n.toString(2).padStart(8, "0");
   // a dimension line per part, its bit count on the line; the words drop when the span is too short for them
   const dim = (key: string, x0: number, x1: number, words: string, n: number) => {
     const label = [`${words}: ${n} bits`, `${n} bits`, `${n}`].find((l) => labelPillW(l) + 24 <= x1 - x0) ?? `${n}`;
     return [at(`${id}.${key}0`, x0, 8), at(`${id}.${key}1`, x1, 8), <Edge key={key} from={`${id}.${key}0`} to={`${id}.${key}1`} route="straight" head="both" label={label} />];
   };
   const rows = mask ? 2 : 1;
-  const bits = octet === undefined ? null : octets[octet].toString(2).padStart(8, "0").split("");
+  const bits = octet === undefined ? null : binary(octets[octet]).split("");
   return (
     <Free>
-      {p > 0 && dim("pre", 0, p * BIT - SEAM, "network prefix", p)}
+      {p > 0 && dim("pre", 0, p * BIT - SEAM, "prefix", p)}
       {p < 32 && dim("host", p * BIT, 32 * BIT - SEAM, "host", 32 - p)}
-      {row(octets, 0)}
-      {mask && row(masks, 1)}
+      {row(octets.map(String), 0)}
+      {mask && row(masks.map(binary), 1)}
       {bits && (
         <Cells
           x={8 * octet! * BIT}
@@ -226,9 +243,11 @@ export interface Message {
   dashed?: boolean;
   /** discarded where it ends: red, with a cross in place of the chevron */
   drop?: boolean;
+  /** handled by every lane it crosses, as by a relay: a chevron at each */
+  relayed?: boolean;
 }
 
-/** A message sequence chart: lanes across the top, time running down, one numbered message per row; `slant` makes every message take a row to arrive. */
+/** A message sequence chart: lanes across the top, time running down, one message per row; `slant` makes every message take a row to arrive. */
 export function SequenceChart({ id = "seq", lanes, messages, slant = false }: { id?: string; lanes: string[]; messages: Message[]; slant?: boolean }) {
   const headW = headWidth(lanes);
   // a label needs clear line on both sides, also on a message that stops short of the next lane
@@ -266,7 +285,7 @@ export function SequenceChart({ id = "seq", lanes, messages, slant = false }: { 
           from={`${id}.m${i}.${k}`}
           to={`${id}.m${i}.${k + 1}`}
           route="straight"
-          head={k === n - 1 && !m.drop ? "end" : "none"}
+          head={(k === n - 1 && !m.drop) || (k < n - 1 && m.relayed) ? "end" : "none"}
           dashed={m.dashed}
           tone={tone}
           label={k === labelAt ? m.label : undefined}
@@ -279,7 +298,6 @@ export function SequenceChart({ id = "seq", lanes, messages, slant = false }: { 
         edges.push(<Edge key={`x${i}.${c}`} from={`${id}.x${i}.${c}a`} to={`${id}.x${i}.${c}b`} route="straight" head="none" tone={tone} />);
       });
     }
-    items.push(<Text key={`n${i}`} text={String(i + 1)} size="note" mono muted x={0} y={mid - 8} />);
     if (m.note) items.push(<Text key={`t${i}`} text={m.note} size="note" muted x={noteX} y={mid - 8} />);
   });
   return (
@@ -312,11 +330,14 @@ export interface Span {
   side?: "left" | "right";
 }
 
-/** A time-space diagram: one time axis per node, time running down; each send is a band whose top edge is its first bit and bottom edge its last, arriving `prop` later; spans measure intervals in the margins. */
-export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [] }: { id?: string; lanes: string[]; prop: number; sends: Send[]; spans?: Span[] }) {
+/**
+ * A time-space diagram: one time axis per node, time running down; each send is a band whose top edge is its first bit and bottom edge its last, arriving `prop` later; spans measure intervals in the margins.
+ * `end` fixes the time at the bottom, so panels drawn with the same `end` compare by height; `pitch` narrows the axes for side-by-side panels.
+ */
+export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixedEnd, pitch }: { id?: string; lanes: string[]; prop: number; sends: Send[]; spans?: Span[]; end?: number; pitch?: number }) {
   const headW = headWidth(lanes);
-  const PITCH = Math.max(headW + 40, 168), HEIGHT = 230;
-  const end = Math.max(...sends.map((s) => s.at + s.tx + prop), ...spans.map((s) => s.to));
+  const PITCH = pitch ?? Math.max(headW + 40, 168), HEIGHT = 230;
+  const end = fixedEnd ?? Math.max(...sends.map((s) => s.at + s.tx + prop), ...spans.map((s) => s.to));
   const pill = (side: "left" | "right") => Math.max(0, ...spans.filter((s) => (s.side ?? "left") === side).map((s) => labelPillW(s.label)));
   const x0 = Math.max(headW / 2, pill("left") + 12);
   const x = (lane: number) => x0 + lane * PITCH;
@@ -364,7 +385,11 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [] }: { id?: 
   });
   return (
     <>
-      <Free>{items}</Free>
+      <Free>
+        {items}
+        {/* edge labels take no layout room: keep the right margin's pills inside this block */}
+        {pill("right") > 0 && <Space x={dimX.right + pill("right") / 2} y={0} />}
+      </Free>
       {guides}
       {edges}
     </>

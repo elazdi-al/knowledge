@@ -1,13 +1,62 @@
 import type { ReactNode } from "react";
 import { Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Text, type Tone } from "@/components/figure";
-import { labelPillW } from "@/components/figure/route";
-import { Host, Link, NET_TONE, Router, Switch } from "@/components/NetworkFigures";
+import { GROUP } from "@/components/figure/theme";
+import { Link, NET_TONE, Router, ROUTER_SIZE, Switch } from "@/components/NetworkFigures";
 import { AddressBits, ProtocolStack, TimeSpace } from "@/components/PacketFigures";
 
 interface FigureProps {
   title?: string;
   caption?: string;
   className?: string;
+}
+
+// --- names -------------------------------------------------------------------------------------------------------
+
+/** The labels of `ssc.epfl.ch`, left to right, each with its role. */
+const NAME = [
+  { label: "ssc", role: "host" },
+  { label: "epfl", role: "second-level domain" },
+  { label: "ch", role: "top-level domain" },
+];
+
+export function DomainNameSchema({ title, caption, className }: FigureProps) {
+  const name = NAME.map((p) => p.label).join(".");
+  const px = FONT.title - 0.5;
+  const adv = measure("m", px, { mono: true });
+  const UNDER = Math.round(FONT.title * 1.4) + 4;
+  const ROW = 20;
+  const labelX = name.length * adv + 20;
+  const at = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
+  let start = 0;
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "The three labels of ssc.epfl.ch, read from the right."}
+      className={className}
+    >
+      <Free>
+        <Text text={name} size="title" weight={500} mono x={0} y={0} />
+        {NAME.map((p, k) => {
+          const x0 = start * adv;
+          const x1 = x0 + p.label.length * adv;
+          start += p.label.length + 1;
+          // the rightmost label gets the top row, so the leaders step down to the left and never cross
+          const y = UNDER + 16 + (NAME.length - 1 - k) * ROW;
+          const state = k === NAME.length - 1 ? "active" : undefined;
+          const id = `dn.${k}`;
+          return [
+            at(`${id}.a`, x0 + 1, UNDER),
+            at(`${id}.b`, x1 - 1, UNDER),
+            at(`${id}.m`, (x0 + x1) / 2, UNDER),
+            at(`${id}.t`, labelX - 6, y),
+            <Edge key={`${id}.u`} from={`${id}.a`} to={`${id}.b`} route="straight" head="none" thick state={state} />,
+            <Edge key={`${id}.l`} from={`${id}.m`} to={`${id}.t`} route="ortho" fromSide="bottom" toSide="left" head="none" state={state} />,
+            <Text key={`${id}.r`} text={p.role} size="note" muted={!state} state={state} x={labelX} y={y - 8} />,
+          ];
+        })}
+      </Free>
+    </Diagram>
+  );
 }
 
 // --- LANs joined by routers --------------------------------------------------------------------------------------
@@ -22,6 +71,9 @@ const addrW = (s: string) => measure(s, ADDR_PX, { mono: true });
 /** An interface address written just under the link line, in the hue of the router that owns it. */
 const Addr = ({ text, x, tone }: { text: string; x: number; tone?: Tone }) => <Text text={text} size="note" mono tone={tone} x={x} y={LINE + 5} />;
 
+/** Gap between a LAN panel and the router beside it, so the link visibly leaves the LAN. */
+const JOIN = 10;
+
 /** A LAN as a soft panel titled with its prefix; `children` are placed freely around the link line at y = LINE. */
 const Lan = ({ title, children }: { title: string; children: ReactNode }) => (
   <Group title={title} pad={LAN_PAD}>
@@ -32,25 +84,27 @@ const Lan = ({ title, children }: { title: string; children: ReactNode }) => (
   </Group>
 );
 
-/** A router lowered so its centre sits on the panels' link line. */
-const OnLine = ({ children }: { children: ReactNode }) => (
+/** A router `h` tall, lowered so its centre sits on the panels' link line. */
+const OnLine = ({ h = ROUTER_SIZE, children }: { h?: number; children: ReactNode }) => (
   <Col gap={0}>
-    <Space h={LINE_Y - 21} />
+    <Space h={LINE_Y - h / 2} />
     {children}
   </Col>
 );
+/** Height of a titled router: the glyph box plus the title band. */
+const TITLED = ROUTER_SIZE + GROUP.titleBand;
 
 export function SubnetChainSchema({ title, caption, className }: FigureProps) {
   const r = NET_TONE.router;
-  const a = 48, b = 80, gap = 22;
+  const a = 48, b = 80, gap = 16;
   const w12 = addrW("10.10.1.2"), w21 = addrW("10.10.2.1");
   return (
     <Diagram
       title={title}
-      caption={caption ?? "Three Ethernet LANs in a row. Every address on a LAN starts with the LAN's prefix, and each router has one address on each LAN it joins."}
+      caption={caption ?? "Three Ethernet LANs in a row. Every address on a LAN starts with the LAN's prefix, and each router has one interface, with its own address, on each LAN it joins."}
       className={className}
     >
-      <Row gap={0} align="start">
+      <Row gap={JOIN} align="start">
         <Lan title="10.10.3.0/24">
           <Node id="a" title="A" sub="?" x={0} y={0} w={a} />
           <Addr text="10.10.3.1" x={a + gap} tone={r[1]} />
@@ -77,31 +131,40 @@ export function SubnetChainSchema({ title, caption, className }: FigureProps) {
   );
 }
 
+/** An observation point on a link: a small numbered circle the link passes through. */
+const Point = ({ id, n, x }: { id: string; n: number; x: number }) => <Node id={id} title={String(n)} shape="circle" w={22} x={x} y={LINE - 11} />;
+
 export function GatewayPathSchema({ title, caption, className }: FigureProps) {
-  const server = 96;
+  const server = 96, sw = server + 32, p1 = sw + 72 + 32;
   return (
     <Diagram
       title={title}
-      caption={caption ?? "The web server on LAN B sends to Eliane's phone on LAN A. Point 1 lies on LAN B, between the switch and the gateway router; point 2 on LAN A, between the gateway and the phone."}
+      caption={caption ?? "The web server on LAN B sends to Eliane's phone on LAN A through the gateway router. Point 1 lies on LAN B, between the switch and the gateway. Point 2 lies on LAN A, between the gateway and the phone."}
       className={className}
     >
-      <Row gap={0} align="start">
+      <Row gap={JOIN} align="start">
         <Lan title="LAN B (Ethernet)">
           <Node id="srv" title="Web server" x={0} y={LINE - NODE.h / 2} w={server} />
-          <Free x={server + 32} y={LINE - 11}>
-            <Switch id="sw" />
+          {/* a titled switch: 22px port strip plus the title band, centred on the line */}
+          <Free x={sw} y={LINE - (22 + GROUP.titleBand) / 2}>
+            <Switch id="sw" label="Switch" />
           </Free>
+          <Point id="p1" n={1} x={p1} />
+          <Space x={p1 + 22 + 20} y={0} />
         </Lan>
-        <OnLine>
-          <Router id="gw" />
+        <OnLine h={TITLED}>
+          <Router id="gw" label="Gateway" />
         </OnLine>
         <Lan title="LAN A (WiFi)">
-          <Node id="eli" title="Eliane" x={0} y={LINE - NODE.h / 2} />
+          <Point id="p2" n={2} x={20} />
+          <Node id="eli" title="Eliane" x={20 + 22 + 32} y={LINE - NODE.h / 2} />
         </Lan>
       </Row>
       <Link from="srv" to="sw" route="straight" />
-      <Link from="sw" to="gw" route="straight" label="1" />
-      <Link from="gw" to="eli" route="straight" label="2" />
+      <Link from="sw" to="p1" route="straight" />
+      <Link from="p1" to="gw" route="straight" />
+      <Link from="gw" to="p2" route="straight" />
+      <Link from="p2" to="eli" route="straight" />
     </Diagram>
   );
 }
@@ -136,10 +199,18 @@ export function PathStacksSchema({ title, caption, className }: FigureProps) {
   return (
     <Diagram
       title={title}
-      caption={caption ?? "The same transfer, layer by layer. The switch handles frames only; the gateway router goes up to IP and back down, replacing the Ethernet header with a WiFi one; only the two hosts run TCP and the application."}
+      caption={caption ?? "The same transfer, layer by layer. The switch handles frames only. The gateway goes up to IP and back down, replacing the Ethernet header with a WiFi one. Only the two hosts run TCP and the application."}
       className={className}
     >
-      <ProtocolStack path stacks={[{ title: "Web server" }, { title: "Switch", top: "link" }, { title: "Router", top: "network" }, { title: "Eliane" }]} />
+      <ProtocolStack
+        path
+        stacks={[
+          { title: "Web server", link: ["Ethernet"] },
+          { title: "Switch", top: "link", link: ["Ethernet"] },
+          { title: "Gateway", top: "network", link: ["Ethernet", "WiFi"] },
+          { title: "Eliane", link: ["WiFi"] },
+        ]}
+      />
     </Diagram>
   );
 }
@@ -150,7 +221,7 @@ export function AddressPrefixSchema({ title, caption, className }: FigureProps) 
   return (
     <Diagram
       title={title}
-      caption={caption ?? "128.178.71.34/24 (top) and its mask 255.255.255.0 (bottom): the mask's 1s cover the first 24 bits, the prefix every device of the LAN shares."}
+      caption={caption ?? "128.178.71.34/24 (top) and its mask 255.255.255.0 in binary (bottom). The mask's 1s cover the first 24 bits, the prefix every device of the LAN shares."}
       className={className}
     >
       <AddressBits cidr="128.178.71.34/24" mask />
@@ -160,66 +231,10 @@ export function AddressPrefixSchema({ title, caption, className }: FigureProps) 
 
 // --- delays ------------------------------------------------------------------------------------------------------
 
-interface Band {
-  from: number;
-  to: number;
-  at: number;
-  tx: number;
-  label?: string;
-}
-
-/** A time-space panel on a fixed time scale, so two panels drawn with the same `end` compare by height; `total` adds the end-to-end span on the right. */
-function Bands({ id, lanes, prop, end, bands, total }: { id: string; lanes: string[]; prop: number; end: number; bands: Band[]; total: string }) {
-  const PITCH = 92, HEIGHT = 240;
-  const headW = Math.max(...lanes.map((n) => measure(n, FONT.title, { weight: 500 }))) + 2 * NODE.padX;
-  const x = (l: number) => headW / 2 + l * PITCH;
-  const y = (t: number) => NODE.h + 18 + (t * HEIGHT) / end;
-  const last = lanes.length - 1;
-  const finish = Math.max(...bands.map((s) => s.at + s.tx + prop));
-  const bottom = y(end) + 22;
-  const dimX = x(last) + 8 + labelPillW(total) / 2;
-  const at = (k: string, px: number, py: number) => <Space key={k} id={`${id}.${k}`} x={px} y={py} />;
-  const items: ReactNode[] = [];
-  const edges: ReactNode[] = [];
-  lanes.forEach((name, l) => {
-    items.push(<Node key={`h${l}`} id={`${id}.l${l}`} title={name} x={x(l) - headW / 2} y={0} w={headW} />, at(`end${l}`, x(l), bottom));
-    edges.push(<Edge key={`axis${l}`} from={`${id}.l${l}`} to={`${id}.end${l}`} route="straight" />);
-  });
-  bands.forEach((s, i) => {
-    const pts: [string, number, number][] = [["a", s.from, s.at], ["b", s.from, s.at + s.tx], ["c", s.to, s.at + prop], ["d", s.to, s.at + s.tx + prop]];
-    pts.forEach(([c, l, t]) => items.push(at(`s${i}${c}`, x(l), y(t))));
-    const seg = (p: string, q: string, thick?: boolean) => (
-      <Edge key={`s${i}${p}${q}`} from={`${id}.s${i}${p}`} to={`${id}.s${i}${q}`} route="straight" head="none" tone={NET_TONE.link} thick={thick} />
-    );
-    edges.push(seg("a", "c"), seg("b", "d"), seg("a", "b", true), seg("c", "d", true));
-    if (s.label) {
-      const w = measure(s.label, FONT.note);
-      items.push(<Text key={`t${i}`} text={s.label} size="note" tone={NET_TONE.link} x={(x(s.from) + x(s.to)) / 2 - w / 2} y={y(s.at + (s.tx + prop) / 2) - 8} />);
-    }
-  });
-  const ghosts: ReactNode[] = [];
-  [
-    [0, 0],
-    [finish, last],
-  ].forEach(([t, lane], e) => {
-    items.push(at(`d${e}`, dimX, y(t)), at(`g${e}`, x(lane), y(t)));
-    ghosts.push(<Edge key={`g${e}`} from={`${id}.d${e}`} to={`${id}.g${e}`} route="straight" head="none" dashed state="ghost" />);
-  });
-  edges.push(<Edge key="total" from={`${id}.d0`} to={`${id}.d1`} route="straight" head="both" label={total} />);
-  return (
-    <>
-      <Free>
-        {items}
-        <Space x={dimX + labelPillW(total) / 2} y={0} />
-      </Free>
-      {ghosts}
-      {edges}
-    </>
-  );
-}
-
 /** Four packets of 1 ms transmission each, two hops of 0.5 ms propagation: 9 ms whole, 6 ms pipelined. */
 const PACKETS = [0, 1, 2, 3];
+/** Axis spacing that fits the two panels side by side. */
+const PITCH = 92;
 
 export function PacketSwitchingSchema({ title, caption, className }: FigureProps) {
   const lanes = ["A", "R", "B"];
@@ -234,37 +249,39 @@ export function PacketSwitchingSchema({ title, caption, className }: FigureProps
       title={title}
       caption={
         caption ??
-        "A 4-packet message from A to B through router R, time running down, drawn to the same scale. Each band is a transmission (1 ms per packet) and its slope the propagation (0.5 ms per link). Relaying the whole message takes 9 ms; packet switching pipelines the two links and takes 6 ms."
+        "A 4-packet message from A to B through router R, both panels on one time scale, time running down. Each band is one transmission (1 ms per packet), and its slope is the propagation (0.5 ms per link). Relaying the whole message takes 9 ms. Packet switching pipelines the two links and takes 6 ms."
       }
       className={className}
     >
       <Row wrap gap={40} align="start">
         {panel(
           "Entire message relay",
-          <Bands
+          <TimeSpace
             id="msg"
             lanes={lanes}
             prop={0.5}
             end={9}
-            total="9 ms"
-            bands={[
+            pitch={PITCH}
+            sends={[
               { from: 0, to: 1, at: 0, tx: 4, label: "message" },
               { from: 1, to: 2, at: 4.5, tx: 4, label: "message" },
             ]}
+            spans={[{ from: 0, to: 9, label: "9 ms", side: "right" }]}
           />,
         )}
         {panel(
           "Packet switching",
-          <Bands
+          <TimeSpace
             id="pkt"
             lanes={lanes}
             prop={0.5}
             end={9}
-            total="6 ms"
-            bands={PACKETS.flatMap((i) => [
+            pitch={PITCH}
+            sends={PACKETS.flatMap((i) => [
               { from: 0, to: 1, at: i, tx: 1, label: String(i + 1) },
               { from: 1, to: 2, at: i + 1.5, tx: 1, label: String(i + 1) },
             ])}
+            spans={[{ from: 0, to: 6, label: "6 ms", side: "right" }]}
           />,
         )}
       </Row>
@@ -286,25 +303,15 @@ export function StopAndGoSchema({ title, caption, className }: FigureProps) {
         prop={1}
         sends={[
           { from: 0, to: 1, at: 0, tx: 1, label: "packet" },
-          { from: 1, to: 0, at: 2, tx: 0.35, label: "ack", tone: NET_TONE.transport },
+          { from: 1, to: 0, at: 2, tx: 0.5, label: "ack", tone: NET_TONE.transport },
         ]}
         spans={[
           { from: 0, to: 1, label: "T = L/b" },
           { from: 1, to: 3, label: "2D" },
-          { from: 3, to: 3.35, label: "T' = L'/b" },
-          { from: 0, to: 3.35, label: "one cycle", side: "right" },
+          { from: 3, to: 3.5, label: "T' = L'/b" },
+          { from: 0, to: 3.5, label: "one cycle", side: "right" },
         ]}
       />
     </Diagram>
   );
 }
-
-export const internetArchitectureSchemas = {
-  SubnetChainSchema,
-  GatewayPathSchema,
-  EncapsulationSchema,
-  PathStacksSchema,
-  AddressPrefixSchema,
-  PacketSwitchingSchema,
-  StopAndGoSchema,
-};
