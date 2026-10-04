@@ -41,7 +41,7 @@ function lookOf(state: State, uid: string, fill: string, tone?: Tone, edge = V("
     case "active":
       return toned(ACCENT);
     case "strong":
-      return { ...(tone ? toned(tone) : base), stroke: tone ? solid(tone) : V("ink"), strokeWidth: STROKE.strong };
+      return { ...(tone ? toned(tone) : base), stroke: tone ? solid(tone) : V("text"), strokeWidth: STROKE.strong };
     case "placeholder":
       return { ...base, fill: "none", stroke: V("rule"), dashed: true, text: V("muted"), italic: true };
     case "free":
@@ -203,9 +203,9 @@ function groupNode(it: Extract<Item, { kind: "group" }>, ground: Ground | undefi
   );
 }
 
-/** Fill behind a cell or row: its state's fill, else its tone's tint (a solid swatch for an unlabelled cell), else nothing. */
-function cellFill(c: { state: State; tone?: Tone }, uid: string, swatch = false): string {
-  if (c.state === "default") return c.tone ? (swatch ? solid(c.tone) : tint(c.tone)) : "none";
+/** Fill behind a cell or row: its state's fill, else its tone's tint, else nothing. */
+function cellFill(c: { state: State; tone?: Tone }, uid: string): string {
+  if (c.state === "default") return c.tone ? tint(c.tone) : "none";
   return lookOf(c.state, uid, "none", c.tone).fill;
 }
 
@@ -298,7 +298,7 @@ function cellsNode(it: Extract<Item, { kind: "cells" }>, kids: Item[], uid: stri
       <rect {...R(inner)} rx={rx} style={{ ...shapeStyle(l), stroke: "none" }} />
       <g clipPath={`url(#${clip})`}>
         {cells.map((c) => (
-          <rect key={c.id} {...R(c.rect)} style={{ fill: cellFill(c, uid, !c.label) }} />
+          <rect key={c.id} {...R(c.rect)} style={{ fill: cellFill(c, uid) }} />
         ))}
       </g>
       {dividers}

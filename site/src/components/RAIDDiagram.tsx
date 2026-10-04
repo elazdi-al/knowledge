@@ -1,4 +1,5 @@
 import { Diagram, Dots, Edge, Group, Node, Row } from "@/components/figure";
+import { TONE } from "@/components/tones";
 
 export type RAIDMode = "striping" | "mirroring" | "parity";
 
@@ -7,7 +8,7 @@ export type RAIDCellKind = "data" | "parity" | "mirror";
 export interface RAIDCell {
   /** Cell label, e.g. "Block 0" or "Parity 0-2". Numbers coerce to strings. */
   label: string | number;
-  /** Cell type. `parity` is emphasised (bold outline + container tint).
+  /** Cell type. `parity` takes the parity tone.
    *  Defaults to "data". */
   kind?: RAIDCellKind;
 }
@@ -45,7 +46,7 @@ export function RAIDDiagram({ mode, disks, label, ellipsis = true, title, captio
     <Group key={i} title={d.title} gap={8} align="stretch">
       {d.cells.map((c, j) => {
         const cell = typeof c === "object" ? c : { label: c };
-        return <Node key={j} id={`d${i}.${j}`} title={String(cell.label)} state={cell.kind === "parity" ? "strong" : undefined} />;
+        return <Node key={j} id={`d${i}.${j}`} title={String(cell.label)} tone={cell.kind === "parity" ? TONE.parity : undefined} />;
       })}
       {ellipsis && <Dots dir="col" />}
     </Group>

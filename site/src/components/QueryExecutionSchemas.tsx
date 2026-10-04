@@ -1,5 +1,6 @@
 import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Text } from "@/components/figure";
 import { FONT, NODE } from "@/components/figure/theme";
+import { TONE } from "@/components/tones";
 
 interface FigureProps {
   title?: string;
@@ -20,7 +21,7 @@ export function QueryProcessingFlow({ title, caption, className }: FigureProps) 
   return (
     <Diagram title={title} caption={caption ?? "Query compilation pipeline."} className={className}>
       <Col gap={20}>
-        <Node id="sql" title="SQL query" shape="pill" tone="orange" />
+        <Node id="sql" title="SQL query" shape="pill" tone={TONE.query} />
         <Col gap={20} align="stretch">
           {STAGES.map(([s], i) => (
             <Node key={s} id={`stage${i}`} title={s} state={i === STAGES.length - 1 ? "strong" : undefined} />
@@ -40,7 +41,7 @@ export function OptimizerArchitectureSchema({ title, caption, className }: Figur
     <Diagram title={title} caption={caption ?? "Cost-based optimizer architecture."} className={className}>
       <Col gap={28}>
         <Row gap={40}>
-          <Node id="sql" title="SQL query" shape="pill" tone="orange" />
+          <Node id="sql" title="SQL query" shape="pill" tone={TONE.query} />
           <Node id="parser" title="Parser" />
           <Node id="rewrite" title="Rewrite" state="placeholder" />
         </Row>
@@ -56,7 +57,7 @@ export function OptimizerArchitectureSchema({ title, caption, className }: Figur
             <Node shape="cylinder" title="Stats" />
           </Group>
         </Row>
-        <Node id="plan" title="Physical plan" shape="pill" tone="orange" />
+        <Node id="plan" title="Physical plan" shape="pill" tone={TONE.query} />
       </Col>
       <Edge from="sql" to="parser" />
       <Edge from="parser" to="rewrite" />
@@ -124,16 +125,16 @@ export function GraceProbeSchema({ title, caption, className }: FigureProps) {
       <Row gap={36}>
         <Group title="Partitions">
           <Col gap={8} align="stretch">
-            <Node id="Ri" shape="cylinder" title="R_i" />
-            <Node id="Si" shape="cylinder" title="S_i" />
+            <Node id="Ri" shape="cylinder" title="R_i" tone={TONE.build} />
+            <Node id="Si" shape="cylinder" title="S_i" tone={TONE.probe} />
             <Dots dir="col" />
           </Col>
         </Group>
         <Group title="B main-memory buffers">
           <Grid cols={1} rowGap={44} align="stretch">
-            <Node id="ht" title="hash table on R_i (h_2)" sub="at most B-2 pages" />
+            <Node id="ht" title="hash table on R_i (h_2)" sub="at most B-2 pages" tone={TONE.build} />
             <Row gap={56}>
-              <Node id="sin" title="S_i input" />
+              <Node id="sin" title="S_i input" tone={TONE.probe} />
               <Node id="out" title="output" />
             </Row>
           </Grid>
@@ -316,12 +317,12 @@ export function ExecutionModelSchema({
     >
       <Col gap={40}>
         <Node id="client" title="client" shape="pill" />
-        <Node id="proj" title="Project" sub="R.id, S.cdate" />
+        <Node id="proj" title="Project" sub="R.id, S.cdate" tone={TONE.projection} />
         <Node id="join" title="Hash join" sub="R.id = S.id" />
         <Row gap={56} align="start">
           <Node id="scanR" title="Scan R" w={72} />
           <Col gap={40}>
-            <Node id="selS" title="Select S" sub="value > 100" />
+            <Node id="selS" title="Select S" sub="value > 100" tone={TONE.selection} />
             <Node id="scanS" title="Scan S" />
           </Col>
           <Space w={72} />

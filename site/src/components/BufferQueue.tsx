@@ -1,10 +1,11 @@
 import { Fragment } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Grid, Group, measure, Node, Row, Space, Text, type State } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Grid, Group, measure, Node, Row, Space, Text, type State, type Tone } from "@/components/figure";
 import { nodeTitleW } from "@/components/figure/layout";
 import { GROUP, NODE } from "@/components/figure/theme";
+import { TONE } from "@/components/tones";
 
-/** A page cell's role, mapped onto the family state grammar:
- *  - `hot`: emphasis outline (a protected / working-set page).
+/** A page cell's role, mapped onto the family state and tone grammar:
+ *  - `hot`: hot tone (a protected / working-set page).
  *  - `read-once`: normal outline (a one-off page that should be discarded).
  *  - `scan`: dashed outline (a page brought in by a sequential scan).
  *  - `highlight`: inverted box (the page the arrow is about to act on). */
@@ -74,7 +75,12 @@ interface Props {
 }
 
 /** Read-once and scan pages are the same kind of page: dashed, never reused. */
-const ROLE: Record<CellRole, State | undefined> = { hot: undefined, "read-once": "placeholder", scan: "placeholder", highlight: "strong" };
+const ROLE: Record<CellRole, { state?: State; tone?: Tone }> = {
+  hot: { tone: TONE.hot },
+  "read-once": { state: "placeholder" },
+  scan: { state: "placeholder" },
+  highlight: { state: "strong" },
+};
 const GAP = 6;
 
 const pageW = (cells: PageCell[]) => Math.max(...cells.map((c) => nodeTitleW({ title: c.label, mono: true, state: "default", shape: "box" }))) + 2 * NODE.padX;
@@ -119,7 +125,7 @@ export function BufferQueue({ columns, arrows = [], note, title, caption, classN
           ),
           <Group key={c.id} id={c.id} title={c.title} dir={c.horizontal ? "row" : "col"} gap={GAP}>
             {c.cells.map((cell, i) => (
-              <Node key={i} id={cellId(c, i)} title={cell.label} mono w={pageW(c.cells)} state={ROLE[cell.role ?? "hot"]} />
+              <Node key={i} id={cellId(c, i)} title={cell.label} mono w={pageW(c.cells)} {...ROLE[cell.role ?? "hot"]} />
             ))}
             {c.foot && <Text text={c.foot} size="note" muted />}
           </Group>,
@@ -168,7 +174,7 @@ function Flooding({ scan, sweep, before, after, title, caption, className }: Flo
   if (process.env.NODE_ENV !== "production" && after && pools[last].map((p) => p.label).join() !== after.cells.map((c) => c.label).join()) {
     console.warn(`[diagram] "${caption}": LRU leaves ${pools[last].map((p) => p.label).join(", ")}, but the "${after.title}" column shows ${after.cells.map((c) => c.label).join(", ")}`);
   }
-  const page = (c: PageCell) => ({ label: c.label, state: ROLE[c.role ?? "hot"] });
+  const page = (c: PageCell) => ({ label: c.label, ...ROLE[c.role ?? "hot"] });
   const labels = flush(pools.map((_, k) => (k === 0 ? before.title : k === last ? after?.title : undefined)), "end", "label");
   const notes = flush(pools.map((_, k) => (k === 0 ? before.foot : `evicts ${pools[k - 1][before.cells.length - 1].label}`)), "start", "note");
 

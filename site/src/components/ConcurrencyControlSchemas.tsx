@@ -1,6 +1,7 @@
 import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Table, Text } from "@/components/figure";
 import { FONT, NODE } from "@/components/figure/theme";
-import { ScheduleGrid, TX_TONE, type TxId } from "@/components/ScheduleGrid";
+import { ScheduleGrid, type TxId } from "@/components/ScheduleGrid";
+import { TX_TONE } from "@/components/tones";
 
 interface FigureProps {
   title?: string;

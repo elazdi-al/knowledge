@@ -3,8 +3,8 @@
  * the laid-out result. Both are plain JSON.
  */
 
-export type Tone = "blue" | "orange" | "green" | "purple" | "red";
-export const TONES: readonly Tone[] = ["blue", "orange", "green", "purple", "red"];
+export type Tone = "blue" | "teal" | "green" | "purple" | "red";
+export const TONES: readonly Tone[] = ["blue", "teal", "green", "purple", "red"];
 
 export type State = "default" | "active" | "placeholder" | "free" | "ghost" | "strong";
 export const STATES: readonly State[] = ["default", "active", "placeholder", "free", "ghost", "strong"];

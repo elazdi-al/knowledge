@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { Diagram, Edge, Grid, Group, layoutScene, Node, Row, Space, Text, toScene, type Side } from "@/components/figure";
+import { TONE } from "@/components/tones";
 
 export interface ERNode {
   /** Stable id referenced by edges, attribute owners and aggregation members. */
@@ -142,9 +143,9 @@ export function ERDiagram({ entities = [], relationships = [], isa = [], attribu
       case "entity":
         return <Node id={u.id} title={label} double={u.node?.variant === "weak"} />;
       case "relationship":
-        return <Node id={u.id} shape="diamond" title={label} double={u.node?.variant === "identifying"} />;
+        return <Node id={u.id} shape="diamond" title={label} double={u.node?.variant === "identifying"} tone={TONE.relationship} />;
       case "isa":
-        return <Node id={u.id} shape="triangle" title={label} />;
+        return <Node id={u.id} shape="triangle" title={label} tone={TONE.isa} />;
       case "agg":
         return (
           <Group id={u.id} dashed>

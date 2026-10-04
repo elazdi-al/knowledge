@@ -1,4 +1,5 @@
-import { Col, Diagram, Edge, Group, Node, Row } from "@/components/figure";
+import { Col, Diagram, Edge, Group, Node, Row, type Tone } from "@/components/figure";
+import { TONE } from "@/components/tones";
 
 /**
  * An ER *relationship-instance* illustration: three sets side by side (left
@@ -67,12 +68,12 @@ interface Props {
 /** Set names are literal identifiers: `Works_In` keeps its low line. */
 const literal = (s: string) => s.replace(/[_^]/g, "\\$&");
 
-function SetPanel({ set }: { set: ERSet }) {
+function SetPanel({ set, tone }: { set: ERSet; tone?: Tone }) {
   return (
-    <Group title={literal(set.label)}>
+    <Group title={literal(set.label)} tone={tone}>
       <Col gap={10}>
         {set.items.map((it) => (
-          <Node key={it.id} id={it.id} title={it.value} mono />
+          <Node key={it.id} id={it.id} title={it.value} mono tone={tone} />
         ))}
       </Col>
     </Group>
@@ -86,7 +87,7 @@ export function ERInstanceMapping({ left, mid, right, links, title, caption, cla
     <Diagram title={title} caption={caption} className={className}>
       <Row gap={72}>
         <SetPanel set={left} />
-        <SetPanel set={mid} />
+        <SetPanel set={mid} tone={TONE.relationship} />
         <SetPanel set={right} />
       </Row>
       {links.flatMap((l) => [link(l.left, l.mid), link(l.mid, l.right)])}

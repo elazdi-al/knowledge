@@ -1,5 +1,6 @@
 import { Col, Diagram, Edge, Grid, Group, Node, Row, Table, Text } from "@/components/figure";
-import { ScheduleGrid, TX_TONE, type ScheduleOp, type TxId } from "@/components/ScheduleGrid";
+import { ScheduleGrid, type ScheduleOp, type TxId } from "@/components/ScheduleGrid";
+import { TX_TONE } from "@/components/tones";
 
 interface FigureProps {
   title?: string;

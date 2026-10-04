@@ -1,6 +1,7 @@
 import { Fragment } from "react";
-import { Cells, Col, Diagram, Dots, Edge, FONT, Grid, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type CellItem } from "@/components/figure";
+import { Cells, Col, Diagram, Dots, Edge, FONT, Grid, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type CellInput, type CellItem } from "@/components/figure";
 import { CELL, GROUP } from "@/components/figure/theme";
+import { TONE } from "@/components/tones";
 
 /**
  * Storage-layout figures, one `mode` per shape: slot-grid, byte-strip,
@@ -23,7 +24,7 @@ export interface ByteCell {
   label: string;
   /** Relative width weight (default 1); wider cells get more horizontal room. */
   span?: number;
-  /** `gap` = dashed deletion/free cell; `meta` = muted secondary cell. */
+  /** `gap` = dashed deletion/free cell; `meta` = bookkeeping (offset directory, null bitmap), toned as metadata. */
   state?: "normal" | "gap" | "meta";
   /** Optional small caption centred above the cell (e.g. a field group). */
   group?: string;
@@ -59,7 +60,7 @@ export interface OrderedPage {
 /** A stripe/band in `orc` mode. */
 export interface OrcBand {
   label: string;
-  /** `meta` muted, `data` element-box, `footer` emphasised. */
+  /** `meta` and `footer` toned as metadata, `data` a plain element box. */
   kind?: "meta" | "data" | "footer";
 }
 
@@ -73,7 +74,7 @@ interface SlotGridProps extends CommonProps {
   mode: "slot-grid";
   /** Bold header text inside the page (e.g. "Page 42"). */
   header: string;
-  /** Small muted label at the header's left (e.g. "header"). */
+  /** Small label at the header's left (e.g. "header"), toned as metadata. */
   headerNote?: string;
   cells: SlotCell[];
   /** Cells per row (default = all on one row). */
@@ -199,8 +200,12 @@ export type PageLayoutProps =
 const Footnote = ({ text }: { text?: string }) => (text ? <Text text={text} size="note" muted /> : null);
 
 const SLOT = { normal: undefined, hit: "strong", empty: "placeholder" } as const;
-const BYTE = { normal: undefined, gap: "placeholder", meta: "ghost" } as const;
-const BAND = { meta: "ghost", data: undefined, footer: "strong" } as const;
+const BYTE = { normal: {}, gap: { state: "placeholder" }, meta: { tone: TONE.meta } } as const satisfies Record<string, CellItem>;
+const byte = (c: ByteCell): CellItem => ({ label: c.label, ...BYTE[c.state ?? "normal"] });
+const BAND = { meta: TONE.meta, data: undefined, footer: TONE.meta } as const;
+/** Node-strip cells that point somewhere (`P_i`, a leaf's `ptr` and `next`); the rest are keys. */
+const POINTER = /^(P_|ptr$|next$)/;
+const stripCell = (label: string): CellInput => (POINTER.test(label) ? { label, tone: TONE.meta } : label);
 /** Record height per unit of `recWeight` in a slotted page. */
 const REC_H = 40;
 /** Body height of a heap page; its free and used regions split it by `free`. */
@@ -218,10 +223,10 @@ function SlotGrid(p: SlotGridProps) {
     <Diagram title={p.title} caption={p.caption} className={p.className}>
       <Row gap={48}>
         <Group title={p.header} align="stretch" gap={8}>
-          {p.headerNote && <Node title={p.headerNote} state="ghost" />}
+          {p.headerNote && <Node title={p.headerNote} tone={TONE.meta} />}
           {p.headerRight && !bitRow && <Text text={p.headerRight} mono muted />}
           <Grid cols={cols} colGap={8} rowGap={bitRow ? 4 : 8} align="stretch">
-            {bitRow && bits.map((b, i) => <Text key={`b${i}`} text={b} mono muted={b === "0"} />)}
+            {bitRow && bits.map((b, i) => <Text key={`b${i}`} text={b} mono tone={TONE.meta} />)}
             {p.cells.map((c, i) => (
               <Node key={i} id={`slot${i}`} title={c.label} state={SLOT[c.state ?? "normal"]} />
             ))}
@@ -238,9 +243,9 @@ function SlotGrid(p: SlotGridProps) {
 /** The packed delete, before and after: the gap closes and every later record moves left. */
 function PackedDelete(p: ByteStripProps & { shiftLabel: string }) {
   const kept = p.cells.flatMap((c, i) => (c.state === "gap" ? [] : [i]));
-  const before: CellItem[] = p.cells.map((c) => ({ label: c.label, state: c.state === "gap" ? "active" : BYTE[c.state ?? "normal"] }));
+  const before = p.cells.map((c): CellItem => (c.state === "gap" ? { label: c.label, state: "active" } : byte(c)));
   const after: CellItem[] = [
-    ...kept.map((i) => ({ label: p.cells[i].label, state: BYTE[p.cells[i].state ?? "normal"] })),
+    ...kept.map((i) => byte(p.cells[i])),
     ...Array.from({ length: p.cells.length - kept.length }, () => ({ state: "free" as const })),
   ];
   const cell = Math.max(...p.cells.map((c) => measure(c.label, FONT.mono, { mono: true }))) + CELL.pad;
@@ -277,9 +282,9 @@ function ByteStrip(p: ByteStripProps) {
         {runs.map((r, k) => (
           <Group key={k} title={r.title} pad={8}>
             {p.offsets ? (
-              <Table columns={r.cells.map((_, j) => range(r.at + j))} rows={[r.cells.map((c) => c.label)]} />
+              <Table columns={r.cells.map((_, j) => range(r.at + j))} rows={[r.cells.map((c) => (c.state === "meta" ? { text: c.label, tone: TONE.meta } : c.label))]} />
             ) : (
-              <Cells items={r.cells.map((c) => ({ label: c.label, state: BYTE[c.state ?? "normal"] }))} />
+              <Cells items={r.cells.map(byte)} />
             )}
           </Group>
         ))}
@@ -294,12 +299,12 @@ function Slotted(p: SlottedProps) {
   return (
     <Diagram title={p.title} caption={p.caption} className={p.className}>
       <Group dir="row" align="stretch" gap={28}>
-        <Group title={p.leftTitle} align="stretch" gap={STACK_GAP}>
+        <Group title={p.leftTitle} align="stretch" gap={STACK_GAP} tone={TONE.meta}>
           {p.headerRows.map((h, i) => (
-            <Node key={`h${i}`} id={`hdr${i}`} title={h} state="ghost" />
+            <Node key={`h${i}`} id={`hdr${i}`} title={h} tone={TONE.meta} />
           ))}
           {p.slots.map((s, i) => (
-            <Node key={i} id={`slot${i}`} title={s.label} />
+            <Node key={i} id={`slot${i}`} title={s.label} tone={TONE.meta} />
           ))}
         </Group>
         <Group id="free" title={p.freeLabel ?? "Free space"} state="free" />
@@ -357,10 +362,10 @@ function Pax(p: PaxProps) {
   return (
     <Diagram title={p.title} caption={p.caption} className={p.className}>
       <Group title={p.header} align="stretch" gap={10}>
-        {p.headerNote && <Node title={p.headerNote} state="ghost" />}
+        {p.headerNote && <Node title={p.headerNote} tone={TONE.meta} />}
         {p.groups.map((g, gi) => (
           <Group key={gi} title={g.label} dashed dir="row" gap={18} align="end">
-            <Node title="mini header" state="ghost" />
+            <Node title="mini header" tone={TONE.meta} />
             {p.columns.map((col, ci) => (
               <Col key={ci} gap={6}>
                 <Text text={`partition ${col}`} size="note" weight={600} />
@@ -387,18 +392,18 @@ function Orc(p: OrcProps) {
               {p.ellipsis && n > 1 && i === n - 1 && <Dots dir="col" />}
               <Group id={`stripe${i}`} title={s.label} align="stretch" gap={4} pad={8}>
                 {s.bands.map((b, j) => (
-                  <Node key={j} title={b.label} state={BAND[b.kind ?? "data"]} />
+                  <Node key={j} title={b.label} tone={BAND[b.kind ?? "data"]} />
                 ))}
               </Group>
             </Fragment>
           ))}
-          {p.fileFooter && <Node title={p.fileFooter} state="strong" />}
+          {p.fileFooter && <Node title={p.fileFooter} tone={TONE.meta} />}
         </Group>
         <Group id="detail" title={p.rightTitle} align="stretch" gap={4}>
           {p.detail.map((d, i) => (
             <Fragment key={i}>
               {i > 0 && (d.kind === "data") !== (p.detail[i - 1].kind === "data") && <Space h={10} />}
-              <Node title={d.label} state={d.kind === "data" ? undefined : "ghost"} />
+              <Node title={d.label} tone={d.kind === "data" ? undefined : TONE.meta} />
             </Fragment>
           ))}
         </Group>
@@ -416,9 +421,9 @@ function HeapDir(p: HeapDirProps) {
   return (
     <Diagram title={p.title} caption={p.caption} className={p.className}>
       <Col gap={36}>
-        <Group title={p.dirTitle ?? "Directory"} dir="row" gap={16}>
+        <Group title={p.dirTitle ?? "Directory"} dir="row" gap={16} tone={TONE.meta}>
           {p.pages.map((pg, i) => (
-            <Node key={i} id={`entry${i}`} title={pg.entry} mono w={w} />
+            <Node key={i} id={`entry${i}`} title={pg.entry} mono w={w} tone={TONE.meta} />
           ))}
           {p.ellipsis && <Dots />}
         </Group>
@@ -458,8 +463,8 @@ function Overflow(p: OverflowProps) {
             </Group>
           ))}
         </Row>
-        <Group id="ovf" title={block} align="stretch" state="active">
-          <Table rows={[[record]]} />
+        <Group id="ovf" title={block} align="stretch" tone={TONE.overflow}>
+          <Table rows={[{ cells: [record], tone: TONE.overflow }]} />
         </Group>
       </Col>
       <Footnote text={p.footnote} />
@@ -483,8 +488,8 @@ function NodeStrip(p: NodeStripProps) {
             <Col key={i} gap={6}>
               <Text text={n.title} weight={600} />
               <Row gap={6}>
-                <Cells id={`n${i}a`} items={head} mono={false} ellipsis={cut < 0 ? undefined : "end"} />
-                {tail.length > 0 && <Cells id={`n${i}b`} items={tail} mono={false} />}
+                <Cells id={`n${i}a`} items={head.map(stripCell)} mono={false} ellipsis={cut < 0 ? undefined : "end"} />
+                {tail.length > 0 && <Cells id={`n${i}b`} items={tail.map(stripCell)} mono={false} />}
                 {n.nextLink && <Space w={30} />}
                 {n.nextLink && <Space id={`n${i}next`} />}
               </Row>

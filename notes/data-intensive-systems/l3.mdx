@@ -109,9 +109,9 @@ A packed page uses space perfectly but cannot delete without shifting; a bitmap 
 <PageLayout
   mode="byte-strip"
   cells={[
-    { label: "(21,5)", group: "Directory" },
-    { label: "(26,10)" },
-    { label: "(36,9)" },
+    { label: "(21,5)", group: "Directory", state: "meta" },
+    { label: "(26,10)", state: "meta" },
+    { label: "(36,9)", state: "meta" },
     { label: "65000", group: "Fixed" },
     { label: "0000", state: "meta" },
     { label: "10101", span: 1, group: "Payload" },

@@ -1,4 +1,5 @@
-import { Col, Diagram, Edge, Node, Row } from "@/components/figure";
+import { Col, Diagram, Edge, Node, Row, type Tone } from "@/components/figure";
+import { TONE } from "@/components/tones";
 
 /** Built-in relational-algebra operator glyphs. Pass `glyph` for anything else. */
 export type QueryOp =
@@ -60,6 +61,7 @@ export interface QueryTreeProps {
 }
 
 const STATE = { normal: undefined, highlight: "strong", emphasis: "strong", new: "placeholder" } as const;
+const OP_TONE: Partial<Record<QueryOp, Tone>> = { select: TONE.selection, project: TONE.projection };
 
 export function QueryTree({ nodes, links, leafOrder, title, caption, className }: QueryTreeProps) {
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -76,7 +78,7 @@ export function QueryTree({ nodes, links, leafOrder, title, caption, className }
         {n.relation ? (
           <Node id={id} title={n.relation} mono state={state} />
         ) : (
-          <Node id={id} title={`${n.glyph ?? OP_GLYPH[n.op!]}${n.sub ? `_{${n.sub}}` : ""}`} state={state} />
+          <Node id={id} title={`${n.glyph ?? OP_GLYPH[n.op!]}${n.sub ? `_{${n.sub}}` : ""}`} state={state} tone={n.glyph ? undefined : OP_TONE[n.op!]} />
         )}
         {children.length > 0 && (
           <Row gap={24} align="start">
