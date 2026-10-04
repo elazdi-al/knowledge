@@ -456,7 +456,6 @@ function PreviewPane({ active }: { active: Active }) {
           <span>{note.label}</span>
         </div>
         <div className="cmdk-preview-title">{note.title}</div>
-        {note.description && <p className="cmdk-preview-desc">{note.description}</p>}
         <PreviewBody lines={note.preview} />
       </>
     );

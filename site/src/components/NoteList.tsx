@@ -8,7 +8,7 @@ import { CourseIcon } from "@/components/CourseIcon";
 export interface CourseEntry {
   slug: string;
   name: string;
-  notes: { slug: string; label: string; description?: string }[];
+  notes: { slug: string; label: string }[];
 }
 
 interface Props {
@@ -55,15 +55,14 @@ export function NoteList({ courses }: Props) {
       <div ref={scroller} className="home-scroller">
         <div className="grid">
           {courses.map((c) => (
-            <Tabs.Panel key={c.slug} value={c.slug} className="course-panel flex flex-col gap-7 sm:gap-4">
+            <Tabs.Panel key={c.slug} value={c.slug} className="course-panel flex flex-col">
               {c.notes.map((note) => (
                 <Link
                   key={note.slug}
                   href={`/notes/${note.slug}`}
-                  className="-mx-3 flex flex-col rounded-md px-3 no-underline hover:bg-[color:var(--color-hover)] sm:py-3"
+                  className="-mx-3 flex h-10 items-center rounded-md px-3 no-underline hover:bg-[color:var(--color-hover)]"
                 >
-                  <span>{note.label}</span>
-                  {note.description && <span className="text-gray-1100">{note.description}</span>}
+                  {note.label}
                 </Link>
               ))}
             </Tabs.Panel>

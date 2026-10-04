@@ -133,11 +133,10 @@ export async function getNoteBySlug(slug: string): Promise<Note | undefined> {
   return all.find((n) => n.slug === slug);
 }
 
+/** "16 February, 2026". */
 export function formatDate(d?: Date): string {
   if (!d) return "";
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return d
+    .toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    .replace(/ (\d+)$/, ", $1");
 }
