@@ -1,4 +1,5 @@
-import { Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text } from "@/components/figure";
+import { Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text, type Tone } from "@/components/figure";
+import { TONE } from "@/components/tones";
 
 const notes = (lines: string[]) => lines.map((t) => <Text key={t} text={t} size="note" muted />);
 const down = (from: string, to: string) => <Edge key={to} from={from} to={to} fromSide="bottom" toSide="top" route="ortho" />;
@@ -136,7 +137,7 @@ export function SatToIndsetReductionSchema({
 }
 
 const DFA_D = 44;
-const state = (id: string, label: string, double = false) => <Node id={id} shape="circle" w={DFA_D} title={label} double={double} />;
+const state = (id: string, label: string, double = false, tone?: Tone) => <Node id={id} shape="circle" w={DFA_D} title={label} double={double} tone={tone} />;
 const hole = <Space w={DFA_D} h={DFA_D} />;
 
 export function DfaToPathReductionSchema({
@@ -166,7 +167,7 @@ export function DfaToPathReductionSchema({
               {hole}
               {state("d-q0", "q_0")}
               {hole}
-              {state("d-qf", "q_f", true)}
+              {state("d-qf", "q_f", true, TONE.accept)}
             </Grid>
             <Text text="accepting state reachable" size="note" muted />
           </Group>
@@ -186,7 +187,7 @@ export function DfaToPathReductionSchema({
         </Row>
         <Text text="<D> maps to <G,q_0,t>; transition labels are dropped" size="note" muted />
       </Col>
-      <Edge from="dfa" to="graph" label="f" />
+      <Edge from="dfa" to="graph" label="f" tone={TONE.reduction} />
       <Edge from="d-q0" to="d-q1" route="arc" label="0" />
       <Edge from="d-q1" to="d-qf" route="arc" label="1" />
       <Edge from="d-q0" to="d-qf" route="arc" bend={40} label="1" />
@@ -219,7 +220,7 @@ export function ReductionPipelineSchema({
         <Group title={result}>
           <Row wrap gap={36}>
             <Node id="w" title="w" mono />
-            <Node id="f" title="f" sub="computable, total" />
+            <Node id="f" title="f" sub="computable, total" tone={TONE.reduction} />
             <Node id="fw" title="f(w)" mono />
             <Node id="m" title={solver} sub={solverNote} />
           </Row>
@@ -254,18 +255,18 @@ export function RegTmReductionSchema({
       <Col gap={20}>
         <Row wrap gap={36}>
           <Node id="mw" title="<M,w>" mono />
-          <Node id="f" title="f" />
+          <Node id="f" title="f" tone={TONE.reduction} />
           <Node id="m2" title="<M'>" mono />
           <Node id="reg" title="R_{REG}" />
         </Row>
         <Group title="M' on input y" dir="row" gap={40}>
           <Node id="yb" title="y in B?" />
           <Col gap={20} align="start">
-            <Node id="acc1" title="accept" />
+            <Node id="acc1" title="accept" tone={TONE.accept} />
             <Row gap={40}>
               <Node id="run" title="run M on w" />
               <Col gap={12} align="start">
-                <Node id="acc2" title="accept" />
+                <Node id="acc2" title="accept" tone={TONE.accept} />
                 <Node id="rej" title="no accept" state="placeholder" />
               </Col>
             </Row>

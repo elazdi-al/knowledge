@@ -1,9 +1,7 @@
 import { Grid, Node, Space, Tag, type State } from "@/components/figure";
+import { TX_TONE } from "@/components/tones";
 
 export type TxId = 1 | 2 | 3;
-
-/** Transaction identity hues, shared by every concurrency figure. */
-export const TX_TONE = { 1: "blue", 2: "orange", 3: "green" } as const;
 
 export interface ScheduleOp {
   tx: TxId;

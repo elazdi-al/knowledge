@@ -1,6 +1,7 @@
-import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Table, Text } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Table, Text, type Tone } from "@/components/figure";
 import { labelPillW } from "@/components/figure/layout";
 import { LABEL_CLEAR } from "@/components/figure/theme";
+import { TONE } from "@/components/tones";
 
 /** Visual state shared across page boxes and slot cells.
  *  `full` = heavier outline (the page being changed / spilling),
@@ -113,13 +114,13 @@ const STATE = { normal: undefined, full: "strong", new: "active", highlight: "st
 const rowCell = (s: string) => (/[_^]/.test(s) ? { text: s, mono: false } : s);
 
 /** A bucket: a titled panel over its rows, or a single value box when it has no rows. */
-function Page({ p, badge }: { p: HashPage; badge?: string }) {
+function Page({ p, badge, tone }: { p: HashPage; badge?: string; tone?: Tone }) {
   const state = STATE[p.state ?? "normal"];
   const chip = badge ?? (p.depth != null ? String(p.depth) : undefined);
-  if (p.rows == null && !p.subtitle) return <Node id={p.id} title={p.title} mono badge={chip} state={state} />;
-  const rows = p.rows?.length ? p.rows.map((r) => (Array.isArray(r) ? r : [r]).map(rowCell)) : [[""]];
+  if (p.rows == null && !p.subtitle) return <Node id={p.id} title={p.title} mono badge={chip} state={state} tone={tone} />;
+  const rows = (p.rows?.length ? p.rows.map((r) => (Array.isArray(r) ? r : [r]).map(rowCell)) : [[""]]).map((cells) => ({ cells, tone }));
   return (
-    <Group id={p.id} title={p.title} badge={chip} state={state} pad={8} gap={4} align="stretch">
+    <Group id={p.id} title={p.title} badge={chip} state={state} tone={tone} pad={8} gap={4} align="stretch">
       {p.subtitle && <Text text={p.subtitle} size="note" muted />}
       <Table id={`${p.id}.t`} rows={rows} />
     </Group>
@@ -127,12 +128,12 @@ function Page({ p, badge }: { p: HashPage; badge?: string }) {
 }
 
 /** Pages one under the other, equal width, each note beside its page. */
-function Pages({ pages, badge }: { pages: HashPage[]; badge?: (i: number) => string | undefined }) {
+function Pages({ pages, badge, tone }: { pages: HashPage[]; badge?: (i: number) => string | undefined; tone?: Tone }) {
   const notes = pages.some((p) => p.note);
   return (
     <Grid cols={notes ? 2 : 1} colGap={10} rowGap={16} align="stretch">
       {pages.flatMap((p, i) => [
-        <Page key={p.id} p={p} badge={badge?.(i)} />,
+        <Page key={p.id} p={p} badge={badge?.(i)} tone={tone} />,
         notes && (p.note ? <Text key={`${p.id}.n`} text={p.note} size="note" muted /> : <Space key={`${p.id}.n`} />),
       ])}
     </Grid>
@@ -146,21 +147,21 @@ export function HashDiagram(props: HashProps) {
 /** static, chained and directory: a source or directory feeding a column of pages, overflow pages beside them. */
 function columnPages({ mode, source, sourceNote, pages = [], overflow = [], spills = [], fanout = [], directory = [], directoryTitle, globalDepth, links = [], title, caption, className }: HashProps) {
   const groupTitle = directoryTitle ?? (globalDepth != null ? "global depth" : undefined);
-  const dir = <Cells id="dir" dir="col" items={directory} />;
+  const dir = <Cells id="dir" dir="col" items={directory.map((label) => ({ label, tone: TONE.meta }))} />;
   return (
     <Diagram title={title} caption={caption} className={className}>
       <Row gap={48} align="center">
         {source && <Node id="src" shape="circle" title={source} sub={sourceNote} />}
         {mode !== "static" && directory.length > 0 &&
           (groupTitle || globalDepth != null ? (
-            <Group title={groupTitle} badge={globalDepth != null ? String(globalDepth) : undefined}>
+            <Group title={groupTitle} badge={globalDepth != null ? String(globalDepth) : undefined} tone={TONE.meta}>
               {dir}
             </Group>
           ) : (
             dir
           ))}
         <Pages pages={pages} />
-        {overflow.length > 0 && <Pages pages={overflow} />}
+        {overflow.length > 0 && <Pages pages={overflow} tone={TONE.overflow} />}
       </Row>
       {source && fanout.map((f) => <Edge key={f.to} from="src" to={f.to} dashed label={f.label} />)}
       {links.map((l, i) => (
@@ -187,7 +188,7 @@ function bucketColumn({ pages = [], overflow = [], spills = [], bucketLabels = [
           <Row key={o.id} gap={0}>
             {/* a Grid gap does not grow for an edge label, so leave the spill's label room here */}
             {s.label && <Space w={labelPillW(s.label) + LABEL_CLEAR - 16} />}
-            <Page p={o} />
+            <Page p={o} tone={TONE.overflow} />
           </Row>
         ))}
         {p.note && <Text text={p.note} size="note" muted />}

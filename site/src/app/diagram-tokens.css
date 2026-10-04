@@ -1,8 +1,10 @@
 /* Figure palette. Neutrals share the site's warm sand hue. Every tone has the
-   same four roles at the same lightness and chroma, so no hue shouts louder
-   than another: a tint fill, a line (borders), a solid (strokes, swatches) and
-   an ink (text on the tint, >= 4.5:1). Dark is screen-only so print stays
-   light. */
+   same four roles: a tint fill, a line (borders), a solid (strokes) and an ink
+   (text on the tint and the canvas, >= 4.5:1 and APCA Lc >= 60). Per role all
+   hues share one lightness and one share of their sRGB chroma ceiling at that
+   lightness, the ceiling capped at the median across hues so green near white
+   and violet at mid lightness do not shout. Hue is constant across roles. Dark
+   is screen-only so print stays light. */
 
 :root {
   --dg-canvas: var(--color-bg);
@@ -17,26 +19,26 @@
   --dg-line: oklch(0.7 0.006 100);
   --dg-hatch: oklch(0.93 0.004 100);
 
-  --dg-blue-tint: oklch(0.962 0.018 255);
-  --dg-blue-line: oklch(0.81 0.085 255);
-  --dg-blue-solid: oklch(0.63 0.15 255);
-  --dg-blue-ink: oklch(0.525 0.14 255);
-  --dg-orange-tint: oklch(0.962 0.02 45);
-  --dg-orange-line: oklch(0.81 0.085 45);
-  --dg-orange-solid: oklch(0.63 0.15 45);
-  --dg-orange-ink: oklch(0.525 0.14 45);
-  --dg-green-tint: oklch(0.962 0.02 138);
-  --dg-green-line: oklch(0.81 0.085 138);
-  --dg-green-solid: oklch(0.63 0.15 138);
-  --dg-green-ink: oklch(0.525 0.14 138);
-  --dg-purple-tint: oklch(0.962 0.019 290);
-  --dg-purple-line: oklch(0.81 0.085 290);
-  --dg-purple-solid: oklch(0.63 0.15 290);
-  --dg-purple-ink: oklch(0.525 0.14 290);
-  --dg-red-tint: oklch(0.962 0.018 22);
-  --dg-red-line: oklch(0.81 0.085 22);
-  --dg-red-solid: oklch(0.63 0.15 22);
-  --dg-red-ink: oklch(0.525 0.14 22);
+  --dg-blue-tint: oklch(0.935 0.028 255);
+  --dg-blue-line: oklch(0.8 0.077 255);
+  --dg-blue-solid: oklch(0.63 0.146 255);
+  --dg-blue-ink: oklch(0.5 0.132 255);
+  --dg-teal-tint: oklch(0.935 0.03 195);
+  --dg-teal-line: oklch(0.8 0.086 195);
+  --dg-teal-solid: oklch(0.63 0.077 195);
+  --dg-teal-ink: oklch(0.5 0.068 195);
+  --dg-green-tint: oklch(0.935 0.03 138);
+  --dg-green-line: oklch(0.8 0.086 138);
+  --dg-green-solid: oklch(0.63 0.14 138);
+  --dg-green-ink: oklch(0.5 0.124 138);
+  --dg-purple-tint: oklch(0.935 0.03 290);
+  --dg-purple-line: oklch(0.8 0.081 290);
+  --dg-purple-solid: oklch(0.63 0.146 290);
+  --dg-purple-ink: oklch(0.5 0.132 290);
+  --dg-red-tint: oklch(0.935 0.029 22);
+  --dg-red-line: oklch(0.8 0.086 22);
+  --dg-red-solid: oklch(0.63 0.146 22);
+  --dg-red-ink: oklch(0.5 0.132 22);
 }
 
 @media screen {
@@ -52,25 +54,25 @@
     --dg-line: oklch(0.52 0.006 100);
     --dg-hatch: oklch(0.25 0.004 100);
 
-    --dg-blue-tint: oklch(0.25 0.03 255);
-    --dg-blue-line: oklch(0.46 0.075 255);
-    --dg-blue-solid: oklch(0.68 0.13 255);
-    --dg-blue-ink: oklch(0.84 0.079 255);
-    --dg-orange-tint: oklch(0.25 0.03 45);
-    --dg-orange-line: oklch(0.46 0.075 45);
-    --dg-orange-solid: oklch(0.68 0.13 45);
-    --dg-orange-ink: oklch(0.84 0.085 45);
-    --dg-green-tint: oklch(0.25 0.03 138);
-    --dg-green-line: oklch(0.46 0.075 138);
-    --dg-green-solid: oklch(0.68 0.13 138);
-    --dg-green-ink: oklch(0.84 0.085 138);
-    --dg-purple-tint: oklch(0.25 0.03 290);
-    --dg-purple-line: oklch(0.46 0.075 290);
-    --dg-purple-solid: oklch(0.68 0.13 290);
-    --dg-purple-ink: oklch(0.84 0.084 290);
-    --dg-red-tint: oklch(0.25 0.03 22);
-    --dg-red-line: oklch(0.46 0.075 22);
-    --dg-red-solid: oklch(0.68 0.13 22);
-    --dg-red-ink: oklch(0.84 0.085 22);
+    --dg-blue-tint: oklch(0.28 0.051 255);
+    --dg-blue-line: oklch(0.46 0.076 255);
+    --dg-blue-solid: oklch(0.7 0.112 255);
+    --dg-blue-ink: oklch(0.84 0.073 255);
+    --dg-teal-tint: oklch(0.28 0.026 195);
+    --dg-teal-line: oklch(0.46 0.039 195);
+    --dg-teal-solid: oklch(0.7 0.084 195);
+    --dg-teal-ink: oklch(0.84 0.079 195);
+    --dg-green-tint: oklch(0.28 0.048 138);
+    --dg-green-line: oklch(0.46 0.071 138);
+    --dg-green-solid: oklch(0.7 0.119 138);
+    --dg-green-ink: oklch(0.84 0.079 138);
+    --dg-purple-tint: oklch(0.28 0.051 290);
+    --dg-purple-line: oklch(0.46 0.076 290);
+    --dg-purple-solid: oklch(0.7 0.119 290);
+    --dg-purple-ink: oklch(0.84 0.077 290);
+    --dg-red-tint: oklch(0.28 0.051 22);
+    --dg-red-line: oklch(0.46 0.076 22);
+    --dg-red-solid: oklch(0.7 0.119 22);
+    --dg-red-ink: oklch(0.84 0.079 22);
   }
 }

@@ -1,6 +1,7 @@
 import { Cells, Col, Diagram, Edge, Grid, Group, measure, Node, Row, Space, Text, type CellItem, type State, type Tone } from "@/components/figure";
 import { FONT } from "@/components/figure/theme";
-import { ScheduleGrid, TX_TONE, type ScheduleOp } from "@/components/ScheduleGrid";
+import { ScheduleGrid, type ScheduleOp } from "@/components/ScheduleGrid";
+import { TONE, TX_TONE } from "@/components/tones";
 
 interface FigureProps {
   title?: string;
@@ -135,12 +136,12 @@ export function QuorumOverlapSchema({ title, caption, className }: FigureProps) 
                 <Space />
                 <Cells cell={QUORUM_CELL} items={REPLICAS} />
                 <Text text="W" size="note" weight={600} />
-                <Cells cell={QUORUM_CELL} items={REPLICAS.map((_, i) => (WRITE_QUORUM.includes(i) ? { label: "ack", tone: "orange" } : null))} />
+                <Cells cell={QUORUM_CELL} items={REPLICAS.map((_, i) => (WRITE_QUORUM.includes(i) ? { label: "ack", tone: TONE.write } : null))} />
                 <Text text="R" size="note" weight={600} />
                 <Cells
                   cell={QUORUM_CELL}
                   items={REPLICAS.map((_, i) =>
-                    !q.read.includes(i) ? null : WRITE_QUORUM.includes(i) ? { label: "both", state: "active" } : { label: "read", tone: "green" },
+                    !q.read.includes(i) ? null : WRITE_QUORUM.includes(i) ? { label: "both", state: "active" } : { label: "read", tone: TONE.read },
                   )}
                 />
               </Grid>

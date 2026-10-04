@@ -1,11 +1,13 @@
 import { Col, Diagram, Edge, Free, Node, Row, Space, type Side } from "@/components/figure";
 import { nodeTitleW } from "@/components/figure/layout";
+import { TONE } from "@/components/tones";
 
 /**
  * A finite-automaton diagram in the textbook style: round states (one
- * diameter per figure), a bare arrow into the start state, a double ring for
- * accepting states, arcs that bow apart, and self-loops on the free side of
- * their state. States sit on one baseline unless the author places them.
+ * diameter per figure), a bare arrow into the start state, a double ring in
+ * the accept tone for accepting states, arcs that bow apart, and self-loops
+ * on the free side of their state. States sit on one baseline unless the
+ * author places them.
  */
 
 export interface AutoState {
@@ -16,7 +18,7 @@ export interface AutoState {
   /** Optional manual position for diagrams that should not be laid out in a row. */
   x?: number;
   y?: number;
-  /** Mark as accepting (double ring). Alternative to the top-level `accepting`. */
+  /** Mark as accepting (double ring, accept tone). Alternative to the top-level `accepting`. */
   accepting?: boolean;
 }
 
@@ -129,9 +131,10 @@ export function Automaton({ states, transitions, start, startDir = "left", accep
     return SIDE[best];
   };
 
-  const node = (s: AutoState, x?: number, y?: number) => (
-    <Node key={s.id} id={s.id} shape="circle" w={D} title={s.label ?? s.id} double={!!s.accepting || !!accepting?.includes(s.id)} x={x} y={y} />
-  );
+  const node = (s: AutoState, x?: number, y?: number) => {
+    const acc = !!s.accepting || !!accepting?.includes(s.id);
+    return <Node key={s.id} id={s.id} shape="circle" w={D} title={s.label ?? s.id} double={acc} tone={acc ? TONE.accept : undefined} x={x} y={y} />;
+  };
 
   let body;
   if (manual) {

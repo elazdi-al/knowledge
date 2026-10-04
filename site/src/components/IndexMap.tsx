@@ -1,6 +1,7 @@
 import { Fragment } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Grid, Group, measure, Node, NODE, Row, Space, Table, Text } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Grid, Group, measure, Node, NODE, Row, Space, Table, Text, type Tone } from "@/components/figure";
 import { GROUP, TABLE } from "@/components/figure/theme";
+import { TONE } from "@/components/tones";
 
 /**
  * Index structures: entry columns (the index) linked into a data side. One
@@ -32,7 +33,7 @@ export interface EntryColumn {
   /** Bold title above the strip. */
   title?: string;
   entries: EntryBox[];
-  /** Visual flavour: "entry" (default, element fill) or "bucket" (tint). */
+  /** "entry" (default) or "bucket"; both draw as index rows, toned as metadata. */
   kind?: "entry" | "bucket";
   /** Small muted note centred beneath the strip. */
   note?: string;
@@ -76,7 +77,7 @@ export interface MapNode {
 export interface LevelBlock {
   id: string;
   title?: string;
-  /** Number of faint placeholder rows drawn inside the block. */
+  /** Number of empty rows drawn inside the block. */
   rows?: number;
   /** Draw a vertical drawn-dots glyph to suggest continuation. */
   ellipsis?: boolean;
@@ -210,7 +211,7 @@ function entryCol(col: EntryColumn, ys: number[], key: string, alias: Alias) {
           return (
             <Fragment key={k}>
               {space > 0 && <Space h={space} />}
-              <Table id={`${key}t${k}`} columns={head} rows={r.entries.map((e) => ({ cells: [String(e.label)], state: STATE[e.state ?? "normal"] }))} />
+              <Table id={`${key}t${k}`} columns={head} rows={r.entries.map((e) => ({ cells: [String(e.label)], state: STATE[e.state ?? "normal"], tone: TONE.meta }))} />
             </Fragment>
           );
         })}
@@ -303,7 +304,7 @@ function PagesMap(p: Props) {
 function LevelBlockEl({ b }: { b: LevelBlock }) {
   if (b.kind === "data") return <Node id={b.id} title={b.note} w={92} h={62} />;
   return (
-    <Group id={b.id} title={b.title} align="stretch" gap={6}>
+    <Group id={b.id} title={b.title} align="stretch" gap={6} tone={TONE.meta}>
       <Cells dir="col" items={Array.from({ length: b.rows ?? 2 }, () => null)} ellipsis={b.ellipsis ? "end" : undefined} />
       {b.note && <Text text={b.note} size="note" muted />}
     </Group>
@@ -341,7 +342,7 @@ function MapPanel({ pn, k }: { pn: Panel; k: number }) {
   const bottom = pn.bottomRow ?? [];
   const scan = pn.scan && top.length > 1;
   const w = Math.max(NODE.h, ...[...top, ...bottom].map((n) => measure(String(n.label), FONT.mono, { mono: true }) + 16));
-  const node = (n: MapNode) => <Node key={n.id} id={n.id} title={String(n.label)} mono w={w} state={STATE[n.state ?? "normal"]} />;
+  const node = (tone?: Tone) => (n: MapNode) => <Node key={n.id} id={n.id} title={String(n.label)} mono w={w} state={STATE[n.state ?? "normal"]} tone={tone} />;
   const gap = pn.chainTop ? 28 : 10;
   return (
     <Group title={pn.title} gap={10}>
@@ -352,14 +353,14 @@ function MapPanel({ pn, k }: { pn: Panel; k: number }) {
               {top.map((_, i) => (
                 <Space key={`a${i}`} id={i === 0 ? `scan${k}.0` : i === top.length - 1 ? `scan${k}.1` : undefined} />
               ))}
-              {top.map(node)}
+              {top.map(node(TONE.meta))}
             </Grid>
           ) : (
-            <Row gap={gap}>{top.map(node)}</Row>
+            <Row gap={gap}>{top.map(node(TONE.meta))}</Row>
           )}
           {pn.topNote && <Text text={pn.topNote} size="note" muted />}
         </Col>
-        <Row gap={10}>{bottom.map(node)}</Row>
+        <Row gap={10}>{bottom.map(node())}</Row>
       </Col>
       {pn.bottomNote && <Text text={pn.bottomNote} size="note" muted />}
       {pn.chainTop && top.slice(1).map((n, i) => <Edge key={`c${i}`} from={top[i].id} to={n.id} head="both" />)}
@@ -403,9 +404,9 @@ function FramesMap(p: Props) {
     <Diagram title={p.title} caption={p.caption} className={p.className}>
       <Col gap={40}>
         <Row gap={56} align="start">
-          <Group title="Page table" align="stretch" gap={6}>
+          <Group title="Page table" align="stretch" gap={6} tone={TONE.meta}>
             {entries.map((e) => (
-              <Node key={e.id} id={e.id} title={String(e.label)} state={STATE[e.state ?? "normal"]} mono />
+              <Node key={e.id} id={e.id} title={String(e.label)} state={STATE[e.state ?? "normal"]} mono tone={TONE.meta} />
             ))}
           </Group>
           <Group title="Buffer pool" align="stretch" gap={6}>
