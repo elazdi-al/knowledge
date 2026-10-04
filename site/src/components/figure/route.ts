@@ -1,7 +1,7 @@
 /** Edge routing from item rects. Pure. */
 import { measureStyle } from "./measure";
 import type { EdgeSpec, Item, Rect, Shape, Side } from "./model";
-import { EDGE_LABEL, PORT_INSET, RADIUS, TEXT, r2 } from "./theme";
+import { EDGE_LABEL, NODE, PORT_INSET, RADIUS, TEXT, r2 } from "./theme";
 
 /** Width of an edge label's pill (text plus padding). */
 export const labelPillW = (label: string) => measureStyle(label, TEXT.edgeLabel) + EDGE_LABEL.pad;
@@ -24,7 +24,7 @@ export function routeItems(items: Item[], edges: EdgeSpec[], rects?: Record<stri
   const own = rects ?? Object.fromEntries(items.map((i) => [i.id, i.rect]));
   const shapes: Record<string, Shape> = {}, solids: Record<string, Rect> = {};
   for (const it of items) {
-    if (it.kind === "node" && it.shape !== "box") shapes[it.id] = it.shape;
+    if (it.kind === "node") shapes[it.id] = it.shape;
     if (SOLID.has(it.kind) && own[it.id]) solids[it.id] = own[it.id];
   }
   return routeEdges(own, edges, { shapes, solids });
@@ -55,18 +55,42 @@ function outline(shape: Shape | undefined, r: Rect, target: Pt): Pt {
       break;
     default:
       s = Math.min(Math.abs(dx) > 1e-6 ? hw / Math.abs(dx) : Infinity, Math.abs(dy) > 1e-6 ? hh / Math.abs(dy) : Infinity);
+      return onOutline(shape, r, { x: c.x + dx * s, y: c.y + dy * s });
   }
   return { x: c.x + dx * s, y: c.y + dy * s };
 }
 
-/** Move a port chosen on the bounding box onto the shape's outline. */
+/** Corner radius of a rounded-rect outline: a pill is all corner. Matches the renderer. */
+const cornerRadius = (shape: Shape | undefined, r: Rect) =>
+  shape === "pill" ? Math.min(r.w, r.h) / 2 : shape === "box" ? Math.min(RADIUS.node, r.w / 2, r.h / 2) : 0;
+
+/** Move a port chosen on the bounding box onto the drawn outline, along the side's inward normal, so a line always touches its shape. */
 function onOutline(shape: Shape | undefined, r: Rect, p: Pt): Pt {
   if (shape === "circle") return outline(shape, r, p);
-  if (shape === "triangle" && Math.abs(p.x - (r.x + r.w / 2)) > 0.5) {
+  if (shape === "triangle") {
+    if (Math.abs(p.x - (r.x + r.w / 2)) <= 0.5) return p;
     const half = (r.w / 2) * (1 - (p.y - r.y) / r.h);
     return { x: r.x + r.w / 2 + Math.sign(p.x - r.x - r.w / 2) * half, y: p.y };
   }
-  return p;
+  const x1 = r.x + r.w, y1 = r.y + r.h;
+  const top = Math.abs(p.y - r.y) < 0.01, bottom = Math.abs(p.y - y1) < 0.01;
+  if (shape === "cylinder") {
+    if (!top && !bottom) return p;
+    const u = (p.x - (r.x + r.w / 2)) / (r.w / 2), ry = NODE.cap / 2;
+    const d = ry * (1 - Math.sqrt(Math.max(0, 1 - u * u)));
+    return { x: p.x, y: top ? p.y + d : p.y - d };
+  }
+  const rad = cornerRadius(shape, r);
+  if (!rad) return p;
+  const depth = (off: number) => (off > 0 ? rad - Math.sqrt(Math.max(0, rad * rad - off * off)) : 0);
+  if (top || bottom) {
+    const d = depth(Math.max(r.x + rad - p.x, p.x - (x1 - rad)));
+    return { x: p.x, y: top ? p.y + d : p.y - d };
+  }
+  const left = Math.abs(p.x - r.x) < 0.01, right = Math.abs(p.x - x1) < 0.01;
+  if (!left && !right) return p;
+  const d = depth(Math.max(r.y + rad - p.y, p.y - (y1 - rad)));
+  return { x: left ? p.x + d : p.x - d, y: p.y };
 }
 
 export interface Pt {
