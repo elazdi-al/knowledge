@@ -289,6 +289,93 @@ html:has(.home-pane) main {
   }
 }
 
+/* Course tabs: an icon and a name per course. A soft pill slides to the
+   active tab, and the incoming list fades in from the side it was picked on
+   while the outgoing one leaves the other way. */
+.course-tabs {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.course-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2rem;
+  padding-inline: 0.5rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  color: var(--color-muted);
+  outline: none;
+  transition: color 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .course-tab:hover {
+    color: var(--color-text);
+  }
+}
+
+.course-tab[data-active] {
+  color: var(--color-text);
+}
+
+.course-tab:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: -2px;
+}
+
+.course-tabs__indicator {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: var(--active-tab-width);
+  height: var(--active-tab-height);
+  translate: var(--active-tab-left) var(--active-tab-top);
+  border-radius: 0.375rem;
+  background: var(--color-hover);
+  transition:
+    translate 200ms cubic-bezier(0.77, 0, 0.175, 1),
+    width 200ms cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.course-panel {
+  grid-area: 1 / 1;
+  transition:
+    opacity 180ms cubic-bezier(0.23, 1, 0.32, 1),
+    translate 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.course-panel[data-starting-style],
+.course-panel[data-ending-style] {
+  opacity: 0;
+}
+
+.course-panel[data-starting-style][data-activation-direction="right"],
+.course-panel[data-ending-style][data-activation-direction="left"] {
+  translate: 12px 0;
+}
+
+.course-panel[data-starting-style][data-activation-direction="left"],
+.course-panel[data-ending-style][data-activation-direction="right"] {
+  translate: -12px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .course-tabs__indicator {
+    transition: none;
+  }
+
+  .course-panel {
+    translate: none !important;
+  }
+}
+
 /* Prose (note body) */
 @layer components {
   .prose {

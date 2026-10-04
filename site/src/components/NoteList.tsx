@@ -3,6 +3,7 @@
 import { Tabs } from "@base-ui/react/tabs";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { CourseIcon } from "@/components/CourseIcon";
 
 export interface CourseEntry {
   slug: string;
@@ -42,32 +43,32 @@ export function NoteList({ courses }: Props) {
       }}
       className="flex min-h-0 flex-1 flex-col"
     >
-      <Tabs.List className="-mx-3 mb-5 flex flex-wrap gap-x-5 px-3 sm:-mt-3 sm:mb-1 sm:py-3">
+      <Tabs.List className="course-tabs -mx-2 mb-5 sm:-mt-2 sm:mb-2">
         {courses.map((c) => (
-          <Tabs.Tab
-            key={c.slug}
-            value={c.slug}
-            className="text-gray-1100 font-medium lowercase transition-colors duration-150 hover:text-[color:var(--color-text)] data-[active]:text-[color:var(--color-text)]"
-          >
+          <Tabs.Tab key={c.slug} value={c.slug} className="course-tab">
+            <CourseIcon course={c.slug} className="size-3.5 shrink-0" />
             {c.name}
           </Tabs.Tab>
         ))}
+        <Tabs.Indicator className="course-tabs__indicator" renderBeforeHydration />
       </Tabs.List>
       <div ref={scroller} className="home-scroller">
-        {courses.map((c) => (
-          <Tabs.Panel key={c.slug} value={c.slug} className="flex flex-col gap-7 sm:gap-4">
-            {c.notes.map((note) => (
-              <Link
-                key={note.slug}
-                href={`/notes/${note.slug}`}
-                className="-mx-3 flex flex-col rounded-md px-3 no-underline hover:bg-[color:var(--color-hover)] sm:py-3"
-              >
-                <span>{note.label}</span>
-                {note.description && <span className="text-gray-1100">{note.description}</span>}
-              </Link>
-            ))}
-          </Tabs.Panel>
-        ))}
+        <div className="grid">
+          {courses.map((c) => (
+            <Tabs.Panel key={c.slug} value={c.slug} className="course-panel flex flex-col gap-7 sm:gap-4">
+              {c.notes.map((note) => (
+                <Link
+                  key={note.slug}
+                  href={`/notes/${note.slug}`}
+                  className="-mx-3 flex flex-col rounded-md px-3 no-underline hover:bg-[color:var(--color-hover)] sm:py-3"
+                >
+                  <span>{note.label}</span>
+                  {note.description && <span className="text-gray-1100">{note.description}</span>}
+                </Link>
+              ))}
+            </Tabs.Panel>
+          ))}
+        </div>
       </div>
     </Tabs.Root>
   );
