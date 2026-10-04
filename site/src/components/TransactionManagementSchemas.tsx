@@ -46,7 +46,7 @@ export function TransactionLogSchema({ title, caption, className }: FigureProps)
 export function WalRulesSchema({ title, caption, className }: FigureProps) {
   return (
     <Diagram title={title} caption={caption ?? "Write-ahead logging requires log-before-page and log-before-commit."} className={className}>
-      <Row wrap gap={16} align="stretch">
+      <Row wrap gap={12} align="stretch">
         <Group title="Rule 1: log before page" gap={14}>
           <Grid cols={3} colGap={16} rowGap={56} align="stretch">
             <Text text="memory" size="note" muted />
@@ -59,15 +59,12 @@ export function WalRulesSchema({ title, caption, className }: FigureProps) {
           <Text text="a dirty page may reach disk only after its log record" size="note" muted />
         </Group>
         <Group title="Rule 2: commit boundary">
-          <Col gap={6}>
-            <Text text="log buffer" size="note" muted />
-            <Row id="buf" gap={6}>
-              <Node title="W(A)" mono />
-              <Node title="W(B)" mono />
-              <Node title="W(C)" mono />
-              <Node title="COMMIT" mono state="active" />
-            </Row>
-          </Col>
+          <Group id="buf" title="log buffer" dir="row" gap={4} pad={8}>
+            <Node title="W(A)" mono />
+            <Node title="W(B)" mono />
+            <Node title="W(C)" mono />
+            <Node title="COMMIT" mono state="active" />
+          </Group>
           <Node id="persist" title="all log records persisted" />
           <Node id="ok" title="return success" />
         </Group>

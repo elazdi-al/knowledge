@@ -478,6 +478,15 @@ function lint(frame: Frame, scene: Scene, caption?: string) {
     if (it.kind === "node" && it.title && nodeTitleW(it) + 8 > it.rect.w) warn(`title "${it.title}" is wider than node "${it.id}"`);
   }
   const rects = Object.fromEntries(frame.items.map((i) => [i.id, i.rect]));
+  const byId = new Map(frame.items.map((i) => [i.id, i]));
+  // a line must end on something drawn: layout boxes are invisible, and a sized Space is empty room
+  for (const e of frame.edges) {
+    for (const id of [e.from, e.to]) {
+      const it = byId.get(id);
+      if (it && (["row", "col", "grid", "graph", "free"].includes(it.kind) || (it.kind === "space" && (it.rect.w > 0 || it.rect.h > 0))))
+        warn(`edge ${e.id} ends on invisible ${it.kind} "${id}"; attach it to the shape inside`);
+    }
+  }
   const solids = frame.items.filter((i) => isSolid(i.kind));
   // a pill over its own endpoint means layout reserved no room for the label; only shared ancestors are exempt
   for (const r of routeItems(frame.items, frame.edges)) {
