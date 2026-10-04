@@ -49,6 +49,8 @@ These rules describe the preferred style for course notes in this workspace.
 ## Definitions
 
 - Define concepts in the form: `**Concept.** Clear definition.`
+- Reserve the concept block for named objects the reader must recognize and use later. A description of how something is organized, or a design principle, is a plain sentence: write "The network is organized in a stack of protocol layers, ...", not `**Layered architecture.** The organization of a network as ...`.
+- A definition is not a catalog. Give at most one or two examples, and only when they add something: "such as a laptop or a server", not a list of five devices whose common point is obvious.
 - Keep definitions precise, short, and study-ready.
 - Define a concept once. Later sections should refer back to it or map notation to it, not define it again.
 - Do not split one concept into separate "formal" and "diagram" concepts. If both views describe the same object, introduce them together and say they are the same object in two forms.
@@ -61,6 +63,10 @@ These rules describe the preferred style for course notes in this workspace.
 ## Style
 
 - Use simple, clear English with an academic tone.
+- Write clear, direct sentences. Every word must carry meaning; never add words to fill a sentence or make it sound fuller.
+- Do not add a sentence that restates what the previous sentence or its examples already show.
+- Name the subject explicitly: "Host and end system are synonyms.", not "The two words are synonyms."
+- Prefer plain connectives and constructions: "rules and the messages", not "rules together with the messages"; "X is organized in ...", not "The organization of X as ...".
 - Add useful verbosity only when it explains why a concept matters or how it connects to the next one.
 - Remove useless verbosity, filler, and slide-narration language.
 - Prefer direct technical statements over motivational framing.
@@ -73,6 +79,7 @@ These rules describe the preferred style for course notes in this workspace.
 - Format examples in italics.
 - Number block examples sequentially within a note: `**Example 1. Title.**` on its own line, italic body in the next paragraph.
 - Use standalone italic lines as intuition helpers: one italicized sentence stating directly how to think about or read the concept, with no "Helper:" or "Intuition:" prefix. Place it immediately after the definition it unlocks. *Read an arrow as "at most once".*
+- Write intuition helpers in direct present tense, without hedges such as "as if", "really" or "actually": *Peers talk through the layers below them: a message goes down the sender's stack, across the medium, and up the receiver's stack.*
 - A short clarifying example may stay inline at the end of a concept block; an intuition helper or reading rule gets its own line, because the line break is the signal.
 - Keep examples close to the concept they clarify.
 - Use examples to test or distinguish concepts, not to restate what was already obvious.
@@ -83,6 +90,8 @@ These rules describe the preferred style for course notes in this workspace.
 ## Line Breaks and Separators
 
 - A line return carries meaning. A new paragraph signals a new thought: a concept block, an example, an intuition helper, a pivot to the next object. Never let text fall to a new line without such a reason.
+- A one-clause illustration of a prose claim goes in parentheses at the end of its sentence: "Splitting the work this way buys flexibility and modularity (e.g. a laptop can move from WiFi to Ethernet without any change to its browser)."
+- A sentence that introduces a list starts its own paragraph, right before the list; do not append it to the previous thought.
 - Merge fragment paragraphs that continue the same thought. A conductor sentence may stand alone only when it pivots the note to a new object.
 - Inline math must be short enough to read inside its sentence without wrapping. Display longer or central expressions on their own line with `$$ ... $$`; a displayed equation should fit on one rendered line.
 - Use `---` separators to split the major areas of a note: groups of sections forming one act, such as foundations versus the core model, or mechanics versus design judgment. Use few; if every section gets one, none mean anything.
