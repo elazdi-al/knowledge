@@ -31,7 +31,9 @@ const css = (await Promise.all(sheets.map(async (href) => absolute(await (await 
 const notesDir = new URL("../../notes/", import.meta.url).pathname;
 const notes = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : readdirSync(notesDir).flatMap((c) => readdirSync(join(notesDir, c)).map((f) => `${c}/${f.replace(/\.mdx$/, "")}`));
+  : readdirSync(notesDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .flatMap((c) => readdirSync(join(notesDir, c.name)).filter((f) => f.endsWith(".mdx")).map((f) => `${c.name}/${f.replace(/\.mdx$/, "")}`));
 
 mkdirSync(out, { recursive: true });
 for (const note of notes) {
