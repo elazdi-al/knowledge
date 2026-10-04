@@ -1,0 +1,384 @@
+---
+title: "Advanced Networks: Lecture 2"
+description: "How IP forwards by longest prefix match, how IPv4 and IPv6 addresses and headers are built and which blocks are reserved, and how NAT lets a private network share one public address."
+tags: ["Advanced networks"]
+created: 2026-10-04
+updated: 2026-10-04
+---
+
+## The Two Rules of IP Unicast
+
+IP interconnects LANs. Routers pass each packet from one to the next by the address of its destination interface.
+
+**IP rule 1.** Only routers interconnect subnets. Traffic inside a subnet never crosses a router. It travels through data-link devices, such as switches and WiFi base stations.
+
+*A WiFi subnet holds hosts B and E behind a base station, an Ethernet subnet holds hosts W and P behind a switch, and a gateway joins the two. Traffic from B to E or from W to P stays inside its subnet. Traffic from W to E crosses the gateway. The two subnets have different prefixes, with the same or different masks.*
+
+Hence the interfaces of a router all sit in different subnets, and no two of them share a prefix.
+
+**Example 1. The destination address inside a LAN.**
+
+*Host W sends a packet to host P on its own Ethernet subnet, through the switch only. Captured on the cable between W and the switch, the packet's IP destination address is P's. It is not the switch's, since a switch works at the data link layer and never appears in the IP header. It is not missing either: the IP header always carries the final destination's address, whether or not a router lies on the path.*
+
+The rule of local MAC, end-to-end IP holds inside one LAN too.
+
+*Sharing a subnet decides whether a router lies on the path, never what the destination address is.*
+
+**IP rule 2.** Addresses have structure. IP interconnects every system in the world by IP address, so each address must say how to deliver to it, in a form routers can process in hardware.
+
+An interface's address is its subnet's prefix followed by the rest.
+
+**Host part.** The bits of an address after the prefix, also called the suffix. Interfaces in one subnet share the prefix, hence the mask, and differ in their host parts. *In `128.178.71.202/24` the prefix is `128.178.71` and the host part is `202`.*
+
+Forwarding on this structure uses a table of prefixes.
+
+**Forwarding table.** The table a system consults to forward each packet, also called the routing table. Each entry maps a destination prefix to a next hop. Routers (intermediate systems) and hosts (end systems) both have one.
+
+**Next hop.** The neighbouring system a packet is handed to, named by its address and the interface that leads to it. When the destination prefix is a subnet the system is attached to, the system delivers the packet directly, with no next hop.
+
+**Longest prefix match (LPM).** IP's forwarding rule: among the entries that match the destination address, use the one with the longest prefix. An entry matches when the address begins with its prefix.
+
+<LongestPrefixMatchSchema />
+
+Each letter stands for a prefix. A is ETHZ's, B is EPFL's, and `B.C` and `B.D` are two subnets inside B. `A.H1` is host H1 in prefix A, and `B.D.*` reads "every address that starts with `B.D`". In each table a chip names the next-hop router, and "direct" marks a subnet the router is attached to.
+
+Alice's packet to Bob, `B.D.H2`, matches only `B.*` at R1 and moves on to R2. At R2 it matches both `B.D.*` and `B.*`. `B.D.*` is longer, so R2 delivers the packet directly onto Bob's subnet. A packet to Bart, `B.C.H2`, matches only `B.*` at R2, so it goes on to R3, where `B.C.*` delivers it.
+
+**Aggregation.** One short prefix standing for many longer ones. R1 needs a single entry `B.*` for every EPFL subnet. Only R2, next to the destinations, tells `B.D` apart from the rest of B. Aggregation keeps forwarding tables small.
+
+*A distant router knows only the short prefix; the longer prefixes appear as the packet gets close.*
+
+Every address so far names a single interface. IP distinguishes four types of address by who receives the packet.
+
+| Type | Delivered to | Structure | Forwarding |
+|---|---|---|---|
+| **Unicast** | exactly one interface | prefix + host part | longest prefix match |
+| **Multicast** | every interface that joined a group | each interface keeps its own address and also listens to the group's multicast address | longest prefix match plus group membership, distribution trees and packet replication |
+| **Broadcast** | every interface on the same subnet | each interface keeps its own address and also listens to the broadcast address | never forwarded |
+| **Anycast** | the "nearest" of several interfaces holding the same address | like unicast, but the same address or prefix is announced from several places | longest prefix match |
+
+---
+
+## IPv4
+
+An IPv4 address's 32 bits can be written in binary, in dotted decimal with one integer per byte, or in hexadecimal with 8 digits of 4 bits each.
+
+```text
+binary          1000 0000 1011 1111 1001 0111 0000 0001
+dotted decimal  128.191.151.1
+hexadecimal     80 bf 97 01
+
+binary          1000 0001 1100 0000 1100 1000 0000 0010
+dotted decimal  129.192.200.2
+hexadecimal     81 c0 c8 02
+```
+
+**Hexadecimal.** Base 16, with digits 0 to 9 then a to f. One hex digit stands for 4 bits, a **nibble**, so binary and hexadecimal convert digit by digit (e.g. c = 1100 and 8 = 1000, so c8 = 1100 1000). To convert to decimal, add the powers of two of the 1 bits:
+
+$$
+1100\,1000_2 = 2^7 + 2^6 + 2^3 = 128 + 64 + 8 = 200 = \mathrm{c8}_{16}
+$$
+
+Two values come up often: f = 1111 = 15 and ff = 1111 1111 = 255, the largest value of one byte.
+
+**Example 2. Hexadecimal to dotted decimal.**
+
+*To write the 32 bits `0102:ffff` in dotted decimal, read each byte as two hex digits: 01 = 1, 02 = 2, ff = 255 and ff = 255, giving `1.2.255.255`. The distractor `16.32.255.255` would be `1020:ffff`, and `228.393.255.255` is impossible, since no byte exceeds 255.*
+
+The 1s of a mask are contiguous, so each byte of a mask takes one of nine values. Knowing these values turns a dotted-decimal mask into a prefix length at a glance.
+
+| 1s in the byte | Binary | Decimal |
+|---|---|---|
+| 0 | 0000 0000 | 0 |
+| 1 | 1000 0000 | 128 |
+| 2 | 1100 0000 | 192 |
+| 3 | 1110 0000 | 224 |
+| 4 | 1111 0000 | 240 |
+| 5 | 1111 1000 | 248 |
+| 6 | 1111 1100 | 252 |
+| 7 | 1111 1110 | 254 |
+| 8 | 1111 1111 | 255 |
+
+**Example 3. Mask `255.255.254.0`.**
+
+*254 = 1111 1110, so the mask is 1111 1111 1111 1111 1111 1110 0000 0000, with 8 + 8 + 7 = 23 contiguous 1s: a /23. Counting whole bytes instead of bits gives the wrong answers 16 or 24, and miscounting the 1s of 254 gives 18 or 22.*
+
+When a prefix does not end on a byte boundary, two addresses that look different in dotted decimal can share it. Prefixes are often written without trailing zero bytes: `2.4.8/23` means `2.4.8.0/23`, and `128.178/16` means `128.178.0.0/16`.
+
+**Example 4. A valid address for H.**
+
+*A router has its north interface at `2.4.8.1` and its south interface at `2.4.7.1`, both with mask `255.255.254.0`. Host H reaches the north interface through an Ethernet switch. Is `2.4.8.2` a valid address for H, is `2.4.9.1`, both, or neither?*
+
+*A switch does not split a subnet, so H belongs to the north subnet and must share the north interface's first 23 bits. Both candidates do: 8 = 0000 1000 and 9 = 0000 1001 differ only in the last bit of the third byte, a host bit under /23. Both are valid, since `2.4.8/23` and `2.4.9/23` are the same prefix, covering `2.4.8.0` to `2.4.9.255`. The south interface, third byte 7 = 0000 0111, has prefix `2.4.6/23`, a different subnet, as rule 1 requires.*
+
+<SubnetBitsSchema />
+
+A prefix of length $n$ leaves $32 - n$ host bits, so the subnet spans $2^{32-n}$ addresses. By IPv4 convention, the first address (host part all 0s) names the subnet, and the last (host part all 1s) is the subnet's broadcast address. The others go to interfaces. *The /23 above spans $2^9 = 512$ addresses, from `2.4.8.0` to the broadcast address `2.4.9.255`, and 510 of them can go to interfaces.*
+
+**Example 5. Who shares Lisa's subnet.**
+
+*Every mask in Lisa's network is `255.255.252.0`, and her phone has `10.0.0.10`. Since 252 = 1111 1100, the prefix is 8 + 8 + 6 = 22 bits. All four addresses below share their first two bytes, so only the first 6 bits of the third byte decide.*
+
+```text
+                third byte
+10.0.0.10       0000 00|00    Lisa's phone
+10.0.0.1        0000 00|00    same subnet
+10.0.3.1        0000 00|11    same subnet
+10.0.4.1        0000 01|00    different subnet
+```
+
+*The subnet is `10.0.0.0/22`, from `10.0.0.0` to `10.0.3.255`. `10.0.4.1` looks close but lies outside.*
+
+The same bit test answers Example 1's question with numbers. *A host at `192.168.1.12` sends to `192.168.0.12`, both with mask `255.255.252.0`. Their third bytes, 0000 0001 and 0000 0000, share their first 6 bits, so both lie in `192.168.0.0/22` and no router is involved. The destination in the IP header is still `192.168.0.12`, as it would be across any number of routers.*
+
+IPv4 reserves some blocks for special uses.
+
+| Block | Meaning |
+|---|---|
+| `0.0.0.0` | absence of an address, or any address |
+| `127/8` | loopback: this host, e.g. `127.0.0.1` |
+| `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` | private addresses |
+| `100.64/10` | private addresses used only by Internet service providers, for carrier-grade NAT |
+| `192.88.99/24` | IPv6-to-IPv4 relay routers, deprecated but not reassigned |
+| `169.254.0.0/16` | link-local addresses |
+| `224/4` | multicast |
+| `240/4` | reserved for experimental or future use |
+| `255.255.255.255/32` | broadcast on the local LAN |
+
+**Private address.** An address from `10.0.0.0/8`, `172.16.0.0/12` or `192.168.0.0/16`. Anyone may use one, at home for instance, but not in the public internet, whose routers drop packets destined to private addresses.
+
+**Link-local address.** An address used only between systems of the same LAN, assigned automatically and never routed.
+
+Every address outside the reserved blocks is **global**, or public, and uniquely identifies an interface in the whole public internet. *A machine configured with `192.168.64.2/24` and gateway `192.168.64.1` has a private address. A range check against the reserved blocks tells private from public, with no ping or lookup.*
+
+The addresses travel in the IPv4 header: 20 bytes of protocol overhead, plus any options, in front of every payload.
+
+<Ipv4HeaderSchema />
+
+Forwarding reads the destination address. The **Protocol** field names the payload's higher-layer protocol: 1 for ICMP, 6 for TCP, 17 for UDP. **ICMP** (Internet Control Message Protocol) carries error messages at the network layer. The remaining fields, such as Time to Live, govern how routers treat the packet.
+
+Router ed0-swi shows longest prefix match on real prefixes. It connects EPFL to the outside world. Its north interface leads to SWITCH, the Swiss academic network, and on to the internet. Its south interface sits on the EPFL backbone, where routers ed2-in and ed2-el serve the campus subnets.
+
+<EpflForwardingSchema />
+
+The destinations are aggregated: `128.178/16` covers all of EPFL, and `128.178.29/24`, the LEMA laboratory, is the one subnet reached through a different router. Next hop ed2-el, for instance, is `128.178.100.2` on interface south.
+
+**Default route.** The entry `0/0`, a prefix of length zero. It matches every address, so longest prefix match picks it exactly when nothing longer matches.
+
+At ed0-swi, longest prefix match amounts to two nested tests.
+
+```text
+if destination in 128.178.*
+    if destination in 128.178.29.*
+        forward to ed2-el
+    else
+        forward to ed2-in
+else
+    forward to sw-la-01
+```
+
+**Example 6. Three destinations at ed0-swi.**
+
+*A LEMA host at `128.178.29.64` matches `128.178.29/24`, `128.178/16` and `0/0`. The /24 wins, so the packet goes south to ed2-el. The host lrcmac4 at `128.178.156.23`, in the LRC laboratory, matches `128.178/16` and `0/0` and goes to ed2-in. A host at ETHZ, `129.132.66.46`, matches only `0/0` and leaves north through sw-la-01.*
+
+A host's forwarding table is usually tiny: one entry for its own subnet, reached directly, and a default route to the gateway. Hence a host's gateway is also called its **default gateway**.
+
+**Example 7. Longest prefix match bit by bit.**
+
+*A router's table holds `23/8` via eth1, `23.0/9` via eth2 and `0/0` via eth3. Where does a packet to `23.1.2.3` go?*
+
+```text
+23.1.2.3    0001 0111 . 0000 0001 . 0000 0010 . 0000 0011
+23/8        0001 0111                                       8 bits match
+23.0/9      0001 0111 . 0                                   9 bits match, longest
+0/0                                                         matches with 0 bits
+```
+
+*Both `23/8` and `23.0/9` match, and /9 is longer, so the packet leaves on eth2. A packet to `23.200.0.1`, whose second byte is 1100 1000, fails the /9 and leaves on eth1.*
+
+## IPv6
+
+IPv4's 32 bits give about $4 \times 10^9$ addresses, far too few for every device. The registries ran out of unallocated IPv4 addresses between 2011 and 2019. Since then, an address must be bought from its current holder, and cloud providers such as AWS bill every public IPv4 address by the hour.
+
+IPv6 succeeds IPv4 with the same services and a new packet format built around 128-bit addresses, about $3 \times 10^{38}$ of them.
+
+IPv4 and IPv6 are incompatible, so routers and hosts handle them separately.
+
+**Dual stack.** IPv4 and IPv6 running side by side on one system, under the same transport layer. A dual-stack router keeps two forwarding tables, one per version. *Host A speaks only IPv4, host B only IPv6, and web browser W both. A and B can each talk to W, but not to each other at the network layer.*
+
+**Hextet.** One of the eight 16-bit groups of an IPv6 address. Hextets are written as up to 4 lowercase hex digits and separated by colons.
+
+Two rules shorten the notation.
+
+- **Leading zeros.** A hextet's leading 0s may be dropped: `0c26` becomes `c26`, and `0a00` becomes `a00`, never `a`.
+- **Double colon.** `::` replaces one or more consecutive all-zero hextets. It appears at most once in an address, since two would make the expansion ambiguous.
+
+| Uncompressed | Compressed |
+|---|---|
+| `2002:0000:0000:0000:0000:ffff:80b2:0c26` | `2002::ffff:80b2:c26` |
+| `2001:0000:0000:01a6:0000:20ff:fe78:30f9` | `2001::1a6:0:20ff:fe78:30f9` |
+
+The second address has two runs of zeros. `::` replaces one, and the other stays an explicit 0.
+
+*To expand, count the written hextets: `::` stands for as many zero hextets as bring the total to 8.*
+
+**Example 8. Expanding `::`.**
+
+*`2001::ada:bada` writes 3 hextets, so `::` stands for 5: `2001:0000:0000:0000:0000:0000:0ada:bada`, where `ada` is `0ada`. Likewise `2020:face:b00c:3:2::1` writes 6 hextets, so `::` stands for 2: `2020:face:b00c:0003:0002:0000:0000:0001`. A candidate with 7 hextets, such as `2020:face:b00c:3:2:0:1`, is not an address.*
+
+**Example 9. Which prefix length fits.**
+
+*Host A, `2019:2:3:4:5::7:b0b0`, reaches interface eth0 of router R1, `2019:2:3:4:5::1`, through a bridge. The router's other interface eth1, `2019:2:3:4:5:1::1`, reaches host B, `2019:2:3:4:5:1::baba`, through another bridge. Every system uses the same prefix length. Which length is valid?*
+
+```text
+A      2019:0002:0003:0004:0005:0000:0007:b0b0
+eth0   2019:0002:0003:0004:0005:0000:0000:0001
+eth1   2019:0002:0003:0004:0005:0001:0000:0001
+B      2019:0002:0003:0004:0005:0001:0000:baba
+```
+
+*Bridges, like switches, do not split subnets. So A and eth0 must share a prefix, and so must eth1 and B, while the router's two sides must differ. A /64 or /80 keeps 4 or 5 hextets, which all four addresses share, so both sides would be one subnet. A /128 separates A from eth0. A /96 keeps 6 hextets: `2019:2:3:4:5:0` on the left, `2019:2:3:4:5:1` on the right. The answer is 96.*
+
+IPv6 reserves its own blocks.
+
+| Block | Meaning |
+|---|---|
+| `::/128` | absence of an address, or any address |
+| `::1/128` | loopback: this host |
+| `fc00::/7`, i.e. fcxx and fdxx | unique local addresses (ULA): private networks |
+| `fe80::/10` | link-local addresses |
+| `ff00::/8` | multicast |
+| `ff02::1:ff00:0/104` | solicited-node multicast |
+| `ff02::2/128` | multicast to all routers on the link |
+| `ff02::1/128` | link-local broadcast, e.g. for periodic router advertisements |
+
+IPv6 has no broadcast address. `ff02::1` is a multicast group that every node on the link joins, so it plays the broadcast role.
+
+An IPv6 prefix length often cuts through a hex digit, which must then be read in binary.
+
+**Example 10. Prefixes that cut a hex digit.**
+
+*`8000::/3` keeps the top 3 bits of the first digit, 100. The digits 8 = 1000 and 9 = 1001 start with 100, while a = 1010, 7 = 0111 and 6 = 0110 do not, so `8000::1` and `9000::1` lie in the block and `a000::1`, `7000::1` and `6000::1` do not. The same reading turns `fc00::/7`, 1111 110x, into fcxx and fdxx, and `fe80::/10`, 1111 1110 10xx, into fe80 to febf.*
+
+**Unique local address (ULA).** IPv6's private address: `fd` followed by a 40-bit global ID that the site draws at random, so two networks are unlikely to pick the same one.
+
+Global unicast addresses currently come only from `2000::/3`, that is 2xxx and 3xxx, since 2 = 0010 and 3 = 0011 both start with 001.
+
+| Block | Holder |
+|---|---|
+| `2001:620::/32` | SWITCH |
+| `2001:620:618::/48` | EPFL |
+| `2001:620:8::/48` | ETHZ |
+| `2a02:1200::/27` | Swisscom |
+| `2001:678::/29` | provider-independent addresses |
+| `2001::/32` | Teredo, tunnelling IPv6 in IPv4 |
+| `2002::/16` | 6to4, tunnelling IPv6 in IPv4 |
+
+Allocation is hierarchical: a provider's customers receive blocks inside the provider's own block. EPFL's `2001:620:618::/48` and ETHZ's `2001:620:8::/48` both lie inside SWITCH's `2001:620::/32`. A global address can also be configured in several places at once, which is how anycast is deployed.
+
+<Ipv6AddressSchema caption="Two EPFL addresses in subnet 1a6, named by the fourth hextet. The global one nests inside EPFL's /48, which nests inside SWITCH's /32. The private one starts with fd and 40 random bits." />
+
+The letters of the longest prefix match figure stand for such prefixes: A = `2001:620:8::/48` at ETHZ, B = `2001:620:618::/48` at EPFL, `B.C` = `2001:620:618:1a5::/64` and `B.D` = `2001:620:618:1a6::/64`. Both subnets lie inside B, so R1's single entry `B.*` covers them.
+
+<Ipv6HeaderSchema />
+
+IPv6 addresses are four times as long as IPv4's, but the header only doubles, from 20 to 40 bytes. **Next Header** plays the role of IPv4's Protocol field. TCP and UDP keep their numbers, 6 and 17, but ICMPv6, the IPv6 version of ICMP, is 58 instead of 1. Hop Limit is IPv6's name for Time to Live.
+
+The IPv6 forwarding table of ed0-swi mirrors its IPv4 table entry for entry.
+
+| IPv6 destination | Next hop % interface | IPv4 counterpart |
+|---|---|---|
+| `2001:620:618:1a4::/64` | `fe80::4%2`, ed2-el | `128.178.29/24` |
+| `2001:620:618::/48` | `fe80::1%2`, ed2-in | `128.178/16` |
+| `::/0` | `fe80::1%1`, sw-la-01 | `0/0` |
+
+A next hop is always a neighbour on an attached link, so its link-local address is enough to name it.
+
+**Zone index.** The suffix `%n` that names the interface through which an address is reached, on a machine with several interfaces such as a router. `fe80::1%2` means address `fe80::1` on interface 2. Zone indices typically show on Windows machines and never appear inside an IP packet.
+
+In the table above, sw-la-01 and ed2-in both use the link-local address `fe80::1`, which is legal because they sit on different links. Only `%1` and `%2` tell them apart.
+
+**Example 11. Three IPv6 destinations at ed0-swi.**
+
+*`2001:620:618:1a4::1`, a LEMA address, matches the /64 and goes to `fe80::4%2`. Host lrcmac4, `2001:620:618:1ad:a00:20ff:fe78:30f9`, matches only the /48, since `1ad` differs from `1a4`, and goes to `fe80::1%2`. An ETHZ address such as `2001:620:8::1` matches only `::/0` and leaves through `fe80::1%1`. The host part of lrcmac4, `a00:20ff:fe78:30f9`, echoes its MAC address `08:00:20:78:30:f9`.*
+
+*Likewise, at a router with entries `::/0`, `2020:2:3::/48`, `2020:2:3:4:5::/80` and `2020:2:3:4:5::/96`, the destination `2020:2:3:4:5::1`, in full `2020:0002:0003:0004:0005:0000:0000:0001`, matches all four, and the /96 is longest.*
+
+**Example 12. Link-local stays on its link.**
+
+*Host A, with `2001:1:2:3::2` and `fe80::2`, shares an Ethernet LAN with interface Rw of router R, which holds `2001:1:2:3::1` and `fe80::1`. Host B, with `2001:1:2:2::baba` and `fe80::baba`, sits two routers away. A pings `fe80::1` and `fe80::baba`. Only Rw receives its ping. A treats a link-local destination as a neighbour on its own LAN, looks for the MAC address of `fe80::baba` there, and fails, since nothing link-local is routed. Pinging B's global address `2001:1:2:2::baba` would work.*
+
+An IPv4 interface usually has one address. An IPv6 interface rarely has only one. A host interface typically holds one or more link-local addresses and one or more global unicast addresses, such as a secure address (a CGA, cryptographically generated) and temporary addresses (random and short-lived, for privacy). *The interface of sw-la-01 facing ed0-swi holds `128.178.47.3`, `2001:620:618:10a::1` and `fe80::1`.*
+
+**Source address selection.** The default algorithm by which the operating system picks a packet's source address, specified in RFC 6724 (an RFC is a numbered internet standard document):
+
+1. prefer an address of the same scope as the destination: link-local for a link-local destination, global for a global one,
+2. prefer a temporary (privacy) address over a stable one,
+3. prefer the longest prefix match with the destination.
+
+A dual-stack client must also choose a destination address, because a name can have both an IPv4 and an IPv6 address. DNS stores an IPv4 address in an **A** record and an IPv6 address in an **AAAA** record. *For epfl.ch, DNS returns the A record `128.178.211.3`, inside `128.178/16`, and the AAAA record `2001:620:618:1d3:7:80b2:d301:1b`, inside EPFL's /48.*
+
+**Happy Eyeballs.** The procedure (RFC 8305) by which a dual-stack client picks IPv6 or IPv4 for one destination:
+
+1. ask DNS for both the A and the AAAA records,
+2. sort the candidate destination addresses (RFC 6724),
+3. start the IPv6 connection first,
+4. if it has not completed within about 250 ms, start IPv4 in parallel.
+
+IPv6 is preferred but never waited for. A broken IPv6 path costs a few hundred milliseconds instead of a failure, which let operators turn IPv6 on without breaking anything. The version a browser ends up using depends on how its operating system runs this procedure. The two versions can take different paths, even over the same links, and since the two stacks are separate, a site unreachable over IPv4 may still work over IPv6.
+
+---
+
+## Private Addresses and NAT
+
+Private and link-local addresses both stay out of the public internet, but they are allocated differently. A private address is allocated *administratively*, by a network administrator, either statically or through a DHCP server, a machine that hands out addresses to hosts. A host allocates its own link-local address *automatically*: in IPv4 when it has no static address and finds no DHCP server, and in IPv6 always, by stateless autoconfiguration (SLAAC). Link-local addresses have their own block so that they never conflict with addresses from a local DHCP server that is temporarily unavailable.
+
+Gateways route neither kind, so many private LANs can reuse the same addresses without conflict. To reach the internet, a private LAN must hide its private addresses behind one or a few public addresses. Both interfaces of such a gateway may carry private addresses, in different subnets as rule 1 requires.
+
+**Network address translation (NAT).** Rewriting each internal (IP address, port) pair of a private network into a public pair, so that many devices share one public address. The box at the network's edge that does it is also called a NAT. Its public address is the NAT address, and the port it picks is the NAT port. The rewriting is also called **masquerading**. The ports are UDP or TCP ports. From outside, only the NAT address and NAT ports are visible.
+
+NAT exists because public IPv4 addresses are scarce. An Internet service provider gives a home a single IPv4 address for its many devices, and a virtualization platform such as VirtualBox lets several guest VMs reach the outside through the physical machine's one address.
+
+A NAT is a network-layer *middlebox*, a box in the middle of the path, and it breaks two principles. It violates layering, since it rewrites transport-layer ports, not only IP addresses. It also violates the rule that public addresses identify hosts uniquely, since one public address stands for many hosts. And it is the exception to local MAC, end-to-end IP: the one device on the path that rewrites IP addresses.
+
+**NAT table.** The NAT's record of its translations, one row per mapping: internal address and port, protocol, NAT address and NAT port.
+
+Hosts A (`192.168.10.11`) and B (`192.168.10.10`) sit on a private LAN behind a NAT whose inside interface is `192.168.10.1` and whose outside interface is `130.104.228.200`. S, at `1.2.3.4`, is a DNS server on UDP port 53.
+
+For outbound traffic, from the internal network (the LAN) to the external one (the WAN, wide area network), the NAT takes three steps.
+
+1. **Translate.** Replace the source IP address and port, in the IP header and the UDP or TCP header.
+2. **Record.** Store the mapping in the NAT table.
+3. **Forward.** Send the packet on.
+
+For inbound traffic, the NAT translates the *destination* IP address and port back to the internal pair. It finds that pair by **exact matching** in the NAT table, not by longest prefix match, and drops the packet when no entry matches.
+
+<NatTranslationSchema />
+
+*Outbound rewrites only the source, inbound only the destination; the far end is never touched.*
+
+The NAT builds its table on the fly, adding an entry whenever a client inside contacts a server outside. It picks NAT ports that do not collide in the table. *A and B both used internal port 1029. A's mapping took NAT port 3441, so B gets 3442.* On Linux, `iptables` implements the NAT table.
+
+**Example 13. Capturing on both sides of a NAT.**
+
+*Host A, `192.168.1.43`, sits behind a NAT whose inside interface is `192.168.1.1` and outside interface `44.33.22.11`. A sends packets to host B, `128.178.222.108`, through the public internet and router S, `99.88.77.66`. Captured between A and the NAT, the IP destination is `128.178.222.108`, since outbound translation leaves the destination alone. Captured next to B, the IP source is `44.33.22.11`, the NAT's public address. A's private address never leaves the LAN, and S, a plain router, rewrites nothing.*
+
+A NAT creates entries only when the inside host speaks first, which a server never does.
+
+**Port forwarding.** A NAT table entry configured by hand, so that connections from outside reach an internal server.
+
+If A runs a server on TCP port 5000, the administrator adds this entry.
+
+| Internal IP | Port | Protocol | NAT IP | NAT port |
+|---|---|---|---|---|
+| `192.168.10.11` | 5000 | tcp | `130.104.228.200` | 5000 |
+
+Client C at `11.12.13.14` now connects to `130.104.228.200` on port 5000, and the NAT passes the connection to A. A must know its public NAT address to advertise it to clients like C. It can learn that address from a STUN server, or through UPnP if the NAT supports it. Port forwarding has a side benefit, **protection**: a server port is reachable only if explicitly configured.
+
+IPv6 addresses are not scarce, so IPv6 often does without NAT. An IPv6 home router typically does not translate, because the provider allocates a *block* of IPv6 addresses rather than a single one. *A home receives the block `2020:1:2:b0b0::/60`, which leaves 4 bits before the /64 boundary, so it holds 16 subnets, `b0b0` to `b0bf` in the fourth hextet. The router's outside interface is `2020:1:2:b0b0::1`, and hosts A and B on the LAN hold global addresses from the same block, `2020:1:2:b0b1::1` and `2020:1:2:b0b1::2`.* Protection then comes from a **filtering router**, which lets communication in from outside only if it was initiated from inside, unless configured otherwise.
+
+Some systems still use NAT with IPv6, when the local network receives a single IPv6 address instead of a prefix. The internal network then uses link-local addresses, so it must be a single LAN. *A at `fe80::5c50:a598:efff:e1d5` and B at `fe80::ed79:34d7:c2d9:3d02` sit behind a NAT whose public address is `2020:1:2:b0b0::1`.* Virtualization platforms typically use this setup, such as VirtualBox's "NAT network".
+
+**Carrier-grade NAT (CGNAT).** A NAT run by a provider that shares $p$ public addresses among $n > p$ internal hosts. *EPFL's VPN (virtual private network, which connects remote users into EPFL's network) uses the block `128.178.15/24`, so $p = 256$. A VPN user appears in the public internet as some `128.178.15.x`, and two users may or may not share an address.* Some Internet service providers use CGNAT to hand out fewer public IPv4 addresses, with internal addresses from `100.64/10` rather than `10/8`. Since the two sides of a NAT must be different subnets, a separate block avoids clashing with customers whose home networks already use `10/8`.
+
+With CGNAT, a home NAT sits behind the provider's NAT. *User 1 appears as `192.168.178.34` at home, as `10.252.13.211` inside EPFL's VPN after the home NAT, and as `128.178.15.x` in the public internet after the CGNAT. User 2 may also be `192.168.178.34` at home without conflict, since each home is its own private network. User 2 reaches the VPN as `10.252.87.129`.*

@@ -1,0 +1,403 @@
+---
+title: "Advanced Networks: Lecture 1"
+description: "The layered internet architecture from applications down to signals: protocols and the five layers, DNS, TCP, UDP and ports, packet switching and best-effort IP, interfaces, addresses, prefixes and masks, MAC addresses, switches, routers and gateways, encapsulation, and the two cross-layer quantities, delay and throughput, with Stop & Go as the worked case."
+tags: ["Advanced networks"]
+created: 2026-10-04
+updated: 2026-10-04
+---
+
+## A Layered Architecture of Protocols
+
+A computer network lets programs on different machines exchange data.
+
+**Host (end system).** A machine at the edge of the network that runs applications, such as a laptop or a server. Host and end system are synonyms.
+
+Two hosts understand each other only if they follow the same conventions.
+
+**Protocol.** A set of rules and the messages exchanged under those rules.
+
+The network is organized in a stack of protocol layers, each one offering a service to the one above and built on top of the one below. Each layer talks to the same layer on the other machine, its **peer**.
+
+Splitting the work this way buys flexibility and modularity (e.g. a laptop can move from WiFi to Ethernet without any change to its browser).
+
+The internet stacks five layers, from top to bottom.
+
+1. **Application.** Communication between applications, each with its own protocols (HTTP for the web, DNS, email). End-to-end security also sits here.
+2. **Transport.** Delivery of data between programs on two hosts (TCP, UDP).
+3. **Network.** Interconnection of all hosts, wherever they are (IPv4, IPv6).
+4. **Data link**, also called the **MAC layer**. Connection of neighbours that share a link (Ethernet, WiFi).
+5. **Physical.** Point-to-point transmission of bits over a medium (optical fiber, copper wire, radio).
+
+*Peers talk through the layers below them: a message goes down the sender's stack, across the medium, and up the receiver's stack.*
+
+At the application layer, when a user types `http://www.google.com` into a browser, the browser sends a `GET` request to the web server `www.google.com`, which returns the HTML page. To reach the server, the browser needs more than its name. People use names, but machines on the internet are identified by numeric IP addresses (e.g. `ssc.epfl.ch` is `128.178.222.83`).
+
+**Domain Name System (DNS).** A client-server application that translates names into IP addresses. DNS clients *query* servers to *resolve* a name into an address. DNS servers hold name-to-address *mappings* and *respond*.
+
+Names have a structure, read from the right. The last label is the top-level domain: two letters name a country (`ssc.epfl.ch`, `www.nzherald.co.nz`), and `.com` stands for commerce (`www.newzealand.com`). The structure says nothing reliable about location (e.g. `www.newzealand.com` is outside `.nz`).
+
+<DomainNameSchema />
+
+**Example 1. Opening a web page.**
+
+*A client with IP address `128.178.56.9` clicks on `www.google.com`.*
+
+1. *The client asks its DNS server, at `128.178.15.8`: what is the IP address of `www.google.com`?*
+2. *The DNS server answers, to `128.178.56.9`: `www.google.com` maps to `216.58.212.196`.*
+3. *The client sends `HTTP GET /index.html` to `216.58.212.196`.*
+4. *The web server answers, to `128.178.56.9`: `200 OK`, then the page data.*
+
+*Every message is addressed by IP address. The name is used only to query DNS. Name resolution and connectivity are therefore separate: with a broken DNS configuration, `ping www.totem.ch` fails, but pinging the server's IP address still works (`ping` sends a small probe packet and waits for the target's answer). Hosts also cache DNS answers, so a repeated lookup usually sends no query.*
+
+The transport layer and the layers below give the application a virtual channel to send and receive data.
+
+**Socket.** The software structure through which an application reads data from and writes data to the transport layer.
+
+The transport layer has two main protocols.
+
+| | **TCP** (Transmission Control Protocol) | **UDP** (User Datagram Protocol) |
+|---|---|---|
+| Reliability | reliable: lost data is retransmitted | unreliable: a message may be lost |
+| Order | delivered in the order sent | may arrive out of order |
+| Service | byte stream: no message boundaries, TCP sends blocks of bytes at will | message-oriented: boundaries preserved, each block sent as written to the socket |
+
+*When part of a TCP transfer from A to B is lost, TCP at A and B repairs it: A retransmits the missing data. Neither the application nor the routers in between take part.*
+
+A third option, **QUIC**, runs over UDP and provides TCP-like reliability and TLS security (encryption) in one protocol.
+
+A host runs many network programs at once, so reaching the right host is not enough.
+
+**Port number.** A number that identifies a process within a host. Every TCP or UDP header carries a source port and a destination port. Some ports are reserved for servers: 80 for HTTP, 443 for HTTPS (most web traffic today), 53 for DNS.
+
+**Example 2. Ports in a DNS exchange.**
+
+*Process `pa` on host A sends a request to the DNS server process `pb` on host B. The IP header carries source address A, destination address B and protocol UDP. The UDP header carries source port 1267, picked by A, and destination port 53, the DNS port. The reply swaps both pairs: it travels from B, port 53, to A, port 1267.*
+
+---
+
+## Packet Switching and IP
+
+The network layer must interconnect *all* devices. Wiring every pair directly does not scale: $n$ devices need $n(n-1)/2$ cables, 190 for 20 machines. Networks relay data instead, like a postal service.
+
+**Message relaying.** The scheme of the first networks, such as Bitnet and SNA: each intermediate computer received an *entire* message before passing it on.
+
+**Packet switching.** The scheme of the internet: data is broken into small packets, and each packet is forwarded from node to node until it reaches its destination.
+
+**Packet.** A small unit of data, typically at most 1500 bytes. A packet is a **header**, the information needed to deliver it (such as the destination address), followed by a **payload**, the data it carries.
+
+*A packet is a postcard: it carries its own destination address, and the post handles it separately from every other card.*
+
+**Router.** An intermediate node of a packet-switched network that forwards each packet toward its destination.
+
+A router forwards each packet *separately*, according to its forwarding rules, so packets of the same message may follow different paths. Every packet's journey begins and ends on a local network.
+
+**Local area network (LAN).** A set of nearby devices that reach each other directly through one data link layer, such as one Ethernet or one WiFi network.
+
+**Internet Protocol (IP).** The network-layer protocol of the internet. IP delivers packets to their destination through a series of routers, by packet switching.
+
+- **Forwarding by address.** Routers forward each packet based on the destination IP address in its header.
+- **Best effort.** IP makes no delivery guarantee. Routers store packets briefly in buffers before forwarding them, and packets of the same source-destination flow may take different paths, so packets may be dropped, delayed or reordered.
+- **Interconnection.** IP joins many LANs into one internet: the network layer works across LANs, the data link layer within one.
+
+## IP Addresses and Subnets
+
+IP sees the internet as a collection of LANs joined by routers.
+
+**Interface.** A device's attachment to one LAN, such as an Ethernet port or a WiFi card. A host typically has one interface. A router has one on each LAN it joins.
+
+**IP address.** The network-layer address of an interface, carried in packet headers as source and destination. A router thus has one IP address per LAN it joins.
+
+- **IPv4.** 32 bits, written in dotted decimal: four numbers from 0 to 255, each standing for 8 bits. *`128.178.156.23` is a **public** EPFL address, reachable from the whole internet.*
+- **IPv6.** 128 bits, written in hexadecimal: eight groups of four hex digits, each digit standing for 4 bits. *`2001:0620:0618:01a6:0a00:20ff:fe78:30f9` is a public EPFL address.*
+
+IPv4 and IPv6 are *incompatible*. IPv6 is another protocol, not IPv4 with longer addresses: a device that runs only one of them cannot parse the other's packets.
+
+The addresses of one LAN share their leading bits.
+
+**Subnet.** A LAN as IP sees it: a set of devices connected to the same data link layer and sharing the same IP address prefix.
+
+**Prefix.** The leading bits of an address that identify its subnet. Every address in the subnet starts with them. The remaining bits tell its devices apart. *LAN INF119 at EPFL has prefix `128.178.71`, shared by its hosts `128.178.71.34` and `128.178.71.23`.*
+
+**Subnet mask.** A sequence of bits, as long as the address, whose 1s mark the positions of the prefix. The 1s are contiguous. *For an EPFL IPv4 LAN the mask is `11111111 11111111 11111111 00000000`: 24 ones, then 8 zeros.*
+
+A mask is written in dotted decimal like an address, `255.255.255.0`, since `11111111` is 255 and `00000000` is 0. It can also be written in **slash notation**: the address followed by the number of 1s, as in `128.178.71.34/24`.
+
+<AddressPrefixSchema />
+
+The prefix length depends on the network. The IPv4 LANs of ETH Zurich (ETHZ) use 26-bit prefixes. EPFL's IPv6 LANs use 64-bit prefixes, as in `2001:0620:0618:01a6:0a00:20ff:fe78:30f9/64`, whose prefix is the first four groups.
+
+**Example 3. Which address can A take?**
+
+*All masks are `255.255.255.0`. Is `10.10.3.33` or `10.10.2.44` a valid address for host A?*
+
+<SubnetChainSchema caption="Three Ethernet LANs in a row. Every address on a LAN starts with the LAN's prefix. Each router has one interface, with its own address, on each LAN it joins." />
+
+*Every prefix is 24 bits long. A shares an Ethernet LAN with router 1, whose interface on that LAN has address `10.10.3.1`, so A's address must start with the LAN's prefix `10.10.3`: `10.10.3.33` is valid. `10.10.2.44` is not, since `10.10.2` is the prefix of B's LAN, on the far side of router 2.*
+
+## The Data Link and Physical Layers
+
+Below IP, the data link layer offers hop-to-hop delivery. It moves data from a node to a *LAN neighbour* over a shared medium, wired or wireless. It also manages access to that medium, hence its other name, Medium Access Control (MAC) layer. Depending on the physical layer beneath, the data link layer may also detect and correct errors, deliver reliably, avoid collisions and control the flow.
+
+**MAC address.** The 48-bit hardware address of an interface, comparable to a serial number and unique in principle. The manufacturer of the network card sets it, and its first 3 bytes identify the manufacturer. It is written as six hexadecimal bytes, as in `00:00:c0:3f:6c:a4`.
+
+**Frame.** A packet at the data link layer. The sender writes the destination MAC address into its header, in cleartext even when the payload is encrypted.
+
+On a shared medium, such as Ethernet cabling or a WiFi radio channel, every node reads every frame and keeps it only if the destination MAC address matches its own. *When host A sends a frame to the router, hosts B and C on the same medium read it too, and drop it.*
+
+When links become too long or too many, switches store and forward frames, as routers do with packets.
+
+**Switch.** A data-link-layer system that forwards frames based on MAC addresses. Switches interconnect devices of the *same* LAN.
+
+A router is the switch's network-layer counterpart.
+
+| | Router | Switch |
+|---|---|---|
+| Layer | network | data link |
+| Forwards | packets | frames |
+| Based on | IP addresses | MAC addresses |
+| Interconnects | different LANs | devices of one LAN |
+
+**Gateway.** The first-hop router of a LAN. A host sends every packet destined outside its subnet to the gateway. A packet within the subnet crosses no router, only switches or the WiFi base station.
+
+The physical layer, at the bottom, turns bits into signals. A transmitter encodes bits into a signal, electromagnetic or, under water, acoustic. The channel carries the signal, and a receiver decodes it back into bits. The physical layer is technology-specific: each Ethernet and each WiFi (IEEE 802.11) physical layer has its own maximum bit rate.
+
+**Bit rate.** The number of bits transmitted per second over a channel, in b/s with decimal prefixes: $1$ Mb/s $= 10^6$ b/s, $1$ Gb/s $= 10^9$ b/s.
+
+**Bandwidth.** The width, in hertz, of the frequency range a channel can use for transmission.
+
+**Capacity.** The maximum bit rate a channel can achieve. Bandwidth limits capacity: by the Shannon-Hartley law, a channel of bandwidth $B$ with Gaussian noise has capacity
+
+$$
+C = B \log_2(1 + \mathrm{SNR}) \ \text{b/s},
+$$
+
+where $\mathrm{SNR}$, the signal-to-noise ratio, is the power of the emitted signal over the power of the noise.
+
+*An ADSL line has $B = 1$ MHz and an SNR of 45 dB, a power ratio of $10^{4.5} \approx 31\,600$, so $C \approx 10^6 \times \log_2(31\,600) \approx 15$ Mb/s.*
+
+In networking practice, "bandwidth" often means bit rate.
+
+## Encapsulation and the Path of a Packet
+
+**Encapsulation.** Each layer wraps the unit handed down by the layer above in its own header, and the result becomes the payload of the layer below.
+
+**Segment.** The transport-layer unit: a TCP header, carrying the source and destination ports, followed by application data.
+
+Seen from the outside in, a frame's payload is an IP packet and the packet's payload is a segment.
+
+<EncapsulationSchema />
+
+The precise names are TCP segment, IP packet and MAC frame. "Packet" is also used loosely for all three.
+
+A capture tool shows the three headers of a frame sent by an EPFL host (trimmed):
+
+```text
+ETHER:  Destination = 0:0:c:2:78:36, Cisco
+ETHER:  Source      = 0:0:c0:b8:c2:8d, Western Digital
+ETHER:  Ethertype   = 0800 (IP)
+IP:     Version = 4
+IP:     Header length = 20 bytes
+IP:     Total length = 44 bytes
+IP:     Time to live = 64 seconds/hops
+IP:     Protocol = 6 (TCP)
+IP:     Header checksum = cec2
+IP:     Source address = 128.178.156.7, lrcpc3.epfl.ch
+IP:     Destination address = 129.132.x.x, ezinfo.ethz.ch
+TCP:    Source port = 1268
+TCP:    Destination port = 23 (TELNET)
+TCP:    Data offset = 24 bytes
+```
+
+Besides the addresses, the IP header holds fields such as the version, the header length, the total length, a time to live and the protocol of the payload (6 for TCP). The total length of 44 bytes is exactly the 20-byte IP header plus the 24-byte TCP header (its data offset), so this segment carries no application data.
+
+The names `lrcpc3.epfl.ch` and `ezinfo.ethz.ch` appear in no header. Only the addresses travel, and the capture tool looked the names up in DNS for its display.
+
+A web server on Ethernet LAN B sends a file to Eliane's phone on WiFi LAN A. The gateway has an interface on both LANs.
+
+<GatewayPathSchema />
+
+At the server, TCP cuts the file into segments, IP puts each segment into a packet addressed to the phone, and Ethernet puts each packet into a frame. The switch reads only the frame header. The gateway opens each frame, reads the IP header, and sends the packet on inside a new WiFi frame. At the phone, each layer removes its header and passes the rest up.
+
+<PathStacksSchema />
+
+**Local MAC, end-to-end IP.** The MAC addresses of a frame name the two ends of the current hop and are rewritten at every router. The IP addresses name the two hosts and, by IP's design, stay unchanged from end to end.
+
+*IP addresses say where the packet is going; MAC addresses say who handles it next.*
+
+**Example 4. Which addresses does a frame carry?**
+
+*A packet from the web server to Eliane's phone is observed at point 1, then at point 2. At point 1 the destination MAC address is the gateway's, but the destination IP address is the phone's: the gateway is only the next device to handle the packet. At point 2 the gateway has written a new frame header, and the IP header is unchanged.*
+
+| | at point 1 | at point 2 |
+|---|---|---|
+| Source MAC | web server | gateway |
+| Destination MAC | gateway | Eliane's phone |
+| Source IP | web server | web server |
+| Destination IP | Eliane's phone | Eliane's phone |
+
+Inbound packets follow the same rule. When Lisa's PC receives a packet from a server in the US, the frame's source MAC address is her gateway's, and the source IP address is the US server's.
+
+The captured frame above shows the outbound direction. Its destination IP address is a host at ETH Zurich, outside the sender's LAN, so its destination MAC address, of a Cisco device, belongs to the sender's gateway. For the same reason, a capture that keeps only packets whose destination IP address is the gateway's sees none of a browser's web traffic. The gateway's MAC address appears in those frames, but its IP address never does.
+
+---
+
+## Network Delays
+
+A packet crossing a network accumulates delay at every node it passes.
+
+**Network delay.** The time a packet takes to get from source to destination.
+
+For a packet of $L$ bits on a link of bit rate $b$ and length $d$, each hop adds four delays.
+
+- **Processing delay.** The time to examine the packet's headers and decide where to forward it.
+- **Queueing delay.** The time the packet waits in a queue until it is transmitted onto the outgoing link.
+- **Transmission delay.** The time to push all the packet's bits onto the link, $L/b$.
+- **Propagation delay.** The time a bit takes to travel from one end of the link to the other at the speed of light $c$ in the medium, $D = d/c$.
+
+*Transmission depends on the packet size and the bit rate, never on distance; propagation depends on distance and medium, never on the bit rate.*
+
+**Store and forward.** A node starts forwarding a packet only after its last bit has arrived and all bits of the previous packets have left.
+
+**Example 5. One store-and-forward switch.**
+
+*A switch sits between two hosts, with bit rate $b_1$ on the first link and $b_2$ on the second. Ignoring processing, queueing and propagation, a packet of $L$ bits takes $L/b_1$ to reach the switch completely. Only then does the switch start its own transmission, which takes $L/b_2$:*
+
+$$
+\text{end-to-end delay} = \frac{L}{b_1} + \frac{L}{b_2}.
+$$
+
+*The delay is neither $L/(b_1 + b_2)$ nor $L$ over the average rate: every store-and-forward hop adds one full transmission delay.*
+
+A time-space diagram shows these delays. Each node has a vertical time axis, with time running down. Each band is one transmission. Its thickness on the sender's axis is the transmission delay, and the drop of its edges from one axis to the next is the propagation delay.
+
+The figure sends one message by message relaying (left) and by packet switching (right), without processing or queueing. In both panels the router starts sending only once the last bit it forwards has arrived.
+
+<PacketSwitchingSchema />
+
+**Example 6. Why packet switching beats message relaying.**
+
+*In the figure, a message of $n = 4$ packets, each with transmission delay $L/b = 1$ ms, crosses $h = 2$ links of propagation delay $D = 0.5$ ms. With message relaying, each hop transmits the whole message, then propagates it:*
+
+$$
+h\left(\frac{nL}{b} + D\right) = 2 \times (4 + 0.5) = 9 \ \text{ms}.
+$$
+
+*With packet switching, R forwards packet 1 while packets 2 to 4 are still arriving. The last packet leaves A after $nL/b$ and then needs one more transmission for each further hop, plus one propagation per link:*
+
+$$
+(n + h - 1)\frac{L}{b} + hD = 5 \times 1 + 2 \times 0.5 = 6 \ \text{ms}.
+$$
+
+Packet switching thus reduces the end-to-end delay, by pipelining the links. It also reduces the buffer space routers need, since a router stores one packet rather than a whole message. Packet switching does not change the bit error rate, although a packet, smaller than a message, is less likely to be corrupted by a bit error. Nor does it increase the capacity of a link, which only the physical layer sets.
+
+Propagation delay is set by physics. A signal travels at about $2.3 \times 10^8$ m/s in copper, $2 \times 10^8$ m/s in optical fiber, and $3 \times 10^8$ m/s through air or vacuum, as on radio and satellite links. For fiber this gives a rule of thumb:
+
+$$
+\frac{1 \ \text{km}}{2 \times 10^8 \ \text{m/s}} = 5 \ \mu\text{s}, \qquad \text{so} \qquad D \approx 5 \ \mu\text{s per km}.
+$$
+
+The far side of the Earth, some 20 000 km away, is therefore about 100 ms away one way and 200 ms there and back.
+
+**Round-trip time (RTT).** The time from sending a packet until the answer comes back. The RTT is at least twice the one-way propagation delay, plus the transmission, processing and queueing delays along the way. `ping` reports it.
+
+*Since one-way propagation is at most half the RTT, the RTT bounds distance from above. A server that answers in 20 ms is at most $10 \ \text{ms} / (5 \ \mu\text{s/km}) = 2000$ km of fiber away. A server that answers in 170 ms may be up to 17 000 km away, on another continent.*
+
+*Upgrading the line of a video call between Lausanne and Wellington from 10 Mb/s to 1 Gb/s does not shorten its round-trip propagation time: a faster line shortens transmission, not distance.*
+
+**Example 7. Sending one 1 kB packet over one link.**
+
+*A 1 kB packet is about 8000 bits, sent over one link with no processing and no queueing. The two wired links use the 5 µs/km rule of thumb, and the two radio links $3 \times 10^8$ m/s. The dominant delay is in bold.*
+
+| | Data center | Fiber to the home | IoT sensor (LoRa) | LEO satellite (Starlink) |
+|---|---|---|---|---|
+| Distance | 100 m | 50 km | 2 km | 1400 km |
+| Bit rate | 100 Gb/s | 1 Gb/s | 5 kb/s | 100 Mb/s |
+| Propagation delay | **0.5 µs** | **250 µs** | 6.7 µs | **4.7 ms** |
+| Transmission delay | 0.08 µs | 8 µs | **1.6 s** | 80 µs |
+| Total | 0.58 µs | 258 µs | ≈ 1.6 s | 4.78 ms |
+
+*For the fiber-to-the-home link:*
+
+$$
+D = 50 \times 5 \ \mu\text{s} = 250 \ \mu\text{s}, \qquad \frac{L}{b} = \frac{8000}{10^9} \ \text{s} = 8 \ \mu\text{s}.
+$$
+
+*For the LoRa sensor, $L/b = 8000 / 5000 = 1.6$ s dwarfs $D = 2000 / (3 \times 10^8) \approx 6.7$ µs. For the low-Earth-orbit satellite, $D = 1.4 \times 10^6 / (3 \times 10^8) \approx 4.7$ ms. A different delay dominates each link, so speeding a link up starts with finding its bottleneck.*
+
+## Throughput and Stop & Go
+
+**Throughput.** The number of useful data bits delivered at the destination per unit of time, in b/s like the bit rate:
+
+$$
+\text{throughput} = \frac{\text{useful data bits at destination}}{\text{time}}.
+$$
+
+Even over a single link, throughput falls short of the bit rate, for two reasons. **Protocol overhead** is the extra bytes every protocol spends on metadata such as headers. **Waiting times** arise when a host must wait for a response from the other end before transmitting more.
+
+*Delay and throughput are different quantities. In 2009 a pigeon carried a memory card 80 km across South Africa in just over an hour. Including the download, the transfer took about two hours, in which a commercial ADSL line moved only 4% of the same data. The pigeon's delay was huge, yet its throughput beat the line's.*
+
+**Stop & Go.** A simple protocol that repairs packet losses.
+
+1. A sends a packet to B.
+2. B immediately returns an **acknowledgement** (ack), a short packet confirming reception.
+3. A waits for the ack before sending a new packet. If no ack arrives within some time $T_1$, A **times out** and **retransmits** the packet.
+
+Assume no loss and one packet per cycle, with packets of $L$ bits, acks of $L'$ bits, bit rate $b$ and propagation delay $D$. A transmits for $T = L/b$, the last bit reaches B after $D$, B transmits the ack for $T' = L'/b$, and the ack's last bit reaches A after another $D$.
+
+<StopAndGoSchema />
+
+Each cycle delivers $L$ useful bits in time $T + 2D + T'$. Dividing numerator and denominator by $T = L/b$:
+
+$$
+\text{throughput} = \frac{L}{T + 2D + T'} = \frac{b}{1 + \dfrac{L'}{L} + \dfrac{2Db}{L}}.
+$$
+
+The term $L'/L$ is the ack's overhead. The other term, $2Db/L$, compares the packet with the round trip.
+
+**Bandwidth-delay product.** The quantity $2Db$: the number of bits the sender could transmit during one round trip, that is, the bits in flight (sent but not yet acknowledged) on a link kept busy. "Bandwidth" here means bit rate. Many texts define the product with the one-way delay, $Db$.
+
+**Efficiency.** Throughput as a fraction of the bit rate:
+
+$$
+\frac{\text{throughput}}{b} = \frac{1}{1 + \dfrac{L'}{L} + \dfrac{2Db}{L}}.
+$$
+
+*When the bandwidth-delay product dwarfs the packet, a Stop & Go sender spends almost the whole cycle idle, waiting for the ack.*
+
+**Example 8. Stop & Go on the four links.**
+
+*Run Stop & Go on the links of Example 7, with 1 kB packets ($L = 8000$ bits) and 40-byte acks ($L' = 320$ bits).*
+
+| | Data center | Fiber to the home | IoT sensor (LoRa) | LEO satellite (Starlink) |
+|---|---|---|---|---|
+| $2Db$ | 100 kb (12.5 packets) | 500 kb (62.5 packets) | ≈ 0.07 b (≈ 0 packets) | 940 kb (117.5 packets) |
+| Throughput | 7.4 Gb/s | 15.7 Mb/s | 4.8 kb/s | 844 kb/s |
+| Efficiency | 7.4% | 1.6% | 96% | 0.84% |
+
+*For the fiber-to-the-home link, $2Db = 2 \times 250 \ \mu\text{s} \times 1$ Gb/s $= 500$ kb, so*
+
+$$
+\frac{L'}{L} = \frac{320}{8000} = 0.04, \qquad \frac{2Db}{L} = \frac{500\,000}{8000} = 62.5,
+$$
+
+$$
+\text{throughput} = \frac{10^9}{1 + 0.04 + 62.5} \approx 15.7 \ \text{Mb/s},
+$$
+
+*an efficiency of $1/63.54 \approx 1.6\%$. Only LoRa is efficient. Its round trip is negligible next to its 1.6 s transmission, so throughput is $5000 / 1.04 \approx 4.8$ kb/s, held back only by the ack's 4% overhead.*
+
+**Example 9. Speeding up a satellite link.**
+
+*A ground station sends over the Starlink link with Stop & Go (100 Mb/s, $D = 4.7$ ms, 1 kB packets, 40-byte acks) and gets 844 kb/s, under 1% of the bit rate. Which single change raises throughput the most?*
+
+| Change | $L'/L$ | $2Db/L$ | Throughput |
+|---|---|---|---|
+| none | 0.04 | 117.5 | 844 kb/s |
+| propagation 10% shorter ($D = 4.23$ ms) | 0.04 | 105.75 | 936 kb/s |
+| bit rate 1 Gb/s | 0.04 | 1175 | 850 kb/s |
+| acks of 20 bytes | 0.02 | 117.5 | 844 kb/s |
+| packets of 64 kB ($L = 512\,000$ bits) | 0.000625 | 1.84 | 35 Mb/s |
+
+*For the 64 kB packets, throughput is $10^8 / 2.84 \approx 35$ Mb/s, over forty times more. When $2Db \gg L$, the formula reduces to throughput $\approx L/2D$, which does not depend on the bit rate. The only lever is more data per round trip.*
+
+TCP pulls that lever with the **sliding window**, a mechanism that keeps several packets in flight per round trip instead of one.
