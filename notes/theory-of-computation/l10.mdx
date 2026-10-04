@@ -1,0 +1,189 @@
+---
+title: "Theory of Computation: Lecture 10"
+description: "The full SET COVER to SUBSET-SUM reduction: binary encoding, base-c set vectors, padding numbers, no-carry correctness, and NP-completeness of SUBSET-SUM."
+tags: ["Theory of computation"]
+created: 2026-06-28
+updated: 2026-06-28
+---
+
+## From SET COVER to SUBSET-SUM
+
+SUBSET-SUM already has a pseudo-polynomial dynamic program: if $X=\{x_1,\ldots,x_m\}$ and $T=\sum_i x_i$, the usual table runs in $O(mT)$ time. Under binary encoding, however, $T$ may be exponential in the input length. So this algorithm does not put SUBSET-SUM in $P$.
+
+The missing step is the hardness proof. Since SET COVER is NP-complete, it is enough to construct a polynomial-time reduction
+
+$$
+\mathrm{SET\ COVER}\le_P\mathrm{SUBSET\text{-}SUM}.
+$$
+
+<NpCompletenessChainSchema />
+
+The reduction must turn a family of sets into a multiset of integers so that choosing integers whose sum is a target is the same as choosing $k$ sets whose union is the whole universe.
+
+---
+
+## Encoding Sets as Numbers
+
+Let the SET COVER instance be
+
+$$
+\langle U,\mathcal F,k\rangle,
+\qquad
+U=\{1,\ldots,n\},
+\qquad
+\mathcal F=\{T_1,\ldots,T_m\}.
+$$
+
+Assume $k\ge 1$. The case $k=0$ can be handled separately in polynomial time.
+
+**Base-$c$ digit vector.** For digits $d_0,\ldots,d_n$, write
+
+$$
+(d_0,d_1,\ldots,d_n)_c
+=
+\sum_{h=0}^n d_hc^{n-h}.
+$$
+
+The leftmost digit $d_0$ will count how many sets are chosen. The digit $d_h$, for $1\le h\le n$, will track coverage of element $h$.
+
+*A set becomes a number whose digits are its characteristic vector, with one extra leading digit for counting selected sets.*
+
+Choose the base
+
+$$
+c=m+kn+1.
+$$
+
+**No-carry invariant.** The base $c$ is larger than the total number of constructed integers that can be selected. Since every constructed digit is either $0$ or $1$, every raw digit-sum is strictly smaller than $c$. Therefore base-$c$ addition has no carries, and each digit can be reasoned about independently.
+
+For each set $T_i$, define its **set number**
+
+$$
+a_i
+=
+(1,\chi_i(1),\chi_i(2),\ldots,\chi_i(n))_c,
+\qquad
+\chi_i(h)=
+\begin{cases}
+1 & h\in T_i,\\
+0 & h\notin T_i.
+\end{cases}
+$$
+
+For each element $h\in U$, define its **padding number**
+
+$$
+b_h=(0,0,\ldots,0,1,0,\ldots,0)_c,
+$$
+
+where the single $1$ is in coordinate $h$. The reduction puts $k-1$ copies of each $b_h$ into the SUBSET-SUM multiset.
+
+The target is
+
+$$
+s=(k,k,\ldots,k)_c
+$$
+
+with $n+1$ digits.
+
+The whole SUBSET-SUM instance is
+
+$$
+X
+=
+\{a_1,\ldots,a_m\}
+\uplus
+\biguplus_{h=1}^n
+\{\underbrace{b_h,\ldots,b_h}_{k-1\text{ copies}}\},
+\qquad
+s=(k,k,\ldots,k)_c.
+$$
+
+| Object | Leading digit | Element digit $h$ | Role |
+|---|---:|---:|---|
+| $a_i$ | $1$ | $1$ iff $h\in T_i$ | choose set $T_i$ |
+| $b_h$ | $0$ | $1$ only at element $h$ | top up coverage of $h$ |
+| $s$ | $k$ | $k$ | require $k$ chosen sets and full coverage |
+
+**Recipe: reducing SET COVER to SUBSET-SUM.**
+
+1. Normalize the universe as $U=\{1,\ldots,n\}$.
+2. Choose $c=m+kn+1$.
+3. Create one number $a_i$ for each set $T_i$.
+4. Create $k-1$ copies of each padding number $b_h$.
+5. Set the target to $s=(k,k,\ldots,k)_c$.
+6. Output $\langle X,s\rangle$.
+
+The construction is polynomial time. There are $m+n(k-1)$ numbers, each has $n+1$ base-$c$ digits, and each digit needs $O(\log c)$ bits in binary.
+
+---
+
+## Correctness of the Reduction
+
+**Theorem.** $\mathrm{SET\ COVER}\le_P\mathrm{SUBSET\text{-}SUM}$.
+
+**Forward direction.** Suppose $\langle U,\mathcal F,k\rangle\in\mathrm{SET\ COVER}$. Then there are sets
+
+$$
+T_{i_1},\ldots,T_{i_k}
+$$
+
+whose union is $U$. Select the corresponding numbers
+
+$$
+a_{i_1},\ldots,a_{i_k}.
+$$
+
+For each element $h\in U$, let $t_h$ be the number of selected sets that contain $h$. Because the selected sets cover $U$,
+
+$$
+1\le t_h\le k.
+$$
+
+Add exactly $k-t_h$ copies of $b_h$. This is allowed because $k-t_h\le k-1$, and the construction included $k-1$ copies of each padding number.
+
+The leading digit becomes $k$, because exactly $k$ set numbers were selected. Each element digit $h$ becomes
+
+$$
+t_h+(k-t_h)=k.
+$$
+
+Thus the selected integers sum to $s$, so $\langle X,s\rangle\in\mathrm{SUBSET\text{-}SUM}$.
+
+**Backward direction.** Suppose $\langle X,s\rangle\in\mathrm{SUBSET\text{-}SUM}$. Then some sub-multiset of $X$ sums to $s$. Write the selected set numbers as
+
+$$
+a_{i_1},\ldots,a_{i_p},
+$$
+
+and suppose the selected padding numbers contain $r_h$ copies of $b_h$ for each $h$, where $0\le r_h\le k-1$.
+
+By the no-carry invariant, the leading digit of the sum is exactly the number $p$ of selected set numbers. The leading digit of $s$ is $k$, so
+
+$$
+p=k.
+$$
+
+Now fix an element $h\in U$. In coordinate $h$, the target digit is $k$. The padding contribution is $r_h\le k-1$, so the selected set numbers must contribute at least $1$ in that coordinate. Therefore at least one selected set $T_{i_q}$ contains $h$.
+
+Since this holds for every $h\in U$,
+
+$$
+T_{i_1}\cup\cdots\cup T_{i_k}=U.
+$$
+
+So $\langle U,\mathcal F,k\rangle\in\mathrm{SET\ COVER}$.
+
+Combining both directions gives
+
+$$
+\langle U,\mathcal F,k\rangle\in\mathrm{SET\ COVER}
+\quad\Longleftrightarrow\quad
+\langle X,s\rangle\in\mathrm{SUBSET\text{-}SUM}.
+$$
+
+Therefore $\mathrm{SET\ COVER}\le_P\mathrm{SUBSET\text{-}SUM}$.
+
+**Corollary.** SUBSET-SUM is NP-complete.
+
+SUBSET-SUM is in $NP$: a certificate is the chosen sub-multiset of $X$, and the verifier adds the selected binary integers and checks whether the sum is $s$. Since SET COVER is NP-complete and reduces to SUBSET-SUM, SUBSET-SUM is NP-hard. Hence it is NP-complete.

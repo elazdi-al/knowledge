@@ -18,8 +18,6 @@ Strict 2PL protects database objects that already exist. Real databases also cha
 
 *A phantom is not a changed value inside a tuple already locked by the reader. It is a changed membership of the predicate result.*
 
-<PhantomReadSchema />
-
 **Example 1. Counting matching people.**
 
 *Transaction $T_1$ runs `SELECT COUNT(*) FROM people WHERE status = 'lit'` and gets $99$. Transaction $T_2$ inserts a new committed row with `status = 'lit'`. If $T_1$ repeats the same query and gets $100$, the new row is a phantom for $T_1$. Tuple locks on the original $99$ rows did not protect the missing $100$th row because it did not exist yet.*
@@ -52,8 +50,6 @@ Predicate locking is conceptually clean: `status = 'lit'` protects the logical s
 **Index locking.** A practical phantom-prevention method that uses an index order to lock key values and the gaps between keys.
 
 Index locking replaces arbitrary predicate overlap with ordered key ranges. If the query scans `age = 30` or `12 < age <= 14`, a B$^+$-tree on `age` tells the DBMS exactly where a new matching key would be inserted.
-
-<KeyRangeLockingSchema />
 
 **Key-value lock.** A lock on one index key value.
 
