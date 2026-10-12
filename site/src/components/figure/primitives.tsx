@@ -20,7 +20,7 @@ import {
   type Tone,
   type Weight,
 } from "./model";
-import { GAP, GROUP } from "./theme";
+import { DOT_R, GAP, GROUP, STROKE } from "./theme";
 
 export interface Common {
   id?: string;
@@ -110,6 +110,26 @@ export interface TagProps extends Common {
 export interface DotsProps extends Common {
   dir?: Dir;
 }
+/** A filled polygon inside a `Free`, its points in the `Free`'s coordinates; `outline` draws its border in the tone's line. */
+export interface PolyProps extends Omit<Common, "x" | "y"> {
+  points: [number, number][];
+  outline?: boolean;
+}
+/** A stroked polyline inside a `Free`, its points in the `Free`'s coordinates: ink when `strong`, the tone's solid when toned, else the edge grey. */
+export interface PathProps extends Omit<Common, "x" | "y"> {
+  points: [number, number][];
+  /** join the last point back to the first */
+  closed?: boolean;
+  dashed?: boolean;
+  /** a 1px hairline, for grids and contours */
+  thin?: boolean;
+  thick?: boolean;
+}
+/** A filled data point centred `at` a point of its `Free`. */
+export interface DotProps extends Omit<Common, "x" | "y"> {
+  at: [number, number];
+  r?: number;
+}
 export interface EdgeProps {
   id?: string;
   from: string;
@@ -143,6 +163,9 @@ export const Table = marker<TableProps>("table");
 export const Text = marker<TextProps>("text");
 export const Tag = marker<TagProps>("tag");
 export const Dots = marker<DotsProps>("dots");
+export const Poly = marker<PolyProps>("poly");
+export const Path = marker<PathProps>("path");
+export const Dot = marker<DotProps>("dot");
 export const Edge = marker<EdgeProps>("edge");
 
 // --- walking ------------------------------------------------------------------
@@ -333,6 +356,30 @@ function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean): Blo
       return { ...common, kind: "tag", text: str(p.text) ?? "" };
     case "dots":
       return { ...common, kind: "dots", dir: (p.dir as Dir) ?? "row" };
+    case "poly": {
+      const pts = (p.points as [number, number][] | undefined) ?? [];
+      const x = Math.min(...pts.map(([px]) => px)), y = Math.min(...pts.map(([, py]) => py));
+      return { ...common, x, y, kind: "poly", points: pts.map(([px, py]) => [px - x, py - y]), outline: p.outline === true };
+    }
+    case "path": {
+      const pts = (p.points as [number, number][] | undefined) ?? [];
+      const x = Math.min(...pts.map(([px]) => px)), y = Math.min(...pts.map(([, py]) => py));
+      return {
+        ...common,
+        x,
+        y,
+        kind: "path",
+        points: pts.map(([px, py]) => [px - x, py - y]),
+        closed: p.closed === true,
+        dashed: p.dashed === true,
+        width: p.thin === true ? STROKE.border : p.thick === true ? STROKE.thick : STROKE.edge,
+      };
+    }
+    case "dot": {
+      const r = num(p.r, DOT_R);
+      const [cx, cy] = (p.at as [number, number] | undefined) ?? [0, 0];
+      return { ...common, x: cx - r, y: cy - r, kind: "dot", r };
+    }
   }
   throw new Error(`[diagram] unknown primitive ${t.kind}`);
 }

@@ -39,3 +39,17 @@ export const TONE = {
 
 /** Transaction identity hues, shared by every concurrency figure. */
 export const TX_TONE = { 1: "purple", 2: "teal", 3: "green" } as const satisfies Record<number, Tone>;
+
+/**
+ * Machine learning hues. Blue stays the focus: the fitted model, the chosen cell, the path being followed. The two
+ * losses compared share a lecture with no classes, so MAE may reuse the negative class's purple.
+ */
+export const ML_TONE = {
+  /** the two classes of a binary classifier, y = -1 and y = +1 */
+  negative: "purple",
+  positive: "green",
+  /** residuals, the errors a loss scores */
+  residual: "red",
+  mse: "teal",
+  mae: "purple",
+} as const satisfies Record<string, Tone>;

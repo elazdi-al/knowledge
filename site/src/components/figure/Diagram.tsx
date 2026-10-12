@@ -16,6 +16,8 @@ export interface DiagramProps {
   title?: string;
   className?: string;
   children?: ReactNode;
+  /** Optional mobile composition when wrapping alone would obscure a relationship. */
+  narrowChildren?: ReactNode;
 }
 
 function stableId(seed: unknown): string {
@@ -36,13 +38,14 @@ function narrowed(b: Block): Block {
   return b.kind === "row" && b.wrap ? { ...b, kind: "col", align: "center", children } : { ...b, children };
 }
 
-export function Diagram({ caption, title, className, children }: DiagramProps) {
+export function Diagram({ caption, title, className, children, narrowChildren }: DiagramProps) {
   const scene = toScene(children);
   const label = caption ?? title ?? "figure";
   const frame = layoutScene(scene, { caption: label });
   const uid = stableId(frame);
-  // a wrapping row also gets a narrow layout; CSS swaps them at 520px
-  const narrow = hasWrap(scene.root) ? layoutScene({ ...scene, root: narrowed(scene.root) }, { caption: `${label} (narrow)` }) : null;
+  // CSS swaps the mobile composition at 520px; wrapping remains the default.
+  const narrowScene = narrowChildren !== undefined ? toScene(narrowChildren) : hasWrap(scene.root) ? { ...scene, root: narrowed(scene.root) } : null;
+  const narrow = narrowScene ? layoutScene(narrowScene, { caption: `${label} (narrow)` }) : null;
   return (
     <figure className={cn("diagram", className)}>
       {title && <p className="diagram__title">{title}</p>}

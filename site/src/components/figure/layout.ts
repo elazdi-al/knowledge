@@ -131,6 +131,11 @@ function leafSize(b: Block): Size {
       return { w: measureStyle(b.text, TEXT.tag) + 2 * TAG.padX, h: TAG.h };
     case "dots":
       return b.dir === "row" ? { w: 18, h: 6 } : { w: 6, h: 18 };
+    case "poly":
+    case "path":
+      return { w: Math.max(0, ...b.points.map(([x]) => x)), h: Math.max(0, ...b.points.map(([, y]) => y)) };
+    case "dot":
+      return { w: 2 * b.r, h: 2 * b.r };
   }
   throw new Error(`[diagram] not a leaf: ${b.kind}`);
 }

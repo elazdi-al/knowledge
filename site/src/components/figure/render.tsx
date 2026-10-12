@@ -449,6 +449,60 @@ function tagNode(it: Extract<Item, { kind: "tag" }>): ReactNode {
   );
 }
 
+/** A tinted surface; without `outline`, a canvas-coloured seam keeps adjacent polygons apart. */
+function polyNode(it: Extract<Item, { kind: "poly" }>): ReactNode {
+  const r = it.rect;
+  const tone = it.state === "active" ? ACCENT : it.tone;
+  return (
+    <polygon
+      key={it.id}
+      points={it.points.map(([x, y]) => `${r2(r.x + x)},${r2(r.y + y)}`).join(" ")}
+      style={{
+        fill: tone ? tint(tone) : V("panel"),
+        stroke: it.outline ? (tone ? line(tone) : V("panel-edge")) : V("canvas"),
+        strokeWidth: STROKE.border,
+        strokeLinejoin: "round",
+      }}
+    />
+  );
+}
+
+function pathNode(it: Extract<Item, { kind: "path" }>): ReactNode {
+  const r = it.rect;
+  const tone = it.state === "active" ? ACCENT : it.tone;
+  const colour = it.state === "ghost" ? V("faint") : tone ? solid(tone) : it.state === "strong" ? V("text") : V("line");
+  const d = it.points.map(([x, y], i) => `${i ? "L" : "M"}${r2(r.x + x)},${r2(r.y + y)}`).join(" ") + (it.closed ? " Z" : "");
+  return (
+    <path
+      key={it.id}
+      d={d}
+      style={{
+        fill: "none",
+        stroke: colour,
+        strokeWidth: it.width,
+        strokeDasharray: it.dashed ? STROKE.dash : undefined,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+      }}
+    />
+  );
+}
+
+/** A canvas-coloured ring keeps a point legible where it sits on a line or touches another point. */
+function dotNode(it: Extract<Item, { kind: "dot" }>): ReactNode {
+  const r = it.rect;
+  const tone = it.state === "active" ? ACCENT : it.tone;
+  return (
+    <circle
+      key={it.id}
+      cx={r2(r.x + r.w / 2)}
+      cy={r2(r.y + r.h / 2)}
+      r={r2(it.r)}
+      style={{ fill: it.state === "ghost" ? V("faint") : tone ? solid(tone) : V("text"), stroke: V("canvas"), strokeWidth: STROKE.border }}
+    />
+  );
+}
+
 function dotsNode(it: Extract<Item, { kind: "dots" }>): ReactNode {
   const r = it.rect;
   const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
@@ -528,6 +582,12 @@ export function FrameSvg({ frame, label, uid }: FrameSvgProps) {
         return tagNode(it);
       case "dots":
         return dotsNode(it);
+      case "poly":
+        return polyNode(it);
+      case "path":
+        return pathNode(it);
+      case "dot":
+        return dotNode(it);
       default:
         return null;
     }

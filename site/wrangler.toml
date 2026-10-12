@@ -1,8 +1,15 @@
-# Cloudflare Worker serving the static export plus the search API.
+# Cloudflare Worker serving the static export plus the search API and the
+# password gate for the private CTF course (worker/ctf.ts).
 #
-#   bun run build      # next build → out/ (includes search-index.json)
+#   bun run build      # next build → out/ (includes search-index.json and
+#                      # ctf-index.json)
 #   bun run deploy     # build + wrangler deploy
 #   bun run preview    # build + wrangler dev (full local parity)
+#
+# The gate's password is a secret, never in this file:
+#   wrangler secret put CTF_PASSWORD     # production
+#   CTF_PASSWORD=… in .dev.vars          # wrangler dev (gitignored)
+# Unset, the gate fails closed: nothing unlocks.
 #
 # The first `wrangler deploy` creates the `knowledge` Worker; if a custom
 # domain still points at the old Pages project, move it to this Worker in
@@ -20,7 +27,7 @@ binding = "ASSETS"
 not_found_handling = "404-page"
 # Only these paths invoke the Worker; every other request is served straight
 # from the CDN and never counts as a Workers invocation.
-run_worker_first = ["/api/*", "/search-index.json"]
+run_worker_first = ["/api/*", "/search-index.json", "/notes/ctf/*", "/ctf-index.json"]
 
 # Per-IP budget for /api/search. Debounced typing peaks around 5 req/s, so
 # 30 per 10 s window never touches a human and caps everyone else.
@@ -28,6 +35,12 @@ run_worker_first = ["/api/*", "/search-index.json"]
 name = "SEARCH_LIMIT"
 namespace_id = "1001"
 simple = { limit = 30, period = 10 }
+
+# Per-IP budget for password attempts on /api/ctf (period must be 10 or 60).
+[[ratelimits]]
+name = "CTF_UNLOCK_LIMIT"
+namespace_id = "1002"
+simple = { limit = 5, period = 60 }
 
 [observability]
 enabled = true

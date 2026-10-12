@@ -73,7 +73,10 @@ export const STROKE = {
   head: 8,
 } as const;
 
-export const RADIUS = { node: 4, group: 8, cell: 3, tag: 4, corner: 8 } as const;
+/** Default radius of a plotted data point. */
+export const DOT_R = 3.5;
+
+export const RADIUS ={ node: 4, group: 8, cell: 3, tag: 4, corner: 8 } as const;
 
 /** Frame margin so strokes, badges and arrow heads never clip. */
 export const MARGIN = 10;
