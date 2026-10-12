@@ -1,0 +1,69 @@
+---
+title: "Machine Learning: Linear Regression"
+description: "Multivariate linear regression: the model and its bias trick, residuals, the design matrix, the mean squared error, the normal equation, gradient descent, multiple outputs, and the limits of a linear fit."
+tags: ["Machine learning"]
+created: 2026-09-26
+updated: 2026-10-05
+---
+
+## The Model
+
+**Regression.** Predicting a real number $y$, the **target**, from an input $\mathbf{x}$.
+
+**Linear regression.** A regression model that predicts the weighted sum of its input,
+
+$$
+\hat{y} = \mathbf{w}^T \mathbf{x} + b = \tilde{\mathbf{w}}^T \tilde{\mathbf{x}},
+$$
+
+where $\tilde{\mathbf{w}} = (\mathbf{w}, b)$ and $\tilde{\mathbf{x}} = (\mathbf{x}, 1)$ fold the bias into the weights, as for the perceptron. The model is the perceptron's score without the threshold.
+
+With $n > 1$ features the regression is **multivariate**, and the model is a hyperplane over the feature space.
+
+**Residual.** The error $y_i - \hat{y}_i$ of the prediction for example $i$, its vertical distance to the hyperplane.
+
+<RegressionPlaneSchema />
+
+**Design matrix.** The matrix $X \in \mathbb{R}^{m \times (n+1)}$ whose rows are the inputs $\tilde{\mathbf{x}}_1^T, \dots, \tilde{\mathbf{x}}_m^T$ of the training set. With the targets in $\mathbf{y} = (y_1, \dots, y_m)$, $X \tilde{\mathbf{w}}$ is the vector of all $m$ predictions.
+
+**Mean squared error (MSE).** The average squared residual over the $m$ training examples. Training minimizes it:
+
+$$
+L(\tilde{\mathbf{w}}) = \frac{1}{m} \sum_{i=1}^{m} (y_i - \hat{y}_i)^2 = \frac{1}{m} \|\mathbf{y} - X \tilde{\mathbf{w}}\|^2.
+$$
+
+## Training
+
+The weights that minimize the MSE can be found exactly or iteratively.
+
+**Normal equation.** The condition obtained by setting the gradient of the MSE to zero:
+
+$$
+X^T X \tilde{\mathbf{w}} = X^T \mathbf{y}, \quad \text{so} \quad \tilde{\mathbf{w}} = (X^T X)^{-1} X^T \mathbf{y}.
+$$
+
+$X^T X$ is invertible exactly when the columns of $X$ are linearly independent (no feature is redundant), which needs at least $n + 1$ examples.
+
+**Gradient descent.** An iterative minimization method. Starting from $\tilde{\mathbf{w}} = \mathbf{0}$, it repeats two steps until the MSE stops decreasing.
+
+1. Compute the gradient
+   $$
+   \nabla L = \frac{2}{m} X^T (X \tilde{\mathbf{w}} - \mathbf{y}).
+   $$
+2. Update $\tilde{\mathbf{w}} \leftarrow \tilde{\mathbf{w}} - \eta \nabla L$, with learning rate $\eta > 0$.
+
+*The gradient points uphill, so a small step against it goes downhill.*
+
+The MSE of a linear model is a bowl in $\tilde{\mathbf{w}}$ with no false bottom, so gradient descent with a small enough $\eta$ converges to the lowest MSE. Solving the normal equation costs about $O(mn^2 + n^3)$, so gradient descent is preferred when $n$ is large.
+
+## Multiple Outputs and Limits
+
+In statistics, *multivariate* also means predicting several targets $\mathbf{y} \in \mathbb{R}^p$ at once. The targets of the training set then form a matrix $Y$ with $p$ columns, the weights a matrix $W$ with one column per target, and
+
+$$
+W = (X^T X)^{-1} X^T Y.
+$$
+
+Column $j$ of $W$ solves the linear regression of target $j$ alone.
+
+The model only fits linear relations. A curve needs extra features computed from the input (e.g. adding $x_1^2$ gives the parabola $\hat{y} = w_1 x_1 + w_2 x_1^2 + b$). The model stays linear in $\tilde{\mathbf{w}}$, so the normal equation and gradient descent still apply. Squaring the residuals also makes the fit sensitive to examples far from the others.

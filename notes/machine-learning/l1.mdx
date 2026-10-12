@@ -1,0 +1,105 @@
+---
+title: "Machine Learning: Perceptron"
+description: "The perceptron as a linear binary classifier: score, decision boundary, margin, linear separability, the perceptron algorithm, the convergence theorem with its proof, and the XOR limitation."
+tags: ["Machine learning"]
+created: 2026-09-26
+updated: 2026-10-05
+---
+
+## A Linear Classifier
+
+A model learns from **examples**: pairs $(\mathbf{x}, y)$ of an input $\mathbf{x} \in \mathbb{R}^n$ and its true **label** $y$. The entries $x_1, \dots, x_n$ of $\mathbf{x}$ are its **features**.
+
+**Binary classification.** Predicting a label that takes one of two values, written $-1$ and $+1$.
+
+**Perceptron.** A binary classification model that thresholds a weighted sum of its input. It computes the **score**
+
+$$
+z = \mathbf{w}^T \mathbf{x} + b,
+$$
+
+where $\mathbf{w} \in \mathbb{R}^n$ is the **weight vector** and $b \in \mathbb{R}$ is the **bias**. It predicts
+
+$$
+\hat{y} = \begin{cases} +1 & \text{if } z \ge 0, \\ -1 & \text{otherwise.} \end{cases}
+$$
+
+<PerceptronUnitSchema />
+
+*A positive weight pushes the prediction toward $+1$ as its feature grows, a negative weight toward $-1$.*
+
+**Decision boundary.** The inputs where the score is zero, $\mathbf{w}^T \mathbf{x} + b = 0$. It is a hyperplane (a line when $n = 2$) with normal vector $\mathbf{w}$. Inputs on the boundary or on the side $\mathbf{w}$ points to are classified $+1$, the others $-1$.
+
+**Margin.** The signed distance from an example $(\mathbf{x}_i, y_i)$ to the decision boundary, positive on the correct side and negative on the wrong side:
+
+$$
+\gamma_i = \frac{y_i (\mathbf{w}^T \mathbf{x}_i + b)}{\|\mathbf{w}\|}.
+$$
+
+The margin of a dataset is its smallest margin, $\gamma = \min_i \gamma_i$: the margin of its closest example when every example is on the correct side.
+
+<PerceptronBoundarySchema />
+
+**Linearly separable.** Two classes are linearly separable when some hyperplane puts each class strictly on its own side. A perceptron can classify every example correctly only on linearly separable classes.
+
+## Training
+
+**Parameters.** The values a model learns from data, here $\mathbf{w}$ and $b$. Training fits them on a **training set** of $m$ examples.
+
+**Learning rate.** The step size $\eta > 0$ of each parameter update.
+
+**Perceptron algorithm.** Training that corrects the parameters after each mistake.
+
+1. Initialize the parameters, e.g. $\mathbf{w} = \mathbf{0}$ and $b = 0$.
+2. For each training example $(\mathbf{x}, y)$, compute the prediction $\hat{y}$. If $\hat{y} \ne y$, update
+   $$
+   \mathbf{w} \leftarrow \mathbf{w} + \eta y \mathbf{x}, \qquad b \leftarrow b + \eta y.
+   $$
+3. Repeat step 2 until a full pass over the training set, an **epoch**, makes no mistake.
+
+*An update moves the score of the misclassified input by $\eta y (\|\mathbf{x}\|^2 + 1)$, toward the side of its label.*
+
+---
+
+## Convergence
+
+Appending a constant $1$ to every input folds the bias into the weights: with $\mathbf{x} \leftarrow (\mathbf{x}, 1)$ and $\mathbf{w} \leftarrow (\mathbf{w}, b)$, the score is $\mathbf{w}^T \mathbf{x}$.
+
+**Perceptron convergence theorem.** The perceptron algorithm makes a bounded number of mistakes under two assumptions on the folded inputs.
+
+- Every input has length at most $R$: $\|\mathbf{x}_i\| \le R$ for all $i$.
+- Some unit vector $\mathbf{w}^*$ separates the data with margin $\gamma > 0$: $y_i \mathbf{w}^{*T} \mathbf{x}_i \ge \gamma$ for all $i$.
+
+Then, starting from $\mathbf{w} = \mathbf{0}$, the total number $k$ of mistakes across all epochs, repeated mistakes on the same example included, satisfies
+
+$$
+k \le \frac{R^2}{\gamma^2}.
+$$
+
+So on linearly separable data training always stops, and a larger margin lowers the bound on mistakes. The bound does not depend on the number of examples, the dimension $n$ or the learning rate $\eta$. Here $\gamma$ is measured in the folded space, so it is at most the margin of the same boundary in the original space.
+
+**Proof.** Let $\mathbf{w}_k$ be the weights after $k$ updates. The $k$-th update is made on a misclassified example $(\mathbf{x}_i, y_i)$, so $y_i \mathbf{w}_{k-1}^T \mathbf{x}_i \le 0$.
+
+1. **Alignment grows linearly.** Each update adds at least $\eta \gamma$ to the alignment with $\mathbf{w}^*$:
+   $$
+   \mathbf{w}_k^T \mathbf{w}^* = \mathbf{w}_{k-1}^T \mathbf{w}^* + \eta y_i \mathbf{x}_i^T \mathbf{w}^* \ge \mathbf{w}_{k-1}^T \mathbf{w}^* + \eta \gamma,
+   $$
+   so $\mathbf{w}_k^T \mathbf{w}^* \ge k \eta \gamma$.
+2. **Length grows slowly.** The middle term below is at most $0$ because the example was misclassified:
+   $$
+   \|\mathbf{w}_k\|^2 = \|\mathbf{w}_{k-1}\|^2 + 2 \eta y_i \mathbf{w}_{k-1}^T \mathbf{x}_i + \eta^2 \|\mathbf{x}_i\|^2 \le \|\mathbf{w}_{k-1}\|^2 + \eta^2 R^2,
+   $$
+   so $\|\mathbf{w}_k\|^2 \le k \eta^2 R^2$.
+3. **Combine.** By the Cauchy-Schwarz inequality and $\|\mathbf{w}^*\| = 1$,
+   $$
+   k \eta \gamma \le \mathbf{w}_k^T \mathbf{w}^* \le \|\mathbf{w}_k\| \le \sqrt{k}\, \eta R,
+   $$
+   so $\sqrt{k} \le R / \gamma$.
+
+*The alignment with $\mathbf{w}^*$ grows like $k$ but the length only like $\sqrt{k}$, and the alignment can never exceed the length.*
+
+If the data is not linearly separable, no such $\mathbf{w}^*$ exists: some example is misclassified in every epoch, and training never stops.
+
+The perceptron fails on data as simple as XOR, where $(0, 0)$ and $(1, 1)$ have label $-1$ while $(0, 1)$ and $(1, 0)$ have label $+1$. No line separates these two groups.
+
+<XorSchema />

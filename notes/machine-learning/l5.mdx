@@ -1,0 +1,49 @@
+---
+title: "Machine Learning: Foundations III"
+description: "Feature scaling: why it matters for gradient descent, distances and regularization, standardization and min-max normalization, and fitting the scaling on the training set only to avoid data leakage."
+tags: ["Machine learning"]
+created: 2026-09-26
+updated: 2026-10-05
+---
+
+## Feature Scaling
+
+Features often have very different scales (e.g. a surface in m² and a number of rooms).
+
+**Feature scaling.** Rescaling every feature to a comparable range.
+
+Scaling helps in three places.
+
+- Gradient descent: the loss contours become rounder, so one learning rate suits every weight.
+- Distance-based methods: without scaling, the feature with the largest scale dominates every distance.
+- Regularization: the penalty treats all weights alike, so it assumes comparable features.
+
+<FeatureScalingSchema />
+
+Scaling does not change the predictions of unregularized linear regression, because the weights compensate. It changes how fast gradient descent converges and what ridge or lasso return.
+
+## Standardization and Normalization
+
+**Standardization (z-score).** Shifting and rescaling each feature to mean $0$ and standard deviation $1$:
+
+$$
+x'_j = \frac{x_j - \mu_j}{\sigma_j},
+$$
+
+where $\mu_j$ and $\sigma_j$ are the mean and standard deviation of feature $j$ over the training set. The result is unbounded.
+
+*A standardized feature measures how many standard deviations an example sits from the mean.*
+
+**Normalization (min-max).** Mapping each feature onto $[0, 1]$:
+
+$$
+x'_j = \frac{x_j - x_j^{\min}}{x_j^{\max} - x_j^{\min}},
+$$
+
+with $x_j^{\min}$ and $x_j^{\max}$ taken over the training set. One outlier squeezes all other values into a small interval, so standardization is usually safer.
+
+The word normalization also names scaling each example to unit length ($\mathbf{x} / \|\mathbf{x}\|$), used when only the direction of $\mathbf{x}$ matters.
+
+**Data leakage.** Information about the test set reaching training, which makes the test score optimistic.
+
+Computing the scaling statistics on all the data leaks the test set. The statistics $\mu_j$ and $\sigma_j$ (or $x_j^{\min}$ and $x_j^{\max}$) come from the training set only, and the same map is then applied to the validation and test data.

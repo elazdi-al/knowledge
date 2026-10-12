@@ -85,8 +85,6 @@ The network layer must interconnect *all* devices. Wiring every pair directly do
 
 **Packet.** A small unit of data, typically at most 1500 bytes. A packet is a **header**, the information needed to deliver it (such as the destination address), followed by a **payload**, the data it carries.
 
-*A packet is a postcard: it carries its own destination address, and the post handles it separately from every other card.*
-
 **Router.** An intermediate node of a packet-switched network that forwards each packet toward its destination.
 
 A router forwards each packet *separately*, according to its forwarding rules, so packets of the same message may follow different paths. Every packet's journey begins and ends on a local network.
@@ -136,7 +134,7 @@ The prefix length depends on the network. The IPv4 LANs of ETH Zurich (ETHZ) use
 
 ## The Data Link and Physical Layers
 
-Below IP, the data link layer offers hop-to-hop delivery. It moves data from a node to a *LAN neighbour* over a shared medium, wired or wireless. It also manages access to that medium, hence its other name, Medium Access Control (MAC) layer. Depending on the physical layer beneath, the data link layer may also detect and correct errors, deliver reliably, avoid collisions and control the flow.
+Below IP, the data link layer delivers data hop to hop, from a node to a *LAN neighbour*, and controls access to their shared medium, hence its other name, Medium Access Control (MAC) layer. Depending on the physical layer, it may also handle errors, reliability, collisions and flow control.
 
 **MAC address.** The 48-bit hardware address of an interface, comparable to a serial number and unique in principle. The manufacturer of the network card sets it, and its first 3 bytes identify the manufacturer. It is written as six hexadecimal bytes, as in `00:00:c0:3f:6c:a4`.
 
@@ -216,7 +214,7 @@ A web server on Ethernet LAN B sends a file to Eliane's phone on WiFi LAN A. The
 
 <GatewayPathSchema />
 
-At the server, TCP cuts the file into segments, IP puts each segment into a packet addressed to the phone, and Ethernet puts each packet into a frame. The switch reads only the frame header. The gateway opens each frame, reads the IP header, and sends the packet on inside a new WiFi frame. At the phone, each layer removes its header and passes the rest up.
+Each device opens the frame only up to the highest layer it runs.
 
 <PathStacksSchema />
 
@@ -226,18 +224,13 @@ At the server, TCP cuts the file into segments, IP puts each segment into a pack
 
 **Example 4. Which addresses does a frame carry?**
 
-*A packet from the web server to Eliane's phone is observed at point 1, then at point 2. At point 1 the destination MAC address is the gateway's, but the destination IP address is the phone's: the gateway is only the next device to handle the packet. At point 2 the gateway has written a new frame header, and the IP header is unchanged.*
+*The web server sends a packet to Eliane's phone. Which addresses does the frame carry at point 1, and at point 2?*
 
-| | at point 1 | at point 2 |
-|---|---|---|
-| Source MAC | web server | gateway |
-| Destination MAC | gateway | Eliane's phone |
-| Source IP | web server | web server |
-| Destination IP | Eliane's phone | Eliane's phone |
+<FrameAddressesSchema />
 
-Inbound packets follow the same rule. When Lisa's PC receives a packet from a server in the US, the frame's source MAC address is her gateway's, and the source IP address is the US server's.
+Inbound packets follow the same rule. When Lisa's PC receives a packet from a server in the US, the source MAC address is her gateway's and the source IP address is the server's.
 
-The captured frame above shows the outbound direction. Its destination IP address is a host at ETH Zurich, outside the sender's LAN, so its destination MAC address, of a Cisco device, belongs to the sender's gateway. For the same reason, a capture that keeps only packets whose destination IP address is the gateway's sees none of a browser's web traffic. The gateway's MAC address appears in those frames, but its IP address never does.
+In the captured frame above, the destination IP address is at ETH Zurich and the destination MAC address belongs to the sender's gateway, a Cisco device. A capture that keeps only packets addressed to the gateway's IP address therefore sees no web traffic.
 
 ---
 
@@ -258,17 +251,17 @@ For a packet of $L$ bits on a link of bit rate $b$ and length $d$, each hop adds
 
 **Store and forward.** A node starts forwarding a packet only after its last bit has arrived and all bits of the previous packets have left.
 
+A time-space diagram shows these delays. Each node has a vertical time axis, with time running down. Each band is one transmission. Its thickness on the sender's axis is the transmission delay, and the drop of its edges from one axis to the next is the propagation delay.
+
 **Example 5. One store-and-forward switch.**
 
-*A switch sits between two hosts, with bit rate $b_1$ on the first link and $b_2$ on the second. Ignoring processing, queueing and propagation, a packet of $L$ bits takes $L/b_1$ to reach the switch completely. Only then does the switch start its own transmission, which takes $L/b_2$:*
+*Host A sends a packet of $L$ bits to host B through a switch S. The link from A to S has bit rate $b_1$ and the link from S to B has bit rate $b_2$. Ignore processing, queueing and propagation. What is the end-to-end delay?*
+
+<StoreForwardSchema />
 
 $$
 \text{end-to-end delay} = \frac{L}{b_1} + \frac{L}{b_2}.
 $$
-
-*The delay is neither $L/(b_1 + b_2)$ nor $L$ over the average rate: every store-and-forward hop adds one full transmission delay.*
-
-A time-space diagram shows these delays. Each node has a vertical time axis, with time running down. Each band is one transmission. Its thickness on the sender's axis is the transmission delay, and the drop of its edges from one axis to the next is the propagation delay.
 
 The figure sends one message by message relaying (left) and by packet switching (right), without processing or queueing. In both panels the router starts sending only once the last bit it forwards has arrived.
 
@@ -333,8 +326,6 @@ $$
 $$
 
 Even over a single link, throughput falls short of the bit rate, for two reasons. **Protocol overhead** is the extra bytes every protocol spends on metadata such as headers. **Waiting times** arise when a host must wait for a response from the other end before transmitting more.
-
-*Delay and throughput are different quantities. In 2009 a pigeon carried a memory card 80 km across South Africa in just over an hour. Including the download, the transfer took about two hours, in which a commercial ADSL line moved only 4% of the same data. The pigeon's delay was huge, yet its throughput beat the line's.*
 
 **Stop & Go.** A simple protocol that repairs packet losses.
 
