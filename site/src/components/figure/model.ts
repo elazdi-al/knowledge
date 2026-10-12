@@ -118,6 +118,12 @@ export type Block = Base &
       }
     | { kind: "tag"; text: string }
     | { kind: "dots"; dir: Dir }
+    /** a filled polygon, points relative to its rect; a background, so edges and labels may cross it */
+    | { kind: "poly"; points: [number, number][]; outline: boolean }
+    /** a stroked polyline (a plot curve, contour or guide), points relative to its rect; a background like `poly` */
+    | { kind: "path"; points: [number, number][]; closed: boolean; dashed: boolean; width: number }
+    /** a filled data point; its rect is the dot's bounding square */
+    | { kind: "dot"; r: number }
   );
 
 export type Container = Extract<Block, { children: Block[] }>;

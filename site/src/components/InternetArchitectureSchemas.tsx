@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Text, type Tone } from "@/components/figure";
-import { GROUP } from "@/components/figure/theme";
-import { Link, NET_TONE, Router, ROUTER_SIZE, Switch } from "@/components/NetworkFigures";
-import { AddressBits, ProtocolStack, TimeSpace } from "@/components/PacketFigures";
+import { DEVICE_NAME, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch } from "@/components/NetworkFigures";
+import { AddressBits, FrameHeaders, ProtocolStack, TimeSpace } from "@/components/PacketFigures";
 
 interface FigureProps {
   title?: string;
@@ -74,25 +73,23 @@ const Addr = ({ text, x, tone }: { text: string; x: number; tone?: Tone }) => <T
 /** Gap between a LAN panel and the router beside it, so the link visibly leaves the LAN. */
 const JOIN = 10;
 
-/** A LAN as a soft panel titled with its prefix; `children` are placed freely around the link line at y = LINE. */
-const Lan = ({ title, children }: { title: string; children: ReactNode }) => (
-  <Group title={title} pad={LAN_PAD}>
+/** A LAN as a dashed outline titled with its prefix; `children` are placed freely around the link line at y = LINE, in `h` of height. */
+const Lan = ({ title, h = 2 * LINE, children }: { title: string; h?: number; children: ReactNode }) => (
+  <Group title={title} pad={LAN_PAD} dashed>
     <Free>
-      <Space x={0} y={0} h={2 * LINE} />
+      <Space x={0} y={0} h={h} />
       {children}
     </Free>
   </Group>
 );
 
-/** A router `h` tall, lowered so its centre sits on the panels' link line. */
-const OnLine = ({ h = ROUTER_SIZE, children }: { h?: number; children: ReactNode }) => (
+/** A router lowered so the point `mid` below its top (by default the centre of a numbered router's box) sits on the panels' link line. */
+const OnLine = ({ mid = ROUTER_BADGE + ROUTER_SIZE / 2, children }: { mid?: number; children: ReactNode }) => (
   <Col gap={0}>
-    <Space h={LINE_Y - h / 2} />
+    <Space h={LINE_Y - mid} />
     {children}
   </Col>
 );
-/** Height of a titled router: the glyph box plus the title band. */
-const TITLED = ROUTER_SIZE + GROUP.titleBand;
 
 export function SubnetChainSchema({ title, caption, className }: FigureProps) {
   const r = NET_TONE.router;
@@ -134,8 +131,13 @@ export function SubnetChainSchema({ title, caption, className }: FigureProps) {
 /** An observation point on a link: a small numbered circle the link passes through. */
 const Point = ({ id, n, x }: { id: string; n: number; x: number }) => <Node id={id} title={String(n)} shape="circle" w={22} x={x} y={LINE - 11} />;
 
+/** Height of a switch: its 10px port strip plus 6px padding each side. */
+const SWITCH_H = 22;
+
 export function GatewayPathSchema({ title, caption, className }: FigureProps) {
   const server = 96, sw = server + 32, p1 = sw + 72 + 32;
+  // room for the switch's name under the line, in both LANs so they stay level
+  const h = LINE + SWITCH_H / 2 + DEVICE_NAME;
   return (
     <Diagram
       title={title}
@@ -143,19 +145,18 @@ export function GatewayPathSchema({ title, caption, className }: FigureProps) {
       className={className}
     >
       <Row gap={JOIN} align="start">
-        <Lan title="LAN B (Ethernet)">
+        <Lan title="LAN B (Ethernet)" h={h}>
           <Node id="srv" title="Web server" x={0} y={LINE - NODE.h / 2} w={server} />
-          {/* a titled switch: 22px port strip plus the title band, centred on the line */}
-          <Free x={sw} y={LINE - (22 + GROUP.titleBand) / 2}>
+          <Free x={sw} y={LINE - SWITCH_H / 2}>
             <Switch id="sw" label="Switch" />
           </Free>
           <Point id="p1" n={1} x={p1} />
           <Space x={p1 + 22 + 20} y={0} />
         </Lan>
-        <OnLine h={TITLED}>
+        <OnLine mid={ROUTER_SIZE / 2}>
           <Router id="gw" label="Gateway" />
         </OnLine>
-        <Lan title="LAN A (WiFi)">
+        <Lan title="LAN A (WiFi)" h={h}>
           <Point id="p2" n={2} x={20} />
           <Node id="eli" title="Eliane" x={20 + 22 + 32} y={LINE - NODE.h / 2} />
         </Lan>
@@ -215,6 +216,23 @@ export function PathStacksSchema({ title, caption, className }: FigureProps) {
   );
 }
 
+export function FrameAddressesSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "The frame's headers at point 1 (top) and point 2 (bottom). The gateway writes a new MAC header. The IP header crosses unchanged."}
+      className={className}
+    >
+      <FrameHeaders
+        frames={[
+          { n: 1, mac: ["Web server", "Gateway"], ip: ["Web server", "Eliane"] },
+          { n: 2, mac: ["Gateway", "Eliane"], ip: ["Web server", "Eliane"] },
+        ]}
+      />
+    </Diagram>
+  );
+}
+
 // --- addresses ---------------------------------------------------------------------------------------------------
 
 export function AddressPrefixSchema({ title, caption, className }: FigureProps) {
@@ -230,6 +248,29 @@ export function AddressPrefixSchema({ title, caption, className }: FigureProps) 
 }
 
 // --- delays ------------------------------------------------------------------------------------------------------
+
+export function StoreForwardSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "Time runs down. S starts sending only once the last bit from A has arrived, so the two transmission delays add up."}
+      className={className}
+    >
+      <TimeSpace
+        lanes={["A", "S", "B"]}
+        prop={0}
+        sends={[
+          { from: 0, to: 1, at: 0, tx: 2, label: "packet" },
+          { from: 1, to: 2, at: 2, tx: 1, label: "packet" },
+        ]}
+        spans={[
+          { from: 0, to: 2, label: "L/b₁" },
+          { from: 2, to: 3, label: "L/b₂" },
+        ]}
+      />
+    </Diagram>
+  );
+}
 
 /** Four packets of 1 ms transmission each, two hops of 0.5 ms propagation: 9 ms whole, 6 ms pipelined. */
 const PACKETS = [0, 1, 2, 3];

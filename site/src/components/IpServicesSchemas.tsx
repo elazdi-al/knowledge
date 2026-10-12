@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, Free, Group, Node, Row, Space, Table, Text } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, Free, Group, Node, NODE, Row, Space, Table, Text } from "@/components/figure";
 import { GROUP } from "@/components/figure/theme";
-import { Host, Link, Router, Subnet, Switch } from "@/components/NetworkFigures";
+import { DEVICE_NAME, Host, Link, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
 
 interface FigureProps {
@@ -102,9 +102,13 @@ export function PrefixDelegationSchema({ title, caption, className }: FigureProp
       className={className}
     >
       <Col gap={28}>
-        <Row gap={150}>
+        <Row gap={150} align="start">
           <Node id="isp" title="ISP DHCP server" sub="delegating router" />
-          <Router id="r0" label="R0" />
+          {/* level with the two-line nodes, its name hanging below */}
+          <Col gap={0}>
+            <Space h={(NODE.hSub - ROUTER_SIZE) / 2} />
+            <Router id="r0" label="R0" />
+          </Col>
           <Node id="lan" title="Home hosts" sub="B and C, by SLAAC" />
         </Row>
         <Group title="2004:aaaa:bbbb:cc00::/60 holds 16 /64 prefixes" gap={10}>
@@ -214,9 +218,9 @@ export function GatewayResolutionSchema({ title, caption, className }: FigurePro
           <Switch id="sp" />
           <Host id="m2" name="M2" addr="p.h2" />
         </Subnet>
-        {/* the subnets' title band, so the router sits level with the switches */}
+        {/* the subnets' title band and the router's name, so the centred router sits level with the switches */}
         <Col gap={0}>
-          <Space h={GROUP.titleBand} />
+          <Space h={GROUP.titleBand + DEVICE_NAME} />
           <Router id="rt" label="Router" />
         </Col>
         <Subnet prefix="subnet q">

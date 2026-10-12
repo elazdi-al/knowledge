@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, measure, Node, Space, Table, Text, type TableRow } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow } from "@/components/figure";
 import { tableColumnWidths } from "@/components/figure/layout";
 import { GROUP } from "@/components/figure/theme";
-import { ForwardingTable, Host, Link, NET_TONE, Router, ROUTER_SIZE, type Route } from "@/components/NetworkFigures";
-import { HeaderFormat, type Field } from "@/components/PacketFigures";
+import { ForwardingTable, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch, type Route } from "@/components/NetworkFigures";
+import { FrameHeaders, HeaderFormat, type Field } from "@/components/PacketFigures";
 
 /** Advanced Networks, Lecture 2 figures: forwarding, IPv4 and IPv6 addresses, NAT. */
 
@@ -22,54 +22,134 @@ const dim = (id: string, x0: number, x1: number, y: number, label: string) => [
   <Edge key={id} from={`${id}.a`} to={`${id}.b`} route="straight" head="both" label={label} />,
 ];
 
-// --- longest prefix match across routers -------------------------------------------------------------------------
+// --- subnets ------------------------------------------------------------------------------------------------------
 
-const LPM_TABLES: Record<number, Route[]> = {
-  1: [["B.*", 2, "used"], ["A.*", "direct"]],
-  2: [["A.*", 1], ["B.D.*", "direct", "used"], ["B.*", 3, "light"]],
-  3: [["A.*", 2], ["B.D.*", 2], ["B.C.*", "direct"]],
+/** Height of a switch or base station: its 10px port strip plus 6px padding each side; its width holds 6 cells. */
+const SWITCH_H = 22;
+const SWITCH_W = 72;
+/** Horizontal room between a host and the link-layer device it hangs off. */
+const REACH = 32;
+
+/** Two hosts stacked on one side of a switch, joined to it by straight links; `flip` puts the hosts on the right. */
+const Star = ({ sw, label, hosts, flip = false }: { sw: string; label: string; hosts: [string, string]; flip?: boolean }) => {
+  const gap = 28;
+  const mid = NODE.h + gap / 2;
+  const hostX = flip ? SWITCH_W + REACH : 0;
+  const swX = flip ? 0 : NODE.minW + REACH;
+  return (
+    <Free>
+      <Node id={hosts[0]} title={hosts[0]} x={hostX} y={0} />
+      <Node id={hosts[1]} title={hosts[1]} x={hostX} y={NODE.h + gap} />
+      <Free x={swX} y={mid - SWITCH_H / 2}>
+        <Switch id={sw} label={label} />
+      </Free>
+    </Free>
+  );
 };
-/** Cells of each router's glyph that light up along the packet's path (0 to 8, row-major). */
-const LPM_LIT: Record<number, number[]> = { 1: [3, 4, 5], 2: [3, 4, 5, 2], 3: [] };
+/** The centre line of a `Star`, measured from the top of its subnet's outline. */
+const STAR_MID = GROUP.pad + GROUP.titleBand + NODE.h + 14;
 
-export function LongestPrefixMatchSchema({ title, caption, className }: FigureProps) {
-  const top = 92;
-  const half = ROUTER_SIZE / 2;
-  const xs: Record<number, number> = { 1: 140, 2: 285, 3: 430 };
-  const mono = (t: string) => measure(t, FONT.mono, { mono: true }) + 16;
-  // every table here holds a `direct` entry, the widest next hop
-  const colW = (n: number) => Math.max(ROUTER_SIZE, Math.max(...LPM_TABLES[n].map(([p]) => mono(p))) + mono("direct"));
-  const hostY = top + half - 23;
-  const bobX = xs[2] + 13;
+export function SubnetRuleSchema({ title, caption, className }: FigureProps) {
   return (
     <Diagram
       title={title}
       caption={
         caption ??
-        "Alice's packet to Bob (B.D.H2) takes the thick links. R1 uses its entry B.*. At R2 both B.D.* and B.* match, and the longer B.D.* wins."
+        "Inside a subnet, hosts reach each other through the switch or the base station, never through the gateway. W's packet to E (blue) crosses the gateway, whose two interfaces sit in different subnets."
       }
       className={className}
     >
+      <Row gap={100} align="start">
+        <Group title="Ethernet, 10.10.2.0/24" dashed>
+          <Star sw="sw" label="Switch" hosts={["W", "P"]} />
+        </Group>
+        <Col gap={0}>
+          <Space h={STAR_MID - ROUTER_SIZE / 2} />
+          <Router id="gw" label="Gateway" />
+        </Col>
+        <Group title="WiFi, 10.10.1.0/24" dashed>
+          <Star sw="bs" label="Base station" hosts={["B", "E"]} flip />
+        </Group>
+      </Row>
+      <Link from="W" to="sw" route="straight" thick state="active" />
+      <Link from="P" to="sw" route="straight" />
+      <Link from="sw" to="gw" route="straight" thick state="active" label="10.10.2.1" />
+      <Link from="gw" to="bs" route="straight" thick state="active" label="10.10.1.1" />
+      <Link from="bs" to="B" route="straight" />
+      <Link from="bs" to="E" route="straight" thick state="active" />
+    </Diagram>
+  );
+}
+
+export function LanCaptureSchema({ title, caption, className }: FigureProps) {
+  const line = NODE.h / 2;
+  const pt = NODE.minW + 28, swX = pt + 22 + 28, pX = swX + SWITCH_W + 28;
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "The frame at point 1. Inside one subnet, P is both the next hop and the destination, so both headers name P. The switch appears in neither."}
+      className={className}
+    >
+      <Col gap={20} align="center">
+        <Group title="Ethernet, 10.10.2.0/24" dashed>
+          <Free>
+            <Node id="W" title="W" x={0} y={0} />
+            <Node id="pt" title="1" shape="circle" w={22} x={pt} y={line - 11} />
+            <Free x={swX} y={line - SWITCH_H / 2}>
+              <Switch id="sw" label="Switch" />
+            </Free>
+            <Node id="P" title="P" x={pX} y={0} />
+          </Free>
+        </Group>
+        <FrameHeaders frames={[{ n: 1, mac: ["W", "P"], ip: ["W", "P"] }]} />
+      </Col>
+      <Link from="W" to="pt" route="straight" />
+      <Link from="pt" to="sw" route="straight" />
+      <Link from="sw" to="P" route="straight" />
+    </Diagram>
+  );
+}
+
+// --- longest prefix match across routers -------------------------------------------------------------------------
+
+const LPM_TABLES: Record<number, Route[]> = {
+  1: [["128.178.0.0/16", 2, "used"], ["129.132.0.0/16", "direct"]],
+  2: [["129.132.0.0/16", 1], ["128.178.71.0/24", "direct", "used"], ["128.178.0.0/16", 3, "light"]],
+  3: [["129.132.0.0/16", 2], ["128.178.71.0/24", 2], ["128.178.156.0/24", "direct"]],
+};
+/** Cells of each router's glyph that light up along the packet's path (0 to 8, row-major): in from the top, out to the right, then in from the left, out the top. */
+const LPM_LIT: Record<number, number[]> = { 1: [1, 4, 5], 2: [3, 4, 1], 3: [] };
+/** The host above each router. */
+const LPM_HOSTS: Record<number, [name: string, addr: string]> = { 1: ["Alice", "129.132.66.46"], 2: ["Bob", "128.178.71.202"], 3: ["Bart", "128.178.156.23"] };
+
+export function LongestPrefixMatchSchema({ title, caption, className }: FigureProps) {
+  const mono = (t: string) => measure(t, FONT.mono, { mono: true }) + 16;
+  // every table here holds a `direct` entry, the widest next hop
+  const colW = (n: number) => Math.max(ROUTER_SIZE, Math.max(...LPM_TABLES[n].map(([p]) => mono(p))) + mono("direct"));
+  const GAP = 20, DROP = 36;
+  const xs: Record<number, number> = { 1: colW(1) / 2 };
+  xs[2] = colW(1) + GAP + colW(2) / 2;
+  xs[3] = colW(1) + GAP + colW(2) + GAP + colW(3) / 2;
+  const hostW = Math.max(...Object.values(LPM_HOSTS).map(([, a]) => measure(a, FONT.note))) + 2 * NODE.padX;
+  const top = NODE.hSub + DROP + ROUTER_BADGE;
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "Alice's packet to Bob takes the thick links, and each router uses its outlined entry. A chip names the next-hop router, and direct marks an attached subnet."}
+      className={className}
+    >
       <Free>
-        <Col x={0} y={hostY}>
-          <Host id="alice" name="Alice" addr="A.H1" />
-        </Col>
-        {[1, 2, 3].map((n) => (
-          <Router key={n} id={`r${n}`} n={n} lit={LPM_LIT[n]} table={LPM_TABLES[n]} x={xs[n] - colW(n) / 2} y={top} />
-        ))}
-        <Col x={bobX - 34} y={top - 36 - 46}>
-          <Host id="bob" name="Bob" addr="B.D.H2" />
-        </Col>
-        {at("r2.port", bobX, top)}
-        <Col x={xs[3] + half + 56} y={hostY}>
-          <Host id="bart" name="Bart" addr="B.C.H2" />
-        </Col>
+        {[1, 2, 3].map((n) => [
+          <Node key={`h${n}`} id={`h${n}`} title={LPM_HOSTS[n][0]} sub={LPM_HOSTS[n][1]} x={xs[n] - hostW / 2} y={0} w={hostW} />,
+          at(`r${n}.north`, xs[n], top - ROUTER_BADGE),
+          <Router key={n} id={`r${n}`} n={n} lit={LPM_LIT[n]} table={LPM_TABLES[n]} x={xs[n] - colW(n) / 2} y={top} />,
+        ])}
       </Free>
-      <Link from="alice" to="r1" thick />
-      <Link from="r1" to="r2" thick />
-      <Link from="r2.port" to="bob" thick route="straight" />
-      <Link from="r2" to="r3" />
-      <Link from="r3" to="bart" />
+      <Link from="h1" to="r1.north" route="straight" thick />
+      <Link from="r1" to="r2" route="straight" thick />
+      <Link from="r2.north" to="h2" route="straight" thick />
+      <Link from="r2" to="r3" route="straight" state="ghost" />
+      <Link from="h3" to="r3.north" route="straight" state="ghost" />
     </Diagram>
   );
 }
@@ -136,7 +216,7 @@ export function SubnetBitsSchema({ title, caption, className }: FigureProps) {
       title={title}
       caption={
         caption ??
-        "Under mask 255.255.254.0 the prefix is 23 bits. Both choices for H match the router's north interface on all 23. Choice B differs only in a host bit (outlined). The south interface differs in three prefix bits (blue)."
+        "Both choices for H match the north interface on all 23 prefix bits. Choice B differs only in a host bit (outlined). The south interface differs in three prefix bits (blue)."
       }
       className={className}
     >
@@ -206,7 +286,7 @@ function Caption({ x, y, lines, align = "start" }: { x: number; y: number; lines
 export function EpflForwardingSchema({ title, caption, className }: FigureProps) {
   const cx = 250, half = ROUTER_SIZE / 2, spread = 120;
   // the backbone LAN joining ed0-swi, ed2-in and ed2-el runs at yB
-  const y0 = 12, y1 = 112, yB = y1 + ROUTER_SIZE + 64, y2 = yB - half;
+  const y0 = 12 + ROUTER_BADGE, y1 = 112 + ROUTER_BADGE, yB = y1 + ROUTER_SIZE + 64, y2 = yB - half;
   return (
     <Diagram
       title={title}
@@ -299,7 +379,7 @@ export function NatTranslationSchema({ title, caption, className }: FigureProps)
   const strips = { o1: pkt(LAN, DNS, "src"), i2: pkt(DNS, LAN, "dst"), o2: pkt(WAN, DNS, "src"), i1: pkt(DNS, WAN, "dst") };
   // each side's two strips hold the same addresses, so they share a width
   const wL = tableW(strips.o1), wR = tableW(strips.o2);
-  const GAP = 14, ARROW = 44, PKT_H = 2 * 26, NAT_H = ROUTER_SIZE + GROUP.titleBand;
+  const GAP = 14, ARROW = 44, PKT_H = 2 * 26;
   const head = Math.round(FONT.note * 1.4) + GAP;
   const xNat = wL + ARROW, xR = xNat + ROUTER_SIZE + ARROW;
   const mid = head + PKT_H + GAP / 2;
@@ -321,7 +401,7 @@ export function NatTranslationSchema({ title, caption, className }: FigureProps)
           {heading("Internet side, public", xR, wR)}
           <Table id="o1" rows={strips.o1} x={0} y={head} />
           <Table id="i2" rows={strips.i2} x={0} y={head + PKT_H + GAP} />
-          <Router id="nat" label="NAT" x={xNat} y={mid - NAT_H / 2} />
+          <Router id="nat" label="NAT" x={xNat} y={mid - ROUTER_SIZE / 2} />
           <Table id="o2" rows={strips.o2} x={xR} y={head} />
           <Table id="i1" rows={strips.i1} x={xR} y={head + PKT_H + GAP} />
           {at("o.a", wL, yOut)}
@@ -346,7 +426,7 @@ export function NatTranslationSchema({ title, caption, className }: FigureProps)
       <Edge from="o.c" to="o.d" route="straight" />
       <Edge from="i.d" to="i.c" route="straight" />
       <Edge from="i.b" to="i.a" route="straight" />
-      <Edge from="nat" to="nattab" dashed head="none" />
+      <Edge from="nat.name" to="nattab" dashed head="none" />
     </Diagram>
   );
 }

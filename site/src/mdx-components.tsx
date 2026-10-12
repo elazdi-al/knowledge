@@ -3,6 +3,7 @@ import { Automaton } from "@/components/Automaton";
 import { BPlusTree } from "@/components/BPlusTree";
 import { BufferQueue } from "@/components/BufferQueue";
 import { ClockPolicy } from "@/components/ClockPolicy";
+import { DiffieHellmanSchema, EndiannessSchema, ProgramMemorySchema } from "@/components/CtfSchemas";
 import {
   GraphCertificateSchema,
   PnpContainmentSchema,
@@ -33,10 +34,12 @@ import {
   AddressPrefixSchema,
   DomainNameSchema,
   EncapsulationSchema,
+  FrameAddressesSchema,
   GatewayPathSchema,
   PacketSwitchingSchema,
   PathStacksSchema,
   StopAndGoSchema,
+  StoreForwardSchema,
   SubnetChainSchema,
 } from "@/components/InternetArchitectureSchemas";
 import {
@@ -44,9 +47,11 @@ import {
   Ipv4HeaderSchema,
   Ipv6AddressSchema,
   Ipv6HeaderSchema,
+  LanCaptureSchema,
   LongestPrefixMatchSchema,
   NatTranslationSchema,
   SubnetBitsSchema,
+  SubnetRuleSchema,
 } from "@/components/IpAddressingSchemas";
 import {
   DhcpRelaySchema,
@@ -58,6 +63,16 @@ import {
   TracerouteSchema,
 } from "@/components/IpServicesSchemas";
 import { LanguageClasses } from "@/components/LanguageClasses";
+import { PerceptronBoundarySchema, PerceptronUnitSchema, RegressionPlaneSchema, XorSchema } from "@/components/LinearModelSchemas";
+import {
+  CrossValidationSchema,
+  CurseOfDimensionalitySchema,
+  FeatureScalingSchema,
+  FitRegimesSchema,
+  GridSearchSchema,
+  LossShapesSchema,
+  MinimaSchema,
+} from "@/components/MlFoundationsSchemas";
 import { networkFigures } from "@/components/NetworkFigures";
 import { packetFigures } from "@/components/PacketFigures";
 import { PageLayout } from "@/components/PageLayout";
@@ -106,18 +121,25 @@ export function useMDXComponents(
     ClockPolicy,
     CausalConsistencySchema,
     ConflictSerializabilitySchema,
+    CrossValidationSchema,
+    CurseOfDimensionalitySchema,
     DeadlockPreventionSchema,
+    DiffieHellmanSchema,
     DfaToPathReductionSchema,
     DhcpRelaySchema,
     DomainNameSchema,
     DynamoSiblingsSchema,
     EncapsulationSchema,
+    EndiannessSchema,
     EpflForwardingSchema,
+    FeatureScalingSchema,
+    FitRegimesSchema,
     ERDiagram,
     ERInstanceMapping,
     GatewayPathSchema,
     GatewayResolutionSchema,
     GraphCertificateSchema,
+    GridSearchSchema,
     HashDiagram,
     HolePunchingSchema,
     hr: IdeaBreak,
@@ -129,15 +151,21 @@ export function useMDXComponents(
     LanguageClasses,
     LockGranularitySchema,
     LockPhaseSchema,
+    LanCaptureSchema,
     LongestPrefixMatchSchema,
+    LossShapesSchema,
+    MinimaSchema,
     MultiGranularityLockingSchema,
     Nat64Schema,
     NatTranslationSchema,
     NpCompletenessChainSchema,
+    FrameAddressesSchema,
     PacketSwitchingSchema,
     PageLayout,
     Pane,
     PathStacksSchema,
+    PerceptronBoundarySchema,
+    PerceptronUnitSchema,
     PhantomReadSchema,
     PnpContainmentSchema,
     ExecutionModelSchema,
@@ -147,12 +175,14 @@ export function useMDXComponents(
     LeftDeepPlanSchema,
     OptimizerArchitectureSchema,
     PrefixDelegationSchema,
+    ProgramMemorySchema,
     QueryTree,
     QueryProcessingFlow,
     QuorumOverlapSchema,
     RAIDDiagram,
     ReductionPipelineSchema,
     RecoveryPhasesSchema,
+    RegressionPlaneSchema,
     RegTmReductionSchema,
     SatToIndsetReductionSchema,
     ScheduleEquivalenceSchema,
@@ -160,8 +190,10 @@ export function useMDXComponents(
     SortPasses,
     Split,
     StopAndGoSchema,
+    StoreForwardSchema,
     StorageHierarchy,
     SubnetBitsSchema,
+    SubnetRuleSchema,
     SubnetChainSchema,
     TracerouteSchema,
     TransactionLogSchema,
@@ -170,5 +202,6 @@ export function useMDXComponents(
     VerifierSchema,
     WaitForGraphSchema,
     WalRulesSchema,
+    XorSchema,
   };
 }

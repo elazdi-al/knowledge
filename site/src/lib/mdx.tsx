@@ -22,6 +22,22 @@ const schemaLang: LanguageRegistration = {
   ],
 };
 
+// GDB/pwndbg commands are neither shell scripts nor assembly. Keep their
+// command names, registers, addresses, strings and comments distinct.
+const gdbLang: LanguageRegistration = {
+  name: "gdb",
+  scopeName: "source.gdb",
+  repository: {},
+  patterns: [
+    { match: "#.*$", name: "comment.line.number-sign" },
+    { begin: '"', end: '"', name: "string.quoted.double", patterns: [{ match: "\\\\.", name: "constant.character.escape" }] },
+    { match: "^\\s*[a-zA-Z][\\w-]*(?:/[a-zA-Z0-9]+)?", name: "entity.name.function" },
+    { match: "\\$[a-zA-Z][\\w]*", name: "variable.language" },
+    { match: "\\b(?:0x[0-9a-fA-F]+|[0-9]+)\\b", name: "constant.numeric" },
+    { match: "[=*+/-]", name: "keyword.operator" },
+  ],
+};
+
 export async function renderMDX(source: string) {
   const { default: Content } = await evaluate(source, {
     ...runtime,
@@ -43,7 +59,7 @@ export async function renderMDX(source: string) {
           keepBackground: false,
           defaultLang: "plaintext",
           getHighlighter: (options: Parameters<typeof createHighlighter>[0]) =>
-            createHighlighter({ ...options, langs: [...options.langs, schemaLang] }),
+            createHighlighter({ ...options, langs: [...options.langs, schemaLang, gdbLang] }),
         },
       ],
       rehypeKatex,

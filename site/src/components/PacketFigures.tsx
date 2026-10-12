@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Text, type Tone } from "@/components/figure";
+import { Cells, Col, Edge, FONT, Free, Group, measure, Node, NODE, Poly, Row, Space, Text, type Tone } from "@/components/figure";
 import { labelPillW } from "@/components/figure/route";
 import { NET_TONE } from "@/components/NetworkFigures";
 
@@ -131,6 +131,35 @@ export function Packet({ segments, nested = false }: { segments: Segment[]; nest
     );
   };
   return wrap(0);
+}
+
+/** The addresses a frame carries, each as [source, destination]; `n` is the numbered point it was captured at. */
+export interface FrameAddrs {
+  n?: number;
+  mac: [string, string];
+  ip: [string, string];
+}
+
+/** Frames as their MAC and IP headers side by side, one row per frame, every field one width so columns line up. */
+export function FrameHeaders({ frames }: { frames: FrameAddrs[] }) {
+  const w = Math.max(measure("destination", FONT.note), ...frames.flatMap((f) => [...f.mac, ...f.ip]).map((s) => measure(s, FONT.title, { weight: 500 }))) + 2 * NODE.padX;
+  const header = (name: string, layer: HeaderLayer, [src, dst]: [string, string]) => (
+    <Group title={name} tone={LAYER_TONE[layer]} dir="row" gap={4} pad={8}>
+      <Node title={src} sub="source" tone={LAYER_TONE[layer]} w={w} />
+      <Node title={dst} sub="destination" tone={LAYER_TONE[layer]} w={w} />
+    </Group>
+  );
+  return (
+    <Col gap={12} align="start">
+      {frames.map((f, i) => (
+        <Row key={i} gap={12} align="center">
+          {f.n !== undefined && <Node title={String(f.n)} shape="circle" w={22} />}
+          {header("MAC header", "link", f.mac)}
+          {header("IP header", "network", f.ip)}
+        </Row>
+      ))}
+    </Col>
+  );
 }
 
 // --- header formats ----------------------------------------------------------------------------------------------
@@ -331,7 +360,7 @@ export interface Span {
 }
 
 /**
- * A time-space diagram: one time axis per node, time running down; each send is a band whose top edge is its first bit and bottom edge its last, arriving `prop` later; spans measure intervals in the margins.
+ * A time-space diagram: one time axis per node, time running down; each send is a tinted band whose top edge is its first bit and bottom edge its last, arriving `prop` later; spans measure intervals in the margins, end to end between ticks.
  * `end` fixes the time at the bottom, so panels drawn with the same `end` compare by height; `pitch` narrows the axes for side-by-side panels.
  */
 export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixedEnd, pitch }: { id?: string; lanes: string[]; prop: number; sends: Send[]; spans?: Span[]; end?: number; pitch?: number }) {
@@ -347,6 +376,7 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixe
   const dimX = { left: x0 - 8 - pill("left") / 2, right: x(last) + 8 + pill("right") / 2 };
 
   const items: ReactNode[] = [];
+  const bands: ReactNode[] = [];
   const guides: ReactNode[] = [];
   const edges: ReactNode[] = [];
   lanes.forEach((name, l) => {
@@ -357,35 +387,42 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixe
   const events = sends.flatMap((s) => [[s.from, s.at], [s.from, s.at + s.tx], [s.to, s.at + prop], [s.to, s.at + s.tx + prop]]);
   sends.forEach((s, i) => {
     const tone = s.tone ?? NET_TONE.link;
-    const p = (c: string, lane: number, t: number) => items.push(at(`${id}.s${i}${c}`, x(lane), y(t)));
-    p("a", s.from, s.at);
-    p("b", s.from, s.at + s.tx);
-    p("c", s.to, s.at + prop);
-    p("d", s.to, s.at + s.tx + prop);
-    const seg = (a: string, b: string, thick?: boolean) => (
-      <Edge key={`s${i}${a}${b}`} from={`${id}.s${i}${a}`} to={`${id}.s${i}${b}`} route="straight" head="none" tone={tone} thick={thick} />
-    );
-    edges.push(seg("a", "c"), seg("b", "d"), seg("a", "b", true), seg("c", "d", true));
+    const corners: [number, number][] = [
+      [x(s.from), y(s.at)],
+      [x(s.to), y(s.at + prop)],
+      [x(s.to), y(s.at + s.tx + prop)],
+      [x(s.from), y(s.at + s.tx)],
+    ];
+    bands.push(<Poly key={`band${i}`} id={`${id}.s${i}`} points={corners} tone={tone} outline />);
     if (s.label) {
       const w = measure(s.label, FONT.note);
       items.push(<Text key={`sl${i}`} text={s.label} size="note" tone={tone} x={(x(s.from) + x(s.to)) / 2 - w / 2} y={y(s.at + (s.tx + prop) / 2) - 8} />);
     }
   });
+  const ticks = new Set<string>();
   spans.forEach((sp, i) => {
     const side = sp.side ?? "left";
     const dx = dimX[side];
     [sp.from, sp.to].forEach((t, e) => {
+      // spans laid end to end share one tick, so no two marks stack at a boundary
+      const tick = `${side}:${t}`;
+      if (!ticks.has(tick)) {
+        ticks.add(tick);
+        items.push(at(`${id}.k${i}${e}a`, dx - 5, y(t)), at(`${id}.k${i}${e}b`, dx + 5, y(t)));
+        edges.push(<Edge key={`k${i}${e}`} from={`${id}.k${i}${e}a`} to={`${id}.k${i}${e}b`} route="straight" head="none" />);
+      }
       // a guide runs from the span to the nearest axis where something happens at that time, so it never crosses a band
       const lanesAt = events.filter(([, et]) => Math.abs(et - t) < 1e-9).map(([l]) => l);
       const lane = !lanesAt.length ? (side === "left" ? 0 : last) : side === "left" ? Math.min(...lanesAt) : Math.max(...lanesAt);
       items.push(at(`${id}.d${i}${e}`, dx, y(t)), at(`${id}.g${i}${e}`, x(lane), y(t)));
       guides.push(<Edge key={`g${i}${e}`} from={`${id}.d${i}${e}`} to={`${id}.g${i}${e}`} route="straight" head="none" dashed state="ghost" />);
     });
-    edges.push(<Edge key={`d${i}`} from={`${id}.d${i}0`} to={`${id}.d${i}1`} route="straight" head="both" label={sp.label} />);
+    edges.push(<Edge key={`d${i}`} from={`${id}.d${i}0`} to={`${id}.d${i}1`} route="straight" head="none" label={sp.label} />);
   });
   return (
     <>
       <Free>
+        {bands}
         {items}
         {/* edge labels take no layout room: keep the right margin's pills inside this block */}
         {pill("right") > 0 && <Space x={dimX.right + pill("right") / 2} y={0} />}
@@ -397,4 +434,4 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixe
 }
 
 /** Building blocks a note may also compose directly inside `<Diagram>`. */
-export const packetFigures = { ProtocolStack, Packet, HeaderFormat, AddressBits, SequenceChart, TimeSpace };
+export const packetFigures = { ProtocolStack, Packet, FrameHeaders, HeaderFormat, AddressBits, SequenceChart, TimeSpace };

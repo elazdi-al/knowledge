@@ -1,8 +1,11 @@
 import { getAllNotes, groupByCourse } from "@/lib/notes";
+import { isPrivate } from "@/lib/private-course";
 import { NoteList } from "@/components/NoteList";
 
 export default async function HomePage() {
-  const courses = groupByCourse(await getAllNotes()).map((course) => ({
+  // The private course reaches the client only through the Worker's gate.
+  const notes = (await getAllNotes()).filter((n) => !isPrivate(n.slug));
+  const courses = groupByCourse(notes).map((course) => ({
     slug: course.slug,
     name: course.name,
     notes: course.notes.map(({ note, label }) => ({ slug: note.slug, label })),
