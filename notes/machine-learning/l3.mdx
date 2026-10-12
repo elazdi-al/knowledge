@@ -1,0 +1,92 @@
+---
+title: "Machine Learning: Foundations I"
+description: "The general learning setup: models and parameters, loss functions and convexity, MSE versus MAE and outliers, generalization, overfitting and underfitting, underdetermined and overparametrized problems, L2 and L1 regularization, and the statistical versus computational trade-off."
+tags: ["Machine learning"]
+created: 2026-09-26
+updated: 2026-10-05
+---
+
+## Models and Losses
+
+The perceptron and linear regression are two instances of one setup, where the target $y$ is a class in classification and a real number in regression.
+
+**Model.** A function $f_\theta$ with parameters $\theta$ that predicts $\hat{y} = f_\theta(\mathbf{x})$. *Linear regression is the model $f_\theta(\mathbf{x}) = \mathbf{w}^T \mathbf{x} + b$ with $\theta = (\mathbf{w}, b)$.*
+
+**Loss function.** A function $\ell(\hat{y}, y)$ that scores the error of one prediction. Training minimizes its average over the training set:
+
+$$
+L(\theta) = \frac{1}{m} \sum_{i=1}^{m} \ell(f_\theta(\mathbf{x}_i), y_i).
+$$
+
+The MSE is $L$ with the squared error $\ell(\hat{y}, y) = (y - \hat{y})^2$.
+
+**Convex function.** A function whose graph lies on or below the segment between any two of its points: for all $\theta, \theta'$ and $t \in [0, 1]$,
+
+$$
+L(t\theta + (1 - t)\theta') \le t L(\theta) + (1 - t) L(\theta').
+$$
+
+It is **strictly convex** when the inequality is strict for $\theta \ne \theta'$ and $0 < t < 1$.
+
+*A convex loss has no false bottom: wherever going downhill stops, the loss is at its lowest.*
+
+A good loss is:
+
+- non-negative, and zero when $\hat{y} = y$;
+- differentiable in $\theta$, so gradient descent can use it;
+- convex in $\theta$ when possible, so that gradient descent with a small enough step converges to the lowest loss.
+
+**Mean absolute error (MAE).** The average absolute residual. Writing $r_i$ for the residual $y_i - \hat{y}_i$, MSE and MAE are
+
+$$
+\text{MSE} = \frac{1}{m} \sum_{i=1}^{m} r_i^2, \qquad \text{MAE} = \frac{1}{m} \sum_{i=1}^{m} |r_i|.
+$$
+
+MSE is smooth and punishes large errors quadratically. Its best constant prediction is the mean of the targets. MAE grows linearly and is not differentiable at $0$. Its best constant prediction is the median. Both are convex for linear models; the losses of neural networks are not.
+
+<LossShapesSchema />
+
+**Outlier.** An example far from the pattern of the others (e.g. a measurement error). MSE squares its large residual, so a few outliers can pull the whole fit. MAE is more robust.
+
+*On the targets 1, 2, 3 and 100, the best constant under MSE is the mean 26.5. Under MAE it is any value between 2 and 3, where the median lies.*
+
+---
+
+## Generalization
+
+**Generalization.** Performing well on new data, not only on the training set. The loss on a **test set**, examples held out from training, measures it.
+
+**Overfitting.** Low training loss but high test loss: the model learned the noise of the training set.
+
+**Underfitting.** High training and test loss: the model is too simple for the data.
+
+<FitRegimesSchema />
+
+**Underdetermined problem.** A problem whose minimal training loss is reached by many parameter values. In linear regression this happens when $X^T X$ is singular.
+
+**Overparametrization.** More parameters than examples, so the model can fit the training set exactly. The problem is then underdetermined: the training algorithm, not the data, chooses among the perfect fits, and that choice decides how well the model generalizes. For linear regression, gradient descent from $\mathbf{0}$ picks the solution of minimum norm.
+
+**Regularization.** Adding a penalty $R(\theta)$ on the parameters to the loss, weighted by $\lambda > 0$:
+
+$$
+L_\lambda(\theta) = L(\theta) + \lambda R(\theta).
+$$
+
+- **L2 (ridge).** $R(\theta) = \|\theta\|_2^2$. It shrinks all weights toward zero, and when $L$ is convex it makes $L_\lambda$ strictly convex, so the minimizer is unique. With the MSE the minimizer is
+  $$
+  \tilde{\mathbf{w}} = (X^T X + m \lambda I)^{-1} X^T \mathbf{y},
+  $$
+  and $X^T X + m \lambda I$ is invertible for every $\lambda > 0$, even when the problem is underdetermined. In practice the bias is usually left out of the penalty.
+- **L1 (lasso).** $R(\theta) = \|\theta\|_1$. It sets some weights exactly to $0$, which selects features.
+
+A larger $\lambda$ gives a simpler model: less overfitting, but a worse fit of the training set.
+
+## Statistical vs. Computational Trade-off
+
+The error of a trained model has three parts.
+
+- **Approximation error.** Error from a model family that cannot represent the truth.
+- **Estimation error** (statistical). Error from having only $m$ examples.
+- **Optimization error** (computational). Error from stopping training before the exact minimum.
+
+Bigger models shrink the approximation error and more data shrinks the estimation error, but both cost computation, and cheaper training raises the optimization error. With a fixed compute budget, rough optimization on more data often beats exact optimization on less.

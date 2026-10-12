@@ -1,0 +1,70 @@
+---
+title: "Machine Learning: Foundations II"
+description: "Choosing hyperparameters with a validation set, k-fold cross-validation, grid and random search, the curse of dimensionality, and global, local and strict minima."
+tags: ["Machine learning"]
+created: 2026-09-26
+updated: 2026-10-05
+---
+
+## Choosing Hyperparameters
+
+**Hyperparameter.** A setting fixed before training instead of learned by it, such as the regularization weight $\lambda$ or the degree of polynomial features.
+
+**Validation set.** Examples held out from training to choose hyperparameters.
+
+The data is split into a training, a validation and a test set, used in this order.
+
+1. Fit each candidate model on the training set.
+2. Pick the hyperparameters with the best score on the validation set.
+3. Evaluate the chosen model once on the test set.
+
+Choosing hyperparameters on the test set would make its score optimistic, since the test set would no longer be unseen.
+
+**$k$-fold cross-validation.** Validation that reuses the training data when data is scarce. The training data is split into $k$ **folds**; each fold serves once as the validation set while the model trains on the other $k - 1$, and the $k$ validation scores are averaged.
+
+<CrossValidationSchema />
+
+*Cross-validation pays $k$ trainings for a validation score that uses every example.*
+
+**Grid search.** Training one model for every combination of candidate hyperparameter values and keeping the combination with the lowest validation (or cross-validation) error. Candidate values are usually spaced on a log scale (e.g. $10^{-3}, 10^{-2}, \dots, 10$ for $\lambda$).
+
+<GridSearchSchema />
+
+The figure tunes a ridge regression. Low degrees and a large $\lambda$ underfit, and high degrees with a small $\lambda$ overfit.
+
+With $d$ hyperparameters and $s$ values each, grid search trains $s^d$ models, and $k s^d$ with cross-validation. **Random search** samples combinations at random instead, and often finds good values with fewer trials.
+
+## Curse of Dimensionality
+
+**Curse of dimensionality.** As the dimension $d$ grows, volume grows exponentially and data becomes sparse.
+
+- Covering $[0, 1]^d$ at resolution $1/s$ takes $s^d$ cells, so the data needed to fill the space grows like $s^d$.
+- A sub-cube holding a fraction $q$ of uniform data has edge $q^{1/d}$. For $q = 10\%$ and $d = 10$ it spans $79\%$ of each axis, so the neighbours of a point are no longer close to it.
+- Distances concentrate: the nearest and the farthest points become almost equally far, which hurts distance-based methods.
+
+<CurseOfDimensionalitySchema />
+
+More features therefore need far more data, and a grid search over many hyperparameters is infeasible. Feature selection, dimensionality reduction and regularization counter the curse.
+
+---
+
+## Minima
+
+**Minimum.** A point $\theta^*$ where a loss $L$ is lowest, either over all $\theta$ (**global**) or over a ball around $\theta^*$ (**local**):
+
+$$
+B_\epsilon = \{\theta : \|\theta - \theta^*\| < \epsilon\}, \quad \epsilon > 0.
+$$
+
+The minimum is **strict** when every other $\theta$ in the same region has a strictly higher loss.
+
+| | **minimum** | **strict minimum** |
+|---|---|---|
+| **global** | $L(\theta^*) \le L(\theta)\ \forall \theta$ | $L(\theta^*) < L(\theta)\ \forall \theta \ne \theta^*$ |
+| **local**, some $\epsilon > 0$ | $L(\theta^*) \le L(\theta)\ \forall \theta \in B_\epsilon$ | $L(\theta^*) < L(\theta)\ \forall \theta \in B_\epsilon \setminus \{\theta^*\}$ |
+
+<MinimaSchema />
+
+Every global minimum is local, and a strict global minimum is the only minimizer. A global minimum that is not strict is a flat bottom: many $\theta$ share the lowest loss, so the problem is underdetermined.
+
+Gradient descent can stop in a local minimum that is not global. Convexity rules this out, and strict convexity also makes the minimizer unique (e.g. ridge regression).
