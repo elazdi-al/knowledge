@@ -116,13 +116,14 @@ export function Label({
       style={halo ? { fill, stroke: "var(--dg-canvas)", strokeWidth: 8, strokeLinejoin: "round", paintOrder: "stroke", ...style } : { fill, ...style }}
     >
       {runs.map((run, i) => {
-        const dyEm = (prev - run.shift) * 0.28;
+        // In user units, not em: em follows each tspan's own font size, so a shift and its return would not cancel.
+        const dy = (prev - run.shift) * 0.2 * size;
         prev = run.shift;
         return (
           <tspan
             key={i}
             fontSize={run.shift === 0 ? undefined : r2(size * FONT.subScale)}
-            dy={dyEm === 0 ? undefined : `${r2(dyEm)}em`}
+            dy={dy === 0 ? undefined : r2(dy)}
           >
             {run.text}
           </tspan>
