@@ -39,10 +39,10 @@
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular,
     Menlo, monospace;
 
-  /* The reading measure: ~70 characters of Inter at 16px, inside the 45-75
+  /* The reading measure: ~70 characters of the 17px body, inside the 45-75
      range where comprehension holds up. Figures, code, tables and splits
      break out to the page width (the figure engine's 660px max). */
-  --container-measure: 33rem;
+  --container-measure: 36rem;
   --container-page: calc(660px + 3rem);
 }
 
@@ -400,12 +400,13 @@ html:has(.home-pane) main {
 
 /* Prose (note body) */
 @layer components {
-  /* Small, slightly heavy, tightly tracked text: 14/20 Inter at weight 460. */
+  /* 17px Inter at weight 460 with 1.5 leading: an x-height above the ~0.2°
+     fluent-reading threshold, and WCAG AAA line spacing. */
   .prose {
     color: var(--color-text);
-    font-size: 0.875rem;
+    font-size: 1.0625rem;
     font-weight: 460;
-    line-height: 1.43;
+    line-height: 1.5;
     letter-spacing: -0.0064em;
     min-width: 0;
   }
@@ -458,7 +459,7 @@ html:has(.home-pane) main {
 
   .prose h2,
   .prose h3 {
-    font-size: 0.9375rem;
+    font-size: 1.0625em;
     letter-spacing: -0.0087em;
   }
 
@@ -482,7 +483,7 @@ html:has(.home-pane) main {
   }
 
   .prose h4 {
-    font-size: 0.875rem;
+    font-size: 1em;
     margin-top: 1.5em;
     color: var(--color-muted);
   }
@@ -518,8 +519,8 @@ html:has(.home-pane) main {
   }
 
   /* Normal text is the clean dark ink; bold stays that ink but reads bold by
-     weight; italic steps back to a muted grey (used for worked-example asides
-     and inline emphasis alike). */
+     weight; italic steps back to a muted grey and marks intuition helpers
+     only. Examples are roman, at full ink. */
   .prose strong {
     color: var(--color-text);
     font-weight: 600;
@@ -606,7 +607,7 @@ html:has(.home-pane) main {
 
   .prose pre {
     font-family: var(--font-mono);
-    font-size: 0.8125rem;
+    font-size: 0.85em;
     line-height: 1.6;
     background: var(--color-code-bg);
     border: 1px solid var(--color-border);
@@ -711,6 +712,11 @@ html:has(.home-pane) main {
 
   .prose :is(th, td):last-child {
     padding-right: 0;
+  }
+
+  /* An inline formula wraps as one unit, never across lines. */
+  .prose .katex-html {
+    white-space: nowrap;
   }
 
   .prose .katex-display {
