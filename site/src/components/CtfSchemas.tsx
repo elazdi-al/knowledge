@@ -1,4 +1,5 @@
-import { Cells, Col, Diagram, Dots, Edge, Free, Group, Node, Row, Space, Text } from "@/components/figure";
+import { Cells, Col, Diagram, Dot, Dots, Edge, Free, Group, Node, Path, Row, Space, Text } from "@/components/figure";
+import { At, Axes, plotArea, type Anchor, type Pt } from "@/components/PlotFigures";
 
 /** Byte order changes; the value and the identity of its low byte do not. */
 export function EndiannessSchema() {
@@ -108,6 +109,172 @@ export function DiffieHellmanSchema() {
           <Edge from="bob-send" to="alice-receive" label="B = gᵇ mod p" route="straight" />
         </Free>
       </Col>
+    </Diagram>
+  );
+}
+
+/** ECB encrypts each block alone, so equal plaintext blocks (blue) give equal ciphertext blocks. */
+export function EcbLeakSchema() {
+  const w = 96, gap = 12, cols = [0, w + gap, 2 * (w + gap)];
+  const block = (id: string, title: string, x: number, y: number, tone?: "blue") => (
+    <Node id={id} title={title} mono w={w} x={x} y={y} tone={tone} />
+  );
+  return (
+    <Diagram caption="Each 16-byte block is encrypted on its own, so the two equal plaintext blocks (blue) give the same ciphertext block. ECB leaks wherever the plaintext repeats.">
+      <Free>
+        <Text text="Plaintext blocks" size="note" muted x={0} y={0} />
+        {block("p0", "the lazy", cols[0], 20, "blue")}
+        {block("p1", "the lazy", cols[1], 20, "blue")}
+        {block("p2", "ps over", cols[2], 20)}
+        <Text text="Ciphertext blocks" size="note" muted x={0} y={128} />
+        {block("c0", "c7 5b e6", cols[0], 150, "blue")}
+        {block("c1", "c7 5b e6", cols[1], 150, "blue")}
+        {block("c2", "c6 38 2c", cols[2], 150)}
+        <Edge from="p0" to="c0" route="straight" />
+        <Edge from="p1" to="c1" label="E_k" route="straight" />
+        <Edge from="p2" to="c2" route="straight" />
+      </Free>
+    </Diagram>
+  );
+}
+
+/** CBC: each plaintext block is XORed with the previous ciphertext block, then encrypted; the IV seeds the first. */
+export function CbcModeSchema() {
+  const box = (id: string, title: string, cx: number, y: number, tone?: "blue") => (
+    <Node id={id} title={title} w={58} x={cx - 29} y={y} tone={tone} />
+  );
+  const xor = (id: string, cx: number, y: number) => <Node id={id} title="+" shape="circle" w={28} x={cx - 14} y={y} />;
+  const c1 = 150, c2 = 330, yP = 0, yX = 72, yE = 132, yC = 208;
+  return (
+    <Diagram caption="Each plaintext block is XORed with the previous ciphertext block before AES encrypts it; the IV seeds the first. Equal plaintext blocks no longer collide.">
+      <Free>
+        {box("p1", "P_1", c1, yP)}
+        {box("p2", "P_2", c2, yP)}
+        <Node id="iv" title="IV" w={42} x={0} y={yX} />
+        {xor("x1", c1, yX)}
+        {xor("x2", c2, yX)}
+        {box("e1", "E_k", c1, yE)}
+        {box("e2", "E_k", c2, yE)}
+        {box("c1", "C_1", c1, yC, "blue")}
+        {box("c2", "C_2", c2, yC, "blue")}
+        <Edge from="p1" to="x1" route="straight" />
+        <Edge from="p2" to="x2" route="straight" />
+        <Edge from="iv" to="x1" toSide="left" />
+        <Edge from="x1" to="e1" route="straight" />
+        <Edge from="x2" to="e2" route="straight" />
+        <Edge from="e1" to="c1" route="straight" />
+        <Edge from="e2" to="c2" route="straight" />
+        <Edge from="c1" to="x2" fromSide="right" toSide="left" route="ortho" />
+      </Free>
+    </Diagram>
+  );
+}
+
+/** CTR: AES encrypts a counter into a keystream block, XORed with the plaintext. A stream cipher built from a block cipher. */
+export function CtrModeSchema() {
+  const box = (id: string, title: string, cx: number, y: number, w = 56, tone?: "blue") => (
+    <Node id={id} title={title} w={w} x={cx - w / 2} y={y} tone={tone} />
+  );
+  const xor = (id: string, cx: number, y: number) => <Node id={id} title="+" shape="circle" w={28} x={cx - 14} y={y} />;
+  const c1 = 170, c2 = 350, yT = 0, yE = 68, yX = 138, yC = 206;
+  return (
+    <Diagram caption="AES encrypts a counter, started from the nonce, into a keystream block that is XORed with the plaintext. No padding, and encryption equals decryption. A reused nonce repeats the keystream, the two-time pad again.">
+      <Free>
+        {box("t1", "ctr 0", c1, yT)}
+        {box("t2", "ctr 1", c2, yT)}
+        {box("e1", "E_k", c1, yE)}
+        {box("e2", "E_k", c2, yE)}
+        {xor("x1", c1, yX)}
+        {xor("x2", c2, yX)}
+        {box("pp1", "P_1", 60, yX)}
+        {box("pp2", "P_2", 240, yX)}
+        {box("cc1", "C_1", c1, yC, 56, "blue")}
+        {box("cc2", "C_2", c2, yC, 56, "blue")}
+        <Edge from="t1" to="e1" route="straight" />
+        <Edge from="t2" to="e2" route="straight" />
+        <Edge from="e1" to="x1" route="straight" label="keystream" />
+        <Edge from="e2" to="x2" route="straight" />
+        <Edge from="pp1" to="x1" toSide="left" />
+        <Edge from="pp2" to="x2" toSide="left" />
+        <Edge from="x1" to="cc1" route="straight" />
+        <Edge from="x2" to="cc2" route="straight" />
+      </Free>
+    </Diagram>
+  );
+}
+
+/** y² = x³ - 3x + 3 over the reals, the picture behind the point-addition formulas. */
+const ecY = (x: number) => Math.sqrt(Math.max(0, x ** 3 - 3 * x + 3));
+const EC_ROOT = -2.1038; // where the curve crosses the x-axis
+const EC_END = 2.55;
+
+/** P + Q by the formulas of the note; a tangent when P = Q. */
+function ecAdd([x1, y1]: Pt, [x2, y2]: Pt): Pt {
+  const m = x1 === x2 ? (3 * x1 * x1 - 3) / (2 * y1) : (y2 - y1) / (x2 - x1);
+  const x3 = m * m - x1 - x2;
+  return [x3, m * (x1 - x3) - y1];
+}
+
+type Labelled = { text: string; anchor: Anchor };
+
+function EcPanel({ title, P, Q, labels }: { title: string; P: Pt; Q: Pt; labels: [Labelled, Labelled | null, Labelled, Labelled] }) {
+  const a = plotArea({ x: [-2.7, 2.95], y: [-3.7, 3.7], w: 270, h: 300, at: [0, 30] });
+  const xs = Array.from({ length: 121 }, (_, i) => EC_ROOT + (EC_END - EC_ROOT) * (i / 120) ** 2);
+  const curve = [...xs.map((x) => a.p([x, -ecY(x)])).reverse(), ...xs.map((x) => a.p([x, ecY(x)]))];
+  const sum = ecAdd(P, Q);
+  const third: Pt = [sum[0], -sum[1]];
+  const along = (t: number): Pt => [P[0] + t * (third[0] - P[0]), P[1] + t * (third[1] - P[1])];
+  const points: [Pt, Labelled | null][] = [[P, labels[0]], [Q, labels[1]], [third, labels[2]], [sum, labels[3]]];
+  return (
+    <Free>
+      <Text text={title} size="note" muted x={0} y={0} />
+      <Axes area={a} x={[-2.7, 2.95]} y={[-3.7, 3.7]} labels={["x", "y"]} />
+      <Path points={curve} state="strong" />
+      <Path points={[a.p(along(-0.22)), a.p(along(1.12))]} />
+      <Path points={[a.p(third), a.p(sum)]} dashed />
+      {points.map(([p], i) => <Dot key={i} at={a.p(p)} state={i === 3 ? "active" : undefined} />)}
+      {points.map(([p, label], i) => label && <At key={`l${i}`} text={label.text} at={a.p(p)} anchor={label.anchor} gap={7} tone={i === 3 ? "blue" : undefined} weight={500} />)}
+    </Free>
+  );
+}
+
+/** Point addition on y² = x³ - 3x + 3: the chord rule, and the tangent rule for doubling. */
+export function EllipticCurveSchema() {
+  const P: Pt = [-2, -ecY(-2)];
+  const Q: Pt = [0.6, ecY(0.6)];
+  const D: Pt = [1.6, ecY(1.6)];
+  const chord = (
+    <EcPanel
+      title="Addition: P + Q"
+      P={P}
+      Q={Q}
+      labels={[
+        { text: "P", anchor: "e" },
+        { text: "Q", anchor: "s" },
+        { text: "-(P + Q)", anchor: "e" },
+        { text: "P + Q", anchor: "e" },
+      ]}
+    />
+  );
+  const tangent = (
+    <EcPanel
+      title="Doubling: P + P"
+      P={D}
+      Q={D}
+      labels={[
+        { text: "P", anchor: "nw" },
+        null,
+        { text: "-2P", anchor: "nw" },
+        { text: "2P", anchor: "s" },
+      ]}
+    />
+  );
+  return (
+    <Diagram
+      caption="The line through P and Q meets the curve a third time; reflecting that point across the x-axis gives P + Q. For P + P, the line is the tangent at P."
+      narrowChildren={<Col gap={28}>{chord}{tangent}</Col>}
+    >
+      <Row gap={48} align="start">{chord}{tangent}</Row>
     </Diagram>
   );
 }
