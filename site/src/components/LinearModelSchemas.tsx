@@ -1,26 +1,6 @@
-import { Col, Diagram, Dot, Dots, Edge, Free, Node, Path, Poly, Row, Text } from "@/components/figure";
+import { Diagram, Dot, Free, Path, Poly } from "@/components/figure";
 import { Arrow, At, Axes, plotArea, type Pt } from "@/components/PlotFigures";
 import { ML_TONE } from "@/components/tones";
-
-/** The perceptron as a computation: weighted inputs summed into the score, then thresholded. */
-export function PerceptronUnitSchema() {
-  const terms = ["w_1 x_1", "w_2 x_2", null, "w_n x_n", "b"];
-  return (
-    <Diagram caption="A perceptron sums its weighted inputs and the bias into the score z, then thresholds z at 0.">
-      <Row gap={48}>
-        <Col gap={10}>
-          {terms.map((t, i) => (t ? <Node key={t} id={`t${i}`} title={t} w={72} /> : <Dots key="dots" dir="col" />))}
-        </Col>
-        <Node id="sum" title="Σ" shape="circle" />
-        <Node id="step" title="threshold" sub="+1 if z ≥ 0, else -1" />
-        <Node id="out" title="ŷ" w={44} />
-      </Row>
-      {terms.map((t, i) => t && <Edge key={t} from={`t${i}`} to="sum" route="straight" head="none" />)}
-      <Edge from="sum" to="step" label="z" />
-      <Edge from="step" to="out" />
-    </Diagram>
-  );
-}
 
 /** Two linearly separable classes, the boundary w·x + b = 0, its normal w, and the margin γ. */
 export function PerceptronBoundarySchema() {
@@ -30,7 +10,7 @@ export function PerceptronBoundarySchema() {
   // boundary x1 + x2 = 6 (w = (1, 1), b = -6); the band x1 + x2 in [4.5, 7.5] is the boundary widened by the margin
   const band: Pt[] = [[0, 4.5], [4.5, 0], [6, 1.5], [1.5, 6]];
   return (
-    <Diagram caption="The decision boundary is the line where the score is 0, and w is normal to it. The margin γ is the distance from the boundary to the closest example.">
+    <Diagram caption="The boundary, its normal w, and the margin γ to the closest example.">
       <Free>
         <Poly points={band.map(a.p)} />
         <Axes area={a} x={[0, 7.4]} y={[0, 7]} labels={["x_1", "x_2"]} />
@@ -61,7 +41,7 @@ export function XorSchema() {
     [[1, 0], "positive"],
   ];
   return (
-    <Diagram caption="XOR: (0, 0) and (1, 1) are -1, (0, 1) and (1, 0) are +1. Any line leaves a point on the wrong side.">
+    <Diagram caption="XOR: any line leaves a point on the wrong side.">
       <Free>
         <Path points={[a.p([0, 1]), a.p([1, 1]), a.p([1, 0])]} dashed state="ghost" />
         <Axes area={a} x={[0, 1.45]} y={[0, 1.45]} labels={["x_1", "x_2"]} />
@@ -79,43 +59,61 @@ export function XorSchema() {
   );
 }
 
-/** Linear regression with two features: a plane over the (x1, x2) floor, and each residual as a vertical segment. */
+/**
+ * Linear regression with two features: the plane ŷ over the input floor (x1, x2), and each residual as a vertical
+ * segment. One example is traced from its input x_i on the floor, up to its prediction ŷ_i on the plane, to y_i.
+ */
 export function RegressionPlaneSchema() {
-  const S = 46, H = 5.4;
-  // oblique projection: x1 to the right, x2 into the page, y up
-  const P = (u: number, v: number, y: number): Pt => [16 + S * (u + 0.6 * v), 16 + S * (H - y - 0.35 * v)];
-  const plane = (u: number, v: number) => 1.6 + 0.3 * u + 0.3 * v;
-  const data: [u: number, v: number, r: number][] = [
-    [0.6, 2.6, 0.8],
-    [1.6, 2.4, -0.5],
-    [2.8, 2.8, 0.5],
-    [3.0, 1.0, -0.6],
-    [3.6, 2.6, 1.0],
+  const S = 52, H = 5;
+  // Cabinet projection: x1 to the right, x2 into the page at 31° and half scale, y up.
+  const P = (u: number, v: number, y: number): Pt => [28 + S * (u + 0.5 * v), 12 + S * (H - y - 0.3 * v)];
+  const plane = (u: number, v: number) => 1.2 + 0.4 * u + 0.2 * v;
+  const on = (u: number, v: number, r = 0) => P(u, v, plane(u, v) + r);
+  // [x1, x2, residual]; the first is the traced example
+  const data: [number, number, number][] = [
+    [1.7, 1.6, 1.1],
+    [3.0, 0.8, 0.8],
+    [3.0, 2.8, -0.4],
+    [3.7, 2.8, 0.7],
   ];
-  const corners: [number, number][] = [[0, 0], [4, 0], [4, 3], [0, 3]];
-  const [lu, lv, lr] = data[0];
+  const corners: Pt[] = [[0, 0], [4, 0], [4, 3], [0, 3]];
+  const [iu, iv, ir] = data[0];
+  const above = data.filter(([, , r]) => r > 0), below = data.filter(([, , r]) => r < 0);
   return (
-    <Diagram caption="With two features the model is a plane. A residual is the vertical distance from an example to the plane, positive above it and negative below (dashed, hidden by the plane).">
+    <Diagram caption="With two features the model is a plane. Residuals hidden below it are dashed.">
       <Free>
         <Poly points={corners.map(([u, v]) => P(u, v, 0))} outline />
-        <Arrow from={P(0, 0, 0)} to={P(4.7, 0, 0)} />
-        <Arrow from={P(0, 0, 0)} to={P(0, 3.7, 0)} />
+        <Arrow from={P(0, 0, 0)} to={P(4.8, 0, 0)} />
+        <Arrow from={P(0, 0, 0)} to={P(0, 3.8, 0)} />
         <Arrow from={P(0, 0, 0)} to={P(0, 0, H)} />
-        <At text="x_1" at={P(4.7, 0, 0)} anchor="w" gap={6} muted />
-        <At text="x_2" at={P(0, 3.7, 0)} anchor="sw" gap={6} muted />
+        <At text="x_1" at={P(4.8, 0, 0)} anchor="w" gap={6} muted />
+        <At text="x_2" at={P(0, 3.8, 0)} anchor="w" gap={6} muted />
         <At text="y" at={P(0, 0, H)} anchor="s" gap={6} muted />
+        {/* Drawn before the plane, so the plane covers whatever lies behind it. */}
         {corners.slice(1).map(([u, v]) => (
-          <Path key={`g${u}${v}`} points={[P(u, v, 0), P(u, v, plane(u, v))]} dashed state="ghost" />
+          <Path key={`c${u}${v}`} points={[P(u, v, 0), on(u, v)]} dashed state="ghost" />
         ))}
-        <Poly points={corners.map(([u, v]) => P(u, v, plane(u, v)))} tone="blue" outline />
-        {data.map(([u, v, r]) => (
-          <Path key={`r${u}`} points={[P(u, v, plane(u, v)), P(u, v, plane(u, v) + r)]} tone={ML_TONE.residual} dashed={r < 0} />
+        <Path points={[P(iu, iv, 0), on(iu, iv)]} dashed state="ghost" />
+        <Dot at={P(iu, iv, 0)} r={2.5} state="ghost" />
+        <At text="x_i" at={P(iu, iv, 0)} anchor="e" gap={6} muted />
+        <Poly points={corners.map(([u, v]) => on(u, v))} tone="blue" outline />
+        {below.map(([u, v, r]) => (
+          <Path key={`b${u}`} points={[on(u, v), on(u, v, r)]} tone={ML_TONE.residual} dashed />
         ))}
-        {data.map(([u, v, r]) => (
-          <Dot key={`d${u}`} at={P(u, v, plane(u, v) + r)} />
+        {below.map(([u, v, r]) => (
+          <Dot key={`bd${u}`} at={on(u, v, r)} state="ghost" />
         ))}
-        <At text="ŷ = w^T x + b" at={P(1.3, 1.0, plane(1.3, 1.0))} tone="blue" weight={500} />
-        <At text="y_i - ŷ_i" at={P(lu, lv, plane(lu, lv) + (2 * lr) / 3)} anchor="e" gap={8} tone={ML_TONE.residual} weight={500} />
+        {above.map(([u, v, r]) => (
+          <Path key={`a${u}`} points={[on(u, v), on(u, v, r)]} tone={ML_TONE.residual} />
+        ))}
+        {above.map(([u, v, r]) => (
+          <Dot key={`ad${u}`} at={on(u, v, r)} />
+        ))}
+        <Dot at={on(iu, iv)} r={3} tone="blue" />
+        <At text="ŷ_i" at={on(iu, iv)} anchor="e" gap={7} tone="blue" weight={500} />
+        <At text="y_i" at={on(iu, iv, ir)} anchor="e" gap={7} weight={500} />
+        <At text="e_i" at={on(iu, iv, ir / 2)} anchor="w" gap={7} tone={ML_TONE.residual} weight={500} />
+        <At text="ŷ = w^T x + b" at={on(4, 1.5)} anchor="w" gap={10} tone="blue" weight={500} />
       </Free>
     </Diagram>
   );

@@ -1,69 +1,143 @@
 ---
-title: "Machine Learning: Linear Regression"
-description: "Multivariate linear regression: the model and its bias trick, residuals, the design matrix, the mean squared error, the normal equation, gradient descent, multiple outputs, and the limits of a linear fit."
+title: "Machine Learning: Perceptron"
+description: "The perceptron, a linear binary classifier: score, bias folding, decision boundary and margin, the zero-one loss, the perceptron algorithm, the convergence theorem with its proof, the XOR limit and a NumPy implementation."
 tags: ["Machine learning"]
 created: 2026-09-26
-updated: 2026-10-05
+updated: 2026-10-14
 ---
 
-## The Model
+## Model
 
-**Regression.** Predicting a real number $y$, the **target**, from an input $\mathbf{x}$.
-
-**Linear regression.** A regression model that predicts the weighted sum of its input,
+**Perceptron.** A binary classifier that thresholds a weighted sum, the **score**:
 
 $$
-\hat{y} = \mathbf{w}^T \mathbf{x} + b = \tilde{\mathbf{w}}^T \tilde{\mathbf{x}},
+z = \mathbf{w}^T \mathbf{x} + b, \qquad \hat{y} = \begin{cases} +1 & \text{if } z \ge 0, \\ -1 & \text{otherwise.} \end{cases}
 $$
 
-where $\tilde{\mathbf{w}} = (\mathbf{w}, b)$ and $\tilde{\mathbf{x}} = (\mathbf{x}, 1)$ fold the bias into the weights, as for the perceptron. The model is the perceptron's score without the threshold.
+Its parameters are the **weight vector** $\mathbf{w} \in \mathbb{R}^n$ and the **bias** $b \in \mathbb{R}$.
 
-With $n > 1$ features the regression is **multivariate**, and the model is a hyperplane over the feature space.
+*A growing feature pushes $\hat{y}$ toward the sign of its weight.*
 
-**Residual.** The error $y_i - \hat{y}_i$ of the prediction for example $i$, its vertical distance to the hyperplane.
-
-<RegressionPlaneSchema />
-
-**Design matrix.** The matrix $X \in \mathbb{R}^{m \times (n+1)}$ whose rows are the inputs $\tilde{\mathbf{x}}_1^T, \dots, \tilde{\mathbf{x}}_m^T$ of the training set. With the targets in $\mathbf{y} = (y_1, \dots, y_m)$, $X \tilde{\mathbf{w}}$ is the vector of all $m$ predictions.
-
-**Mean squared error (MSE).** The average squared residual over the $m$ training examples. Training minimizes it:
+**Bias folding.** Appending $1$ to the input moves the bias into the weights:
 
 $$
-L(\tilde{\mathbf{w}}) = \frac{1}{m} \sum_{i=1}^{m} (y_i - \hat{y}_i)^2 = \frac{1}{m} \|\mathbf{y} - X \tilde{\mathbf{w}}\|^2.
+z = \tilde{\mathbf{w}}^T \tilde{\mathbf{x}}, \qquad \tilde{\mathbf{w}} = (\mathbf{w}, b), \quad \tilde{\mathbf{x}} = (\mathbf{x}, 1).
 $$
+
+**Decision boundary.** The hyperplane $\mathbf{w}^T \mathbf{x} + b = 0$, a line when $n = 2$.
+
+Its normal vector $\mathbf{w}$ points to the side classified $+1$, boundary included.
+
+**Margin.** An example's distance to the boundary, negated on the wrong side:
+
+$$
+\gamma_i = \frac{y_i (\mathbf{w}^T \mathbf{x}_i + b)}{\|\mathbf{w}\|}.
+$$
+
+The margin of a dataset is its smallest margin, $\gamma = \min_i \gamma_i$.
+
+<PerceptronBoundarySchema />
+
+**Linearly separable.** Classes that some hyperplane strictly separates (e.g. AND, but not XOR).
+
+## Loss
+
+**Zero-one loss.** The loss that is $1$ on a mistake ($\hat{y} \ne y$) and $0$ otherwise.
+
+Its training loss is the fraction of misclassified training examples.
+
+It is piecewise constant, so gradient descent gets no direction from it.
 
 ## Training
 
-The weights that minimize the MSE can be found exactly or iteratively.
+**Perceptron algorithm.** Training that corrects the parameters after each mistake.
 
-**Normal equation.** The condition obtained by setting the gradient of the MSE to zero:
-
-$$
-X^T X \tilde{\mathbf{w}} = X^T \mathbf{y}, \quad \text{so} \quad \tilde{\mathbf{w}} = (X^T X)^{-1} X^T \mathbf{y}.
-$$
-
-$X^T X$ is invertible exactly when the columns of $X$ are linearly independent (no feature is redundant), which needs at least $n + 1$ examples.
-
-**Gradient descent.** An iterative minimization method. Starting from $\tilde{\mathbf{w}} = \mathbf{0}$, it repeats two steps until the MSE stops decreasing.
-
-1. Compute the gradient
+1. Start from $\mathbf{w} = \mathbf{0}$ and $b = 0$.
+2. For each training example $(\mathbf{x}, y)$ with $\hat{y} \ne y$, update
    $$
-   \nabla L = \frac{2}{m} X^T (X \tilde{\mathbf{w}} - \mathbf{y}).
+   \mathbf{w} \leftarrow \mathbf{w} + \eta y \mathbf{x}, \qquad b \leftarrow b + \eta y.
    $$
-2. Update $\tilde{\mathbf{w}} \leftarrow \tilde{\mathbf{w}} - \eta \nabla L$, with learning rate $\eta > 0$.
+3. Repeat step 2 until a full pass, an **epoch**, makes no mistake.
 
-*The gradient points uphill, so a small step against it goes downhill.*
+*An update shifts that input's score by $\eta y (\|\mathbf{x}\|^2 + 1)$, toward its label.*
 
-The MSE of a linear model is a bowl in $\tilde{\mathbf{w}}$ with no false bottom, so gradient descent with a small enough $\eta$ converges to the lowest MSE. Solving the normal equation costs about $O(mn^2 + n^3)$, so gradient descent is preferred when $n$ is large.
+## Convergence
 
-## Multiple Outputs and Limits
+The theorem uses folded vectors, written $\mathbf{x}$ and $\mathbf{w}$ without tildes.
 
-In statistics, *multivariate* also means predicting several targets $\mathbf{y} \in \mathbb{R}^p$ at once. The targets of the training set then form a matrix $Y$ with $p$ columns, the weights a matrix $W$ with one column per target, and
+**Perceptron convergence theorem.** Assume the inputs satisfy:
+
+- **Bounded length.** $\|\mathbf{x}_i\| \le R$ for all $i$.
+- **Margin $\gamma$.** Some unit vector $\mathbf{w}^*$ has $y_i \mathbf{w}^{*T} \mathbf{x}_i \ge \gamma > 0$ for all $i$.
+
+Then from $\mathbf{w} = \mathbf{0}$, the total number $k$ of mistakes over all epochs satisfies
 
 $$
-W = (X^T X)^{-1} X^T Y.
+k \le \frac{R^2}{\gamma^2}.
 $$
 
-Column $j$ of $W$ solves the linear regression of target $j$ alone.
+So training stops on separable data, at zero training loss.
 
-The model only fits linear relations. A curve needs extra features computed from the input (e.g. adding $x_1^2$ gives the parabola $\hat{y} = w_1 x_1 + w_2 x_1^2 + b$). The model stays linear in $\tilde{\mathbf{w}}$, so the normal equation and gradient descent still apply. Squaring the residuals also makes the fit sensitive to examples far from the others.
+The bound shrinks with the margin and is independent of $m$, $n$ and $\eta$.
+
+The folded margin $\gamma$ is at most the original margin of the same boundary.
+
+**Common mistake.** The perceptron does not find the best separating boundary. It stops at the first boundary with no training mistake, which can pass close to some examples.
+
+*Alignment grows like $k$, length only like $\sqrt{k}$, and length bounds alignment.*
+
+**Proof.** Let $\mathbf{w}_k$ be the weights after $k$ updates.
+
+The $k$-th update fixes a mistake on some $(\mathbf{x}_i, y_i)$, so $y_i \mathbf{w}_{k-1}^T \mathbf{x}_i \le 0$.
+
+1. **Alignment grows linearly.** Each update adds at least $\eta \gamma$ to $\mathbf{w}_k^T \mathbf{w}^*$:
+   $$
+   \mathbf{w}_k^T \mathbf{w}^* = \mathbf{w}_{k-1}^T \mathbf{w}^* + \eta y_i \mathbf{x}_i^T \mathbf{w}^* \ge \mathbf{w}_{k-1}^T \mathbf{w}^* + \eta \gamma,
+   $$
+   so $\mathbf{w}_k^T \mathbf{w}^* \ge k \eta \gamma$.
+2. **Length grows slowly.** The middle term is $\le 0$ on a mistake:
+   $$
+   \|\mathbf{w}_k\|^2 = \|\mathbf{w}_{k-1}\|^2 + 2 \eta y_i \mathbf{w}_{k-1}^T \mathbf{x}_i + \eta^2 \|\mathbf{x}_i\|^2 \le \|\mathbf{w}_{k-1}\|^2 + \eta^2 R^2,
+   $$
+   so $\|\mathbf{w}_k\|^2 \le k \eta^2 R^2$.
+3. **Combine.** By the Cauchy-Schwarz inequality and $\|\mathbf{w}^*\| = 1$,
+   $$
+   k \eta \gamma \le \mathbf{w}_k^T \mathbf{w}^* \le \|\mathbf{w}_k\| \le \sqrt{k}\, \eta R,
+   $$
+   so $\sqrt{k} \le R / \gamma$.
+
+Squaring gives $k \le R^2 / \gamma^2$.
+
+## Limits
+
+On non-separable data, every epoch makes a mistake and training never stops.
+
+Even XOR defeats the perceptron: no line separates its two classes.
+
+<XorSchema />
+
+## Implementation
+
+The perceptron algorithm in NumPy, trained on AND:
+
+```python
+import numpy as np
+
+# AND: only (1, 1) is labeled +1
+X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+Y = np.array([-1, -1, -1, 1])
+
+w, b, eta = np.zeros(2), 0.0, 1.0
+
+mistakes = True
+while mistakes:  # one epoch per pass
+    mistakes = False
+    for x, y in zip(X, Y):
+        y_hat = 1 if w @ x + b >= 0 else -1
+        if y_hat != y:
+            w += eta * y * x
+            b += eta * y
+            mistakes = True
+
+print(w, b)  # [2. 1.] -3.0
+```

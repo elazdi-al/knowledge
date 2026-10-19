@@ -66,7 +66,7 @@ import {
   StunSchema,
 } from "@/components/IpServicesSchemas";
 import { LanguageClasses } from "@/components/LanguageClasses";
-import { PerceptronBoundarySchema, PerceptronUnitSchema, RegressionPlaneSchema, XorSchema } from "@/components/LinearModelSchemas";
+import { PerceptronBoundarySchema, RegressionPlaneSchema, XorSchema } from "@/components/LinearModelSchemas";
 import {
   CrossValidationSchema,
   CurseOfDimensionalitySchema,
@@ -77,6 +77,7 @@ import {
   MinimaSchema,
 } from "@/components/MlFoundationsSchemas";
 import { networkFigures } from "@/components/NetworkFigures";
+import { MomentumSchema, ProjectionSchema, SgdNoiseSchema, StepSizeSchema, SubgradientSchema } from "@/components/OptimizationSchemas";
 import { packetFigures } from "@/components/PacketFigures";
 import { PageLayout } from "@/components/PageLayout";
 import { QueryTree } from "@/components/QueryTree";
@@ -162,6 +163,11 @@ export function useMDXComponents(
     LanCaptureSchema,
     LongestPrefixMatchSchema,
     LossShapesSchema,
+    MomentumSchema,
+    ProjectionSchema,
+    SgdNoiseSchema,
+    StepSizeSchema,
+    SubgradientSchema,
     MinimaSchema,
     MultiGranularityLockingSchema,
     Nat64Schema,
@@ -173,7 +179,6 @@ export function useMDXComponents(
     Pane,
     PathStacksSchema,
     PerceptronBoundarySchema,
-    PerceptronUnitSchema,
     PhantomReadSchema,
     PnpContainmentSchema,
     ExecutionModelSchema,

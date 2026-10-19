@@ -1,92 +1,203 @@
 ---
-title: "Machine Learning: Foundations I"
-description: "The general learning setup: models and parameters, loss functions and convexity, MSE versus MAE and outliers, generalization, overfitting and underfitting, underdetermined and overparametrized problems, L2 and L1 regularization, and the statistical versus computational trade-off."
+title: "Machine Learning: Linear Regression"
+description: "Linear regression: the model and residuals, the matrix form (target vector, design matrix, prediction and residual vectors), the mean squared error, the gradient and the normal equation, multiple targets, convexity and uniqueness, polynomial features, outliers, the MAE, the Huber and Tukey losses, and a NumPy implementation."
 tags: ["Machine learning"]
 created: 2026-09-26
-updated: 2026-10-05
+updated: 2026-10-15
 ---
 
-## Models and Losses
-
-The perceptron and linear regression are two instances of one setup, where the target $y$ is a class in classification and a real number in regression.
-
-**Model.** A function $f_\theta$ with parameters $\theta$ that predicts $\hat{y} = f_\theta(\mathbf{x})$. *Linear regression is the model $f_\theta(\mathbf{x}) = \mathbf{w}^T \mathbf{x} + b$ with $\theta = (\mathbf{w}, b)$.*
-
-**Loss function.** A function $\ell(\hat{y}, y)$ that scores the error of one prediction. Training minimizes its average over the training set:
-
+## Model
+A **Linear regression** model is a regression model that predicts a weighted sum of its input:
 $$
-L(\theta) = \frac{1}{m} \sum_{i=1}^{m} \ell(f_\theta(\mathbf{x}_i), y_i).
+\hat{y} = \mathbf{w}^T \mathbf{x} + b = \tilde{\mathbf{w}}^T \tilde{\mathbf{x}}.
 $$
 
-The MSE is $L$ with the squared error $\ell(\hat{y}, y) = (y - \hat{y})^2$.
+Its parameters are the weights and the bias : $\tilde{\mathbf{w}} = (\mathbf{w}, b)$ and $\tilde{\mathbf{x}} = (\mathbf{x}, 1)$, both in $\mathbb{R}^{n+1}$.
 
-**Convex function.** A function whose graph lies on or below the segment between any two of its points: for all $\theta, \theta'$ and $t \in [0, 1]$,
+*It's the perceptron's score without the threshold.*
 
-$$
-L(t\theta + (1 - t)\theta') \le t L(\theta) + (1 - t) L(\theta').
-$$
+With one feature it's a univariate regression with the model being a line.
 
-It is **strictly convex** when the inequality is strict for $\theta \ne \theta'$ and $0 < t < 1$.
+With $n > 1$ features it's a multivariate regression with the model being a hyperplane.
 
-*A convex loss has no false bottom: wherever going downhill stops, the loss is at its lowest.*
+**Residual.** The error $e_i = y_i - \hat{y}_i$ of example $i$, its vertical distance to the hyperplane.
 
-A good loss is:
+<RegressionPlaneSchema />
 
-- non-negative, and zero when $\hat{y} = y$;
-- differentiable in $\theta$, so gradient descent can use it;
-- convex in $\theta$ when possible, so that gradient descent with a small enough step converges to the lowest loss.
+## Matrix Form
 
-**Mean absolute error (MAE).** The average absolute residual. Writing $r_i$ for the residual $y_i - \hat{y}_i$, MSE and MAE are
+**Target vector.** The $m$ training targets stacked into $\mathbf{y} = (y_1, \dots, y_m) \in \mathbb{R}^m$.
+
+**Design matrix.** The matrix $X \in \mathbb{R}^{m \times (n+1)}$ whose row $i$ is the folded input $\tilde{\mathbf{x}}_i^T$:
 
 $$
-\text{MSE} = \frac{1}{m} \sum_{i=1}^{m} r_i^2, \qquad \text{MAE} = \frac{1}{m} \sum_{i=1}^{m} |r_i|.
+X = \begin{pmatrix} \tilde{\mathbf{x}}_1^T \\ \vdots \\ \tilde{\mathbf{x}}_m^T \end{pmatrix} = \begin{pmatrix} x_{11} & \cdots & x_{1n} & 1 \\ \vdots & \ddots & \vdots & \vdots \\ x_{m1} & \cdots & x_{mn} & 1 \end{pmatrix}.
 $$
 
-MSE is smooth and punishes large errors quadratically. Its best constant prediction is the mean of the targets. MAE grows linearly and is not differentiable at $0$. Its best constant prediction is the median. Both are convex for linear models; the losses of neural networks are not.
+The entry $X_{ij} = x_{ij}$ is feature $j$ of example $i$, and the last column holds the folded $1$s.
+
+**Prediction vector.** All $m$ predictions at once, $\hat{\mathbf{y}} = X \tilde{\mathbf{w}} \in \mathbb{R}^m$. Row $i$ of the product is $\tilde{\mathbf{x}}_i^T \tilde{\mathbf{w}} = \hat{y}_i$.
+
+**Residual vector.** All $m$ residuals at once, $\mathbf{e} = \mathbf{y} - X \tilde{\mathbf{w}} \in \mathbb{R}^m$, with entries $e_i$.
+
+**Example 1. Three points in matrix form.**
+
+The points $(x, y) = (1, 2), (2, 3), (3, 5)$ have one feature, so $n = 1$ and $\tilde{\mathbf{w}} = (w, b)$:
+
+$$
+X = \begin{pmatrix} 1 & 1 \\ 2 & 1 \\ 3 & 1 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 2 \\ 3 \\ 5 \end{pmatrix}.
+$$
+
+With $w = 1$ and $b = 0.5$, the prediction and residual vectors are
+
+$$
+\hat{\mathbf{y}} = \begin{pmatrix} 1 & 1 \\ 2 & 1 \\ 3 & 1 \end{pmatrix} \begin{pmatrix} 1 \\ 0.5 \end{pmatrix} = \begin{pmatrix} 1.5 \\ 2.5 \\ 3.5 \end{pmatrix}, \qquad \mathbf{e} = \mathbf{y} - \hat{\mathbf{y}} = \begin{pmatrix} 0.5 \\ 0.5 \\ 1.5 \end{pmatrix}.
+$$
+
+## Loss
+
+**Squared error.** The loss $\ell(\hat{y}, y) = \frac{1}{2} (y - \hat{y})^2$. The $\frac{1}{2}$ cancels the 2 that differentiating the square brings down, and does not move the minimum.
+
+Its training loss is the **mean squared error (MSE)**, half the mean of the squared residuals:
+
+$$
+L(\tilde{\mathbf{w}}) = \frac{1}{2m} \sum_{i=1}^{m} e_i^2 = \frac{1}{2m} \|\mathbf{e}\|^2 = \frac{1}{2m} \|\mathbf{y} - X \tilde{\mathbf{w}}\|^2.
+$$
+
+In Example 1, $L = (0.5^2 + 0.5^2 + 1.5^2)/6 = 11/24$.
+
+## Training
+
+**Gradient of the MSE.** The vector $\nabla L$ of the partial derivatives of $L$, one per weight.
+
+With one feature, $e_i = y_i - w x_i - b$. By the chain rule, $\frac{1}{2} e_i^2$ has derivative $e_i$ times that of $e_i$, which is $-x_i$ for $w$ and $-1$ for $b$:
+
+$$
+\frac{\partial L}{\partial w} = -\frac{1}{m} \sum_{i=1}^{m} e_i x_i, \qquad \frac{\partial L}{\partial b} = -\frac{1}{m} \sum_{i=1}^{m} e_i.
+$$
+
+Row $i$ of $X$ is $(x_i, 1)$, so these two sums are the entries of $X^T \mathbf{e}$. With $n$ features, each weight $w_j$ gives the same sum with $x_{ij}$, so in general
+
+$$
+\nabla L = -\frac{1}{m} X^T \mathbf{e}.
+$$
+
+*Each weight's derivative averages the residuals weighted by its feature, and the bias's feature is the constant 1.*
+
+In Example 1, $\nabla L = (-2, -5/6)$: every prediction is too low, so raising $w$ and $b$ lowers the loss.
+
+**Normal equation.** Setting $\nabla L = 0$ gives $X^T \mathbf{e} = 0$, and substituting $\mathbf{e} = \mathbf{y} - X \tilde{\mathbf{w}}$ gives
+
+$$
+X^T X \tilde{\mathbf{w}} = X^T \mathbf{y}.
+$$
+
+The matrix $X^T X$ is $(n+1) \times (n+1)$ and the vector $X^T \mathbf{y}$ has $n + 1$ entries, so the system has one linear equation per weight. If $X^T X$ is invertible, then
+
+$$
+\tilde{\mathbf{w}} = (X^T X)^{-1} X^T \mathbf{y}.
+$$
+
+*At the minimum, the residual vector is orthogonal to every column of $X$.*
+
+**Example 2. Solving Example 1 exactly.**
+
+The data of Example 1 give
+
+$$
+X^T X = \begin{pmatrix} 14 & 6 \\ 6 & 3 \end{pmatrix}, \qquad X^T \mathbf{y} = \begin{pmatrix} 23 \\ 10 \end{pmatrix}.
+$$
+
+The determinant of $X^T X$ is $6$, so
+
+$$
+\tilde{\mathbf{w}} = \frac{1}{6} \begin{pmatrix} 3 & -6 \\ -6 & 14 \end{pmatrix} \begin{pmatrix} 23 \\ 10 \end{pmatrix} = \begin{pmatrix} 3/2 \\ 1/3 \end{pmatrix}.
+$$
+
+The fit $\hat{y} = \frac{3}{2} x + \frac{1}{3}$ has residuals $\mathbf{e} = (1/6, -1/3, 1/6)$, and $X^T \mathbf{e} = (0, 0)$ as the normal equation requires.
+
+Gradient descent instead steps along $-\nabla L = \frac{1}{m} X^T \mathbf{e}$.
+
+The normal equation costs $O(mn^2 + n^3)$, so large $n$ favours gradient descent.
+
+**Multiple targets.** Predicting $p$ targets per example. The **target matrix** $Y \in \mathbb{R}^{m \times p}$ holds the targets of output $j$ in column $j$. The **weight matrix** $W \in \mathbb{R}^{(n+1) \times p}$ holds the folded weights of output $j$ in column $j$. The predictions are $\hat{Y} = XW$, and the normal equation becomes
+
+$$
+W = (X^T X)^{-1} X^T Y.
+$$
+
+Column $j$ of $W$ is the regression of target $j$ alone.
+
+## Convergence
+
+Each squared residual is convex in $\tilde{\mathbf{w}}$, as the square of an affine function, so their average, the MSE, is convex. Gradient descent therefore reaches its global minimum.
+
+The minimizer is unique exactly when $X^T X$ is invertible, that is, when the $n + 1$ columns of $X$ are linearly independent.
+
+Independence needs no redundant feature and at least as many examples as weights, $m \ge n + 1$.
+
+Otherwise the problem is underdetermined: many $\tilde{\mathbf{w}}$ reach the lowest MSE.
+
+## Limits
+
+The model only fits linear relations.
+
+**Polynomial features.** Input powers and products added as features (e.g. $x_1^2$ for a parabola):
+
+$$
+\hat{y} = w_1 x_1 + w_2 x_1^2 + b.
+$$
+
+The highest power is the **degree**.
+
+The model stays linear in $\tilde{\mathbf{w}}$, so both training methods still apply.
+
+The same trick lets a perceptron separate XOR, with the extra feature $x_1 x_2$.
+
+**Outlier.** An example far from the others' pattern (e.g. a measurement error).
+
+Squaring their large residuals lets a few outliers pull the whole fit.
+
+**Mean absolute error (MAE).** The training loss of the absolute error $|y - \hat{y}|$.
 
 <LossShapesSchema />
 
-**Outlier.** An example far from the pattern of the others (e.g. a measurement error). MSE squares its large residual, so a few outliers can pull the whole fit. MAE is more robust.
+MAE grows linearly, so it is more robust. It is convex for the same reason as the MSE, but not differentiable where a residual is $0$, so its training uses subgradients (Optimization).
 
-*On the targets 1, 2, 3 and 100, the best constant under MSE is the mean 26.5. Under MAE it is any value between 2 and 3, where the median lies.*
+The best constant prediction is the mean under MSE, the median under MAE.
 
----
+Targets 1, 2, 3, 4 give $2.5$ under MSE and any value in $[2, 3]$ under MAE. Adding the outlier $20$ moves the MSE fit to $6$, but the MAE fit only to $3$.
 
-## Generalization
-
-**Generalization.** Performing well on new data, not only on the training set. The loss on a **test set**, examples held out from training, measures it.
-
-**Overfitting.** Low training loss but high test loss: the model learned the noise of the training set.
-
-**Underfitting.** High training and test loss: the model is too simple for the data.
-
-<FitRegimesSchema />
-
-**Underdetermined problem.** A problem whose minimal training loss is reached by many parameter values. In linear regression this happens when $X^T X$ is singular.
-
-**Overparametrization.** More parameters than examples, so the model can fit the training set exactly. The problem is then underdetermined: the training algorithm, not the data, chooses among the perfect fits, and that choice decides how well the model generalizes. For linear regression, gradient descent from $\mathbf{0}$ picks the solution of minimum norm.
-
-**Regularization.** Adding a penalty $R(\theta)$ on the parameters to the loss, weighted by $\lambda > 0$:
+**Huber loss.** A loss that is squared for small residuals and linear beyond a threshold $\delta > 0$:
 
 $$
-L_\lambda(\theta) = L(\theta) + \lambda R(\theta).
+\ell_\delta(e) = \begin{cases} \frac{1}{2} e^2 & \text{if } |e| \le \delta, \\ \delta |e| - \frac{1}{2} \delta^2 & \text{if } |e| > \delta. \end{cases}
 $$
 
-- **L2 (ridge).** $R(\theta) = \|\theta\|_2^2$. It shrinks all weights toward zero, and when $L$ is convex it makes $L_\lambda$ strictly convex, so the minimizer is unique. With the MSE the minimizer is
-  $$
-  \tilde{\mathbf{w}} = (X^T X + m \lambda I)^{-1} X^T \mathbf{y},
-  $$
-  and $X^T X + m \lambda I$ is invertible for every $\lambda > 0$, even when the problem is underdetermined. In practice the bias is usually left out of the penalty.
-- **L1 (lasso).** $R(\theta) = \|\theta\|_1$. It sets some weights exactly to $0$, which selects features.
+It is convex, differentiable and robust to outliers, but a good $\delta$ is hard to choose.
 
-A larger $\lambda$ gives a simpler model: less overfitting, but a worse fit of the training set.
+**Tukey's bisquare loss.** A loss whose derivative $e (1 - e^2 / \delta^2)^2$ falls back to $0$ for $|e| > \delta$, so a distant outlier stops pulling at all. It is robust but not convex.
 
-## Statistical vs. Computational Trade-off
+Robustness to outliers is a statistical property, and convexity a computational one. The most robust losses give up convexity.
 
-The error of a trained model has three parts.
+## Implementation
 
-- **Approximation error.** Error from a model family that cannot represent the truth.
-- **Estimation error** (statistical). Error from having only $m$ examples.
-- **Optimization error** (computational). Error from stopping training before the exact minimum.
+Linear regression in NumPy, fit by the normal equation and by gradient descent:
 
-Bigger models shrink the approximation error and more data shrinks the estimation error, but both cost computation, and cheaper training raises the optimization error. With a fixed compute budget, rough optimization on more data often beats exact optimization on less.
+```python
+import numpy as np
+
+# 50 examples of y = 3 x1 - 2 x2 + 1 plus noise, bias folded in
+rng = np.random.default_rng(0)
+X = np.c_[rng.random((50, 2)), np.ones(50)]
+y = X @ [3, -2, 1] + 0.1 * rng.standard_normal(50)
+
+w_exact = np.linalg.solve(X.T @ X, X.T @ y)  # normal equation
+
+w, eta = np.zeros(3), 0.2
+for _ in range(5000):  # gradient descent
+    e = y - X @ w  # residual vector
+    w += eta / len(y) * X.T @ e
+
+print(w_exact.round(2), w.round(2))  # [ 3.05 -1.91  0.92] twice
+```
