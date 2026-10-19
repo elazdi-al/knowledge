@@ -7,17 +7,17 @@ import { ML_TONE } from "@/components/tones";
 export function LossShapesSchema() {
   const a = plotArea({ x: [-3.3, 3.4], y: [0, 4.5], w: 268, h: 180, at: [12, 22] });
   return (
-    <Diagram caption="The loss of one residual r: squared for MSE, absolute for MAE. Past |r| = 1 the square is larger, and the gap keeps widening.">
+    <Diagram caption="Squared and absolute error of one residual r. Past |r| = 2 the squared error is larger.">
       <Free>
-        {[-1, 1].map((r) => (
-          <Path key={r} points={[a.p([r, 0]), a.p([r, 1])]} dashed state="ghost" />
+        {[-2, 2].map((r) => (
+          <Path key={r} points={[a.p([r, 0]), a.p([r, 2])]} dashed state="ghost" />
         ))}
         <Axes area={a} x={[-3.3, 3.4]} y={[0, 4.5]} labels={["r", "ℓ(r)"]} />
-        <Path points={curve(a, (r) => r * r, [-2.05, 2.05])} tone={ML_TONE.mse} />
+        <Path points={curve(a, (r) => (r * r) / 2, [-2.9, 2.9])} tone={ML_TONE.mse} />
         <Path points={curve(a, Math.abs, [-3.1, 3.1], 62)} tone={ML_TONE.mae} />
-        <At text="-1" at={a.p([-1, 0])} anchor="n" gap={6} muted />
-        <At text="1" at={a.p([1, 0])} anchor="n" gap={6} muted />
-        <At text="MSE" at={a.p([2.05, 4.2])} anchor="w" gap={6} tone={ML_TONE.mse} weight={500} />
+        <At text="-2" at={a.p([-2, 0])} anchor="n" gap={6} muted />
+        <At text="2" at={a.p([2, 0])} anchor="n" gap={6} muted />
+        <At text="MSE" at={a.p([2.9, 4.2])} anchor="w" gap={6} tone={ML_TONE.mse} weight={500} />
         <At text="MAE" at={a.p([3.1, 3.1])} anchor="w" gap={6} tone={ML_TONE.mae} weight={500} />
       </Free>
     </Diagram>
@@ -53,7 +53,7 @@ export function FitRegimesSchema() {
   ];
   const X: Pt = [-0.08, 1.08], Y: Pt = [-0.12, 1.12];
   return (
-    <Diagram caption="The same eight examples fitted by a line, a cubic and a degree 7 polynomial. The last one passes through every example but swings between them, so it predicts new points badly.">
+    <Diagram caption="A line, a cubic and a degree 7 polynomial. The last swings between the examples.">
       <Row gap={28} wrap>
         {panels.map(([title, note, deg]) => {
           const a = plotArea({ x: X, y: Y, w: 150, h: 112, at: [4, 18] });
@@ -83,7 +83,7 @@ export function CrossValidationSchema() {
   const items: CellInput[] = Array.from({ length: k * k }, (_, i) => (i % (k + 1) === 0 ? { label: "val", tone: "blue" } : null));
   const rows = Array.from({ length: k }, (_, i) => i);
   return (
-    <Diagram caption="5-fold cross-validation. Each round validates on one fold (blue) and trains on the other four, giving one score per round.">
+    <Diagram caption="5-fold cross-validation. Each round validates on one fold and trains on four.">
       <Free>
         {rows.map((i) => (
           <At key={`f${i}`} text={`fold ${i + 1}`} at={[x0 + S * i + S / 2, y0 - 6]} anchor="s" gap={0} muted />
@@ -120,7 +120,7 @@ export function GridSearchSchema() {
     state: e === best ? "strong" : undefined,
   }));
   return (
-    <Diagram caption="Validation MSE of a ridge regression for each polynomial degree and λ. Blue marks the valley of low errors; the best combination, outlined, is degree 3 with λ = 0.1.">
+    <Diagram caption="Validation MSE of ridge regression. The best, outlined, is degree 3 with λ = 0.1.">
       <Free>
         <At text="degree" at={[x0 - 10, y0 - 8]} anchor="se" gap={0} muted />
         {err.map((_, r) => (
@@ -163,7 +163,7 @@ export function CurseOfDimensionalitySchema() {
     </Col>
   );
   return (
-    <Diagram caption="Cells of side 1/4 cover a segment with 4 cells, a square with 16 and a cube with 64. One cell (blue) holds 1/4 of the space, then 1/16, then 1/64.">
+    <Diagram caption="One cell of side 1/4 holds 1/4 of a segment, 1/16 of a square, 1/64 of a cube.">
       <Row gap={48} align="end" wrap>
         {panel(1, "4 cells", <Cells items={strip} cell={s} />)}
         {panel(2, "4^2 = 16 cells", <Cells items={square} cols={n} cell={s} />)}
@@ -207,7 +207,7 @@ export function MinimaSchema() {
   const left = pieces.slice(0, 3).flatMap((p) => bezier(...p));
   const right = pieces.slice(3).flatMap((p) => bezier(...p));
   return (
-    <Diagram caption="Three minima of one loss. The strict local minimum is the unique lowest point of a ball around it, the flat stretch is a local minimum that is not strict, and the lowest point overall is the strict global minimum.">
+    <Diagram caption="A strict local minimum with its ball, a flat local minimum and the strict global one.">
       <Free>
         <Path points={[a.p([1.2, 2.6]), a.p([1.2, 0])]} dashed state="ghost" />
         <Axes area={a} x={[0, 7.8]} y={[0, 4.7]} labels={["θ", "L(θ)"]} />
@@ -236,7 +236,7 @@ export function FeatureScalingSchema() {
     ["standardized", 0.75, 0.75, [[-1.85, 1.1], [-1.05, 0.62], [-0.5, 0.3], [0, 0]]],
   ];
   return (
-    <Diagram caption="Loss contours over two weights, and the steps of gradient descent. Unscaled features stretch the contours, so the steps zig-zag across the narrow valley; standardized features make them rounder, so the steps head straight to the minimum.">
+    <Diagram caption="Gradient descent zig-zags on stretched contours and heads straight on round ones.">
       <Row gap={36} wrap>
         {panels.map(([title, rx, ry, path]) => {
           const a = plotArea({ x: [-4.8, 4.8], y: [-2.5, 2.6], w: 230, h: 122, at: [4, 22] });

@@ -1,105 +1,105 @@
 ---
-title: "Machine Learning: Perceptron"
-description: "The perceptron as a linear binary classifier: score, decision boundary, margin, linear separability, the perceptron algorithm, the convergence theorem with its proof, and the XOR limitation."
+title: "Machine Learning: Foundations"
+description: "The learning setup shared by every model: machine learning, examples, features and targets, classification and regression, models and parameters, loss functions, global, local and strict minima, convexity, the gradient and gradient descent."
 tags: ["Machine learning"]
 created: 2026-09-26
-updated: 2026-10-05
+updated: 2026-10-15
 ---
 
-## A Linear Classifier
+## Learning from Examples
 
-A model learns from **examples**: pairs $(\mathbf{x}, y)$ of an input $\mathbf{x} \in \mathbb{R}^n$ and its true **label** $y$. The entries $x_1, \dots, x_n$ of $\mathbf{x}$ are its **features**.
+**Machine learning.** Learning a function from examples of its inputs and desired outputs, instead of programming its rules by hand.
 
-**Binary classification.** Predicting a label that takes one of two values, written $-1$ and $+1$.
+A model learns from **examples** $(\mathbf{x}, y)$: an input $\mathbf{x} \in \mathbb{R}^n$ and its **target** $y$.
 
-**Perceptron.** A binary classification model that thresholds a weighted sum of its input. It computes the **score**
+The entries $x_1, \dots, x_n$ of $\mathbf{x}$ are its **features**.
 
-$$
-z = \mathbf{w}^T \mathbf{x} + b,
-$$
+**Classification.** Predicting a target from a finite set of classes, called a **label**.
 
-where $\mathbf{w} \in \mathbb{R}^n$ is the **weight vector** and $b \in \mathbb{R}$ is the **bias**. It predicts
+Binary classification has two classes, written $-1$ and $+1$.
 
-$$
-\hat{y} = \begin{cases} +1 & \text{if } z \ge 0, \\ -1 & \text{otherwise.} \end{cases}
-$$
+**Regression.** Predicting a real-valued target.
 
-<PerceptronUnitSchema />
+The goal of regression is **prediction**, the output for a new input (the weight of a person 170 cm tall). It can also be **interpretation**, the effect of an input on the output (are taller people heavier?).
 
-*A positive weight pushes the prediction toward $+1$ as its feature grows, a negative weight toward $-1$.*
+Regression finds correlations, not causes, so an interpretation needs caution.
 
-**Decision boundary.** The inputs where the score is zero, $\mathbf{w}^T \mathbf{x} + b = 0$. It is a hyperplane (a line when $n = 2$) with normal vector $\mathbf{w}$. Inputs on the boundary or on the side $\mathbf{w}$ points to are classified $+1$, the others $-1$.
+**Model.** A function $f_\theta$ that predicts $\hat{y} = f_\theta(\mathbf{x})$ from an input.
 
-**Margin.** The signed distance from an example $(\mathbf{x}_i, y_i)$ to the decision boundary, positive on the correct side and negative on the wrong side:
+Its **parameters** $\theta$ are the values that training learns.
 
-$$
-\gamma_i = \frac{y_i (\mathbf{w}^T \mathbf{x}_i + b)}{\|\mathbf{w}\|}.
-$$
+**Training set.** The $m$ examples $(\mathbf{x}_i, y_i)$ that training fits $\theta$ on.
 
-The margin of a dataset is its smallest margin, $\gamma = \min_i \gamma_i$: the margin of its closest example when every example is on the correct side.
+**Loss function.** A function $\ell(\hat{y}, y)$ that scores the error of one prediction.
 
-<PerceptronBoundarySchema />
-
-**Linearly separable.** Two classes are linearly separable when some hyperplane puts each class strictly on its own side. A perceptron can classify every example correctly only on linearly separable classes.
-
-## Training
-
-**Parameters.** The values a model learns from data, here $\mathbf{w}$ and $b$. Training fits them on a **training set** of $m$ examples.
-
-**Learning rate.** The step size $\eta > 0$ of each parameter update.
-
-**Perceptron algorithm.** Training that corrects the parameters after each mistake.
-
-1. Initialize the parameters, e.g. $\mathbf{w} = \mathbf{0}$ and $b = 0$.
-2. For each training example $(\mathbf{x}, y)$, compute the prediction $\hat{y}$. If $\hat{y} \ne y$, update
-   $$
-   \mathbf{w} \leftarrow \mathbf{w} + \eta y \mathbf{x}, \qquad b \leftarrow b + \eta y.
-   $$
-3. Repeat step 2 until a full pass over the training set, an **epoch**, makes no mistake.
-
-*An update moves the score of the misclassified input by $\eta y (\|\mathbf{x}\|^2 + 1)$, toward the side of its label.*
-
----
-
-## Convergence
-
-Appending a constant $1$ to every input folds the bias into the weights: with $\mathbf{x} \leftarrow (\mathbf{x}, 1)$ and $\mathbf{w} \leftarrow (\mathbf{w}, b)$, the score is $\mathbf{w}^T \mathbf{x}$.
-
-**Perceptron convergence theorem.** The perceptron algorithm makes a bounded number of mistakes under two assumptions on the folded inputs.
-
-- Every input has length at most $R$: $\|\mathbf{x}_i\| \le R$ for all $i$.
-- Some unit vector $\mathbf{w}^*$ separates the data with margin $\gamma > 0$: $y_i \mathbf{w}^{*T} \mathbf{x}_i \ge \gamma$ for all $i$.
-
-Then, starting from $\mathbf{w} = \mathbf{0}$, the total number $k$ of mistakes across all epochs, repeated mistakes on the same example included, satisfies
+**Training**, also called learning or fitting, minimizes the **training loss**, the average loss over the training set:
 
 $$
-k \le \frac{R^2}{\gamma^2}.
+L(\theta) = \frac{1}{m} \sum_{i=1}^{m} \ell(f_\theta(\mathbf{x}_i), y_i).
 $$
 
-So on linearly separable data training always stops, and a larger margin lowers the bound on mistakes. The bound does not depend on the number of examples, the dimension $n$ or the learning rate $\eta$. Here $\gamma$ is measured in the folded space, so it is at most the margin of the same boundary in the original space.
+## Minima and Convexity
 
-**Proof.** Let $\mathbf{w}_k$ be the weights after $k$ updates. The $k$-th update is made on a misclassified example $(\mathbf{x}_i, y_i)$, so $y_i \mathbf{w}_{k-1}^T \mathbf{x}_i \le 0$.
+**Minimum.** A point $\theta^*$ where $L$ is lowest, over all $\theta$ (**global**) or a ball (**local**):
 
-1. **Alignment grows linearly.** Each update adds at least $\eta \gamma$ to the alignment with $\mathbf{w}^*$:
-   $$
-   \mathbf{w}_k^T \mathbf{w}^* = \mathbf{w}_{k-1}^T \mathbf{w}^* + \eta y_i \mathbf{x}_i^T \mathbf{w}^* \ge \mathbf{w}_{k-1}^T \mathbf{w}^* + \eta \gamma,
-   $$
-   so $\mathbf{w}_k^T \mathbf{w}^* \ge k \eta \gamma$.
-2. **Length grows slowly.** The middle term below is at most $0$ because the example was misclassified:
-   $$
-   \|\mathbf{w}_k\|^2 = \|\mathbf{w}_{k-1}\|^2 + 2 \eta y_i \mathbf{w}_{k-1}^T \mathbf{x}_i + \eta^2 \|\mathbf{x}_i\|^2 \le \|\mathbf{w}_{k-1}\|^2 + \eta^2 R^2,
-   $$
-   so $\|\mathbf{w}_k\|^2 \le k \eta^2 R^2$.
-3. **Combine.** By the Cauchy-Schwarz inequality and $\|\mathbf{w}^*\| = 1$,
-   $$
-   k \eta \gamma \le \mathbf{w}_k^T \mathbf{w}^* \le \|\mathbf{w}_k\| \le \sqrt{k}\, \eta R,
-   $$
-   so $\sqrt{k} \le R / \gamma$.
+$$
+B_\epsilon = \{\theta : \|\theta - \theta^*\| < \epsilon\}, \quad \epsilon > 0.
+$$
 
-*The alignment with $\mathbf{w}^*$ grows like $k$ but the length only like $\sqrt{k}$, and the alignment can never exceed the length.*
+It is **strict** when every other $\theta$ in that region has a strictly higher loss.
 
-If the data is not linearly separable, no such $\mathbf{w}^*$ exists: some example is misclassified in every epoch, and training never stops.
+| | **minimum** | **strict minimum** |
+|---|---|---|
+| **global** | $L(\theta^*) \le L(\theta)\ \forall \theta$ | $L(\theta^*) < L(\theta)\ \forall \theta \ne \theta^*$ |
+| **local**, some $\epsilon > 0$ | $L(\theta^*) \le L(\theta)\ \forall \theta \in B_\epsilon$ | $L(\theta^*) < L(\theta)\ \forall \theta \in B_\epsilon \setminus \{\theta^*\}$ |
 
-The perceptron fails on data as simple as XOR, where $(0, 0)$ and $(1, 1)$ have label $-1$ while $(0, 1)$ and $(1, 0)$ have label $+1$. No line separates these two groups.
+<MinimaSchema />
 
-<XorSchema />
+Every global minimum is local, and a strict global minimum is the only minimizer.
+
+**Underdetermined problem.** A problem whose lowest loss is reached by many $\theta$ (e.g. a line $\hat{y} = w x + b$ fitted to a single point: every line through the point fits).
+
+**Convex function.** A function whose graph never rises above its chords (e.g. $\theta^2$; not $\theta^3$, which rises above its chord on $[-1, 0]$):
+
+$$
+L(t\theta + (1 - t)\theta') \le t L(\theta) + (1 - t) L(\theta'), \quad t \in [0, 1].
+$$
+
+It is **strictly convex** when the inequality is strict for $\theta \ne \theta'$ and $0 < t < 1$.
+
+*A convex loss has no false bottom: where descent stops, the loss is lowest.*
+
+Every local minimum of a convex function is global.
+
+A sum of convex functions is convex. A training loss whose per-example losses are convex in $\theta$ is therefore convex.
+
+A strictly convex function has at most one minimizer.
+
+**Common mistake.** A convex loss does not always have a unique minimizer. It can reach its lowest value at many $\theta$, making the problem underdetermined. Strict convexity rules this out.
+
+## Gradient Descent
+
+**Gradient.** The vector $\nabla L(\theta)$ of the partial derivatives $\partial L / \partial \theta_j$, one per parameter. It points in the direction in which $L$ increases fastest.
+
+**Gradient descent.** Minimizing $L$ by repeated steps against its gradient:
+
+$$
+\theta \leftarrow \theta - \eta \nabla L(\theta).
+$$
+
+**Learning rate.** The step size $\eta > 0$.
+
+*The gradient points uphill, so a small step against it goes downhill.*
+
+It starts from some $\theta$, often $\mathbf{0}$, and stops when $L$ stops decreasing.
+
+On a convex loss with a small enough $\eta$, it reaches the global minimum.
+
+Otherwise it can stop in a non-global local minimum (e.g. on neural networks).
+
+A good loss is therefore:
+
+- non-negative, and zero when $\hat{y} = y$;
+- symmetric for regression, so an error costs the same above and below the target;
+- differentiable in $\theta$, so gradient descent can use it;
+- convex in $\theta$ when possible, so every local minimum is global.

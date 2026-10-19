@@ -1,0 +1,67 @@
+---
+title: "Machine Learning: Features"
+description: "Working with features: the curse of dimensionality, why feature scaling matters for gradient descent, distances and regularization, standardization and min-max normalization, and fitting the scaling on the training set only."
+tags: ["Machine learning"]
+created: 2026-09-26
+updated: 2026-10-15
+---
+
+## Curse of Dimensionality
+
+**Curse of dimensionality.** Data grows sparse as the dimension $d$ grows.
+
+- Covering $[0, 1]^d$ at resolution $1/s$ takes $s^d$ cells, each needing data.
+- Neighbours are far: in $d = 10$, a $10\%$ cube spans $79\%$ of each axis.
+- Distances concentrate: the nearest point is almost as far as the farthest.
+
+<CurseOfDimensionalitySchema />
+
+So more features need far more data.
+
+**Distance-based methods** (e.g. nearest neighbours) suffer most.
+
+Feature selection, dimensionality reduction and regularization counter it.
+
+## Feature Scaling
+
+Features often differ in scale (e.g. a surface in m² and a number of rooms).
+
+**Feature scaling.** Rescaling every feature to a comparable range.
+
+Scaling helps in three places.
+
+- Gradient descent: scaling preconditions the loss (Optimization), so one learning rate suits every weight.
+- Distances: otherwise the largest-scale feature dominates them.
+- Regularization: one penalty for all weights assumes comparable features.
+
+<FeatureScalingSchema />
+
+Scaling does not change the predictions of unregularized linear regression.
+
+It changes how fast gradient descent converges and what ridge or lasso return.
+
+**Standardization (z-score).** Mapping each feature to mean $0$ and variance $1$:
+
+$$
+x'_j = \frac{x_j - \mu_j}{\sigma_j},
+$$
+
+where $\mu_j$ and $\sigma_j$ are the mean and standard deviation of feature $j$.
+
+*A standardized value counts standard deviations from the mean.*
+
+**Normalization (min-max).** Mapping each feature onto $[0, 1]$:
+
+$$
+x'_j = \frac{x_j - x_j^{\min}}{x_j^{\max} - x_j^{\min}}.
+$$
+
+One outlier squeezes all other values together, so standardization is often safer.
+
+Normalization also names scaling an example to unit length, $\mathbf{x} / \|\mathbf{x}\|$.
+
+The statistics $\mu_j, \sigma_j$ or $x_j^{\min}, x_j^{\max}$ come from the training set only.
+
+The same map then applies to validation and test data.
+
+Computing the statistics on all the data is leakage.
