@@ -3,7 +3,7 @@ title: "Data Intensive Systems: Lecture 9"
 description: "Query optimization as cost-based search: query transformations, catalog statistics, cardinality estimation, access-path costing, join-order enumeration, and the System R strategy."
 tags: ["Data intensive systems"]
 created: 2026-06-21
-updated: 2026-06-22
+updated: 2026-10-14
 ---
 
 ## Query Optimization
@@ -19,6 +19,8 @@ A SQL query describes the desired result, not the execution strategy. The same q
 <OptimizerArchitectureSchema />
 
 **Cost-based optimization.** An optimization strategy that assigns an estimated cost to candidate physical plans and chooses the plan with the lowest estimated cost among the plans considered.
+
+**Common mistake.** The optimizer does not return the fastest plan. It returns the plan with the lowest estimated cost among the plans it considered. Estimates can be wrong, and the search skips most plans.
 
 **Recipe: optimizing one query block.**
 
@@ -36,7 +38,7 @@ The optimizer's three jobs are therefore:
 
 **Example 1. Same query, very different plans.**
 
-*Suppose `Supplier` has $1000$ pages and $100$ tuples per page, `Supply` has $10000$ pages, only $10$ `Supplier` pages are in Seattle and WA, and there is a B$^+$-tree on `Supply.pno`. A plan that scans both files and runs a nested loops join costs roughly $1000 + (1000 \cdot 100)\cdot 10000 \approx 10^9$ I/Os. A plan that pushes the `Supplier` selection first and uses an index nested loops join costs about $1000 + (10\cdot 100)\cdot 4 \approx 5000$ I/Os.*
+Suppose `Supplier` has $1000$ pages and $100$ tuples per page, and `Supply` has $10000$ pages. Only $10$ `Supplier` pages are in Seattle and WA, and there is a B$^+$-tree on `Supply.sno`. A plan that scans both files and runs a nested loops join costs roughly $1000 + (1000 \cdot 100)\cdot 10000 \approx 10^9$ I/Os. A plan that pushes the `Supplier` selection first and uses an index nested loops join costs about $1000 + (10\cdot 100)\cdot 4 \approx 5000$ I/Os.
 
 Equivalent plans can differ by orders of magnitude. The optimizer does not need perfect knowledge; it needs estimates good enough to avoid disasters.
 
@@ -133,7 +135,7 @@ Two common rewrites are:
 
 **Example 2. Flattening exposes a join.**
 
-*`WHERE S.sid IN (SELECT R.sid FROM Reserves R WHERE R.bid = 103)` can be flattened to `FROM Sailors S, Reserves R WHERE S.sid = R.sid AND R.bid = 103`. The flattened form can use hash join, sort-merge join, or index nested loops, and it can be reordered with other joins.*
+`WHERE S.sid IN (SELECT R.sid FROM Reserves R WHERE R.bid = 103)` can be flattened to `FROM Sailors S, Reserves R WHERE S.sid = R.sid AND R.bid = 103`. The flattened form can use hash join, sort-merge join, or index nested loops, and it can be reordered with other joins.
 
 ---
 
@@ -186,14 +188,14 @@ For relations $R$ and $Q$:
 
 **Example 3. Sailors joined with Reserves.**
 
-*`Sailors` has $40{,}000$ tuples and $\mathrm{NKeys}(\texttt{sid})=40{,}000$. `Reserves` has $100{,}000$ tuples and $\mathrm{NKeys}(\texttt{sid})=40{,}000$. The estimated join size is*
+`Sailors` has $40{,}000$ tuples and $\mathrm{NKeys}(\texttt{sid})=40{,}000$. `Reserves` has $100{,}000$ tuples and $\mathrm{NKeys}(\texttt{sid})=40{,}000$. The estimated join size is
 
 $$
 \frac{40{,}000\cdot 100{,}000}{40{,}000}
 =100{,}000\text{ tuples}.
 $$
 
-*This agrees with the key-foreign-key case: each reservation belongs to exactly one sailor.*
+This agrees with the key-foreign-key case: each reservation belongs to exactly one sailor.
 
 Uniformity is often the weakest assumption in the estimate. If a few values are much more frequent than the rest, replacing the distribution by one flat average can undercount popular values and overcount rare ones.
 
@@ -215,7 +217,7 @@ Instead of storing every value frequency, the DBMS stores buckets. Each bucket r
 
 **Access path enumeration.** Listing the ways a base relation can be read for a query, such as a sequential scan, index lookup, clustered index scan, unclustered index scan, or index-only scan.
 
-For a single-relation query, the optimizer estimates each available access path and keeps the cheapest one, except when a slightly more expensive path has an interesting order needed later.
+For a single-relation query, the optimizer estimates each available access path and keeps the cheapest one. The exception is a slightly more expensive path with an interesting order needed later.
 
 | Access path | Estimated I/O cost |
 |---|---|
@@ -229,7 +231,7 @@ The unclustered formula is larger because each matching tuple may require a sepa
 
 **Example 4. Choosing an access path.**
 
-*`Sailors` has $500$ pages, $40{,}000$ tuples, and $10$ distinct ratings. A 50-page index exists on `rating`, and the query asks for `rating = 8`. The selectivity is $1/10$, so the result has about $4000$ tuples.*
+`Sailors` has $500$ pages, $40{,}000$ tuples, and $10$ distinct ratings. A 50-page index exists on `rating`, and the query asks for `rating = 8`. The selectivity is $1/10$, so the result has about $4000$ tuples.
 
 | Path | Cost |
 |---|---|
@@ -237,7 +239,7 @@ The unclustered formula is larger because each matching tuple may require a sepa
 | Unclustered index on `rating` | $(50+40{,}000)/10=4005$ I/Os |
 | File scan | $500$ I/Os |
 
-*The clustered index wins. The file scan beats the unclustered index because fetching thousands of scattered tuples is worse than reading the relation once.*
+The clustered index wins. The file scan beats the unclustered index because fetching thousands of scattered tuples is worse than reading the relation once.
 
 For multiple relations, enumeration multiplies three choices:
 
@@ -267,13 +269,13 @@ The consequence is immediate: optimizers prune aggressively. A standard first ru
 
 System R made cost-based optimization tractable by combining dynamic programming with a restricted plan shape.
 
-**Left-deep join tree.** A join tree where the right input of every join is a base relation. Intermediate results accumulate on the left.
+**Left-deep join tree.** A join tree where the right input of every join is a base relation (not left-deep: $(R \bowtie S) \bowtie (T \bowtie U)$ has a join as a right input). Intermediate results accumulate on the left.
 
 <LeftDeepPlanSchema />
 
 Left-deep trees are attractive because many can be pipelined: the intermediate result from one join can feed the next join without being written to a temporary file. The restriction also cuts away many right-deep and bushy plans.
 
-System R also applies two cheap heuristics before and during enumeration: avoid Cartesian products when a join predicate is available, and push selections and projections down as long as doing so is cheap.
+System R also applies two cheap heuristics before and during enumeration. It avoids Cartesian products when a join predicate is available, and it pushes selections and projections down as long as doing so is cheap.
 
 **Dynamic programming over subplans.** A search method that builds larger plans from retained smaller plans and stores the best results for each subset of joined relations.
 
@@ -309,19 +311,13 @@ For each relation subset, System R keeps:
 
 **Example 5. Why interesting orders are retained.**
 
-*For `Sailors ⋈ Reserves ORDER BY S.sid`, a hash join may be the cheapest way to compute the join, but it emits unordered output and requires a final sort. A sort-merge join may cost slightly more locally but emits tuples ordered by `sid`, making the final `ORDER BY` free. Keeping only the cheapest unordered subplan would discard the globally better option.*
+For `Sailors ⋈ Reserves ORDER BY S.sid`, a hash join may be the cheapest way to compute the join, but it emits unordered output and requires a final sort. A sort-merge join may cost slightly more locally but emits tuples ordered by `sid`, making the final `ORDER BY` free. Keeping only the cheapest unordered subplan would discard the globally better option.
 
 **Example 6. System R pruning on three relations.**
 
-*For `Sailors S`, `Reserves R`, and `Boats B`, assume the predicates are `S.sid = R.sid` and `R.bid = B.bid`. There is a clustered B$^+$-tree on `S.sid`; `S` has $10{,}000$ pages, while `R` and `B` have $10$ pages each.*
+For `Sailors S`, `Reserves R`, and `Boats B`, assume the predicates are `S.sid = R.sid` and `R.bid = B.bid`. There is a clustered B$^+$-tree on `S.sid`; `S` has $10{,}000$ pages, while `R` and `B` have $10$ pages each.
 
-The example uses standard optimizer abbreviations for join algorithms already introduced in earlier query-processing notes.
-
-**Nested loops join (NLJ).** A join that chooses an outer input and, for each outer page or tuple, searches the inner input for matches. In this example, `NLJ` means **page-oriented nested loops join** unless an index variant is named.
-
-**Index nested loops join (Index-NLJ).** A nested loops join where the inner input is reached through an index lookup on the join attribute instead of a full inner scan.
-
-**Sort-merge join (SMJ).** A join that sorts both inputs on the join key, then merges the sorted streams. Its useful side effect is ordered output on the join key.
+The tables abbreviate index nested loops join as Index-NLJ and sort-merge join as SMJ.
 
 Read each pass table as a DP table snapshot: it records which subplans survive, what order they preserve, and why competing plans are discarded.
 
@@ -347,7 +343,7 @@ $$
 60 + 100\cdot 4 = 460\text{ I/Os}.
 $$
 
-*The winning plan mixes algorithms: SMJ for `R ⋈ B`, then Index-NLJ into `S`. The worst unpruned plans are above $100{,}000$ I/Os, so pruning and costing change the outcome by roughly three orders of magnitude.*
+The winning plan mixes algorithms: SMJ for `R ⋈ B`, then Index-NLJ into `S`. The worst unpruned plans are above $100{,}000$ I/Os, so pruning and costing change the outcome by roughly three orders of magnitude.
 
 System R-style search is still exponential in the number of joined relations; it works well for moderate join counts, often below about ten joins. Real cost models also include CPU work:
 

@@ -3,12 +3,12 @@ title: "Data Intensive Systems: SQL"
 description: "SQL as a query language: vocabulary, single- and multi-table queries mapped onto relational algebra, the conceptual evaluation order, aggregation, grouping, and HAVING."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## Relational Terminology
 
-SQL is the practical face of the relational model, so its vocabulary maps directly onto the formal terms: a **relation** is a **table**, a **tuple** is a **row**, an **attribute** is a **column**. Keys carry over unchanged; in the `Students` table below, `sid` is the primary key, underlined as always.
+SQL is the practical face of the relational model, so its vocabulary maps directly onto the formal terms. A **relation** is a **table**, a **tuple** is a **row**, an **attribute** is a **column**. Keys carry over unchanged; in the `Students` table below, `sid` is the primary key, underlined as always.
 
 | <u>sid</u> | name | login | age | gpa |
 |---|---|---|---|---|
@@ -32,7 +32,7 @@ Naming columns instead of `*` keeps only those columns: projection $\pi$, in SQL
 SELECT S.name, S.login FROM Students S
 ```
 
-*This is $\pi_{\text{name, login}}(\text{Students})$, returning two columns:*
+This is $\pi_{\text{name, login}}(\text{Students})$, returning two columns:
 
 | name | login |
 |---|---|
@@ -46,7 +46,7 @@ The `WHERE` clause keeps only the rows that satisfy a condition: selection $\sig
 SELECT * FROM Students S WHERE S.age = 18
 ```
 
-*This is $\sigma_{\text{age}=18}(\text{Students})$, returning the two 18-year-olds:*
+This is $\sigma_{\text{age}=18}(\text{Students})$, returning the two 18-year-olds:
 
 | <u>sid</u> | name | login | age | gpa |
 |---|---|---|---|---|
@@ -97,7 +97,7 @@ To combine data from two tables, list both in `FROM` and give the matching condi
 </Pane>
 <Pane>
 
-| <u>sid</u> | cid | grade |
+| <u>sid</u> | <u>cid</u> | grade |
 |---|---|---|
 | 53831 | Carnatic101 | C |
 | 53831 | Reggae203 | B |
@@ -107,7 +107,7 @@ To combine data from two tables, list both in `FROM` and give the matching condi
 </Pane>
 </Split>
 
-The condition `S.sid = E.sid` is the join predicate: it keeps only pairs where the two `sid` values agree, which is exactly the join $\bowtie$ written as a cross-product plus selection. A second condition can filter further.
+The condition `S.sid = E.sid` is the join predicate. It keeps only pairs where the two `sid` values agree, which is exactly the join $\bowtie$ written as a cross-product plus selection. A second condition can filter further.
 
 **Example 1. Students with grade B.**
 
@@ -117,7 +117,7 @@ FROM Students S, Enrolled E
 WHERE S.sid = E.sid AND E.grade = 'B'
 ```
 
-*Following the conceptual evaluation order makes the result concrete. `FROM` first builds the cross-product, pairing every student with every enrollment:*
+Following the conceptual evaluation order makes the result concrete. `FROM` first builds the cross-product, pairing every student with every enrollment:
 
 | S.sid | S.name | E.sid | E.cid | E.grade |
 |---|---|---|---|---|
@@ -129,8 +129,12 @@ WHERE S.sid = E.sid AND E.grade = 'B'
 | 53688 | Smith | 53831 | Reggae203 | B |
 | 53688 | Smith | 53650 | Topology112 | A |
 | 53688 | Smith | 53666 | History105 | B |
+| 53777 | White | 53831 | Carnatic101 | C |
+| 53777 | White | 53831 | Reggae203 | B |
+| 53777 | White | 53650 | Topology112 | A |
+| 53777 | White | 53666 | History105 | B |
 
-*`WHERE` keeps only rows where `S.sid = E.sid` and `E.grade = 'B'`. One row survives: Jones (sid 53666) in History105. `SELECT` then projects `S.name` and `E.cid`, giving the final result `(Jones, History105)`.*
+`WHERE` keeps only rows where `S.sid = E.sid` and `E.grade = 'B'`. One row survives: Jones (sid 53666) in History105. `SELECT` then projects `S.name` and `E.cid`, giving the final result `(Jones, History105)`.
 
 ---
 
@@ -185,35 +189,35 @@ Each aggregate query applies one function to the rows that pass `WHERE`, returni
 
 **Example 2. Counting and averaging.**
 
-*The number of sailors:*
+The number of sailors:
 
 ```sql
 SELECT COUNT(*) FROM Sailors S
 ```
 
-*The average age of sailors with rating 10:*
+The average age of sailors with rating 10:
 
 ```sql
 SELECT AVG(S.age) FROM Sailors S WHERE S.rating = 10
 ```
 
-*The number of distinct ratings among sailors named Bob:*
+The number of distinct ratings among sailors named Bob:
 
 ```sql
 SELECT COUNT(DISTINCT S.rating) FROM Sailors S WHERE S.sname = 'Bob'
 ```
 
-An aggregate cannot be mixed with a bare column in the same `SELECT`, because the two have different cardinalities: a bare column has one value per row, an aggregate has one value in total.
+An aggregate cannot be mixed with a bare column in the same `SELECT`, because the two have different cardinalities. A bare column has one value per row, and an aggregate has one value in total.
 
 **Example 3. Name and age of the oldest sailor.**
 
-*This query is wrong:*
+This query is wrong:
 
 ```sql
 SELECT S.sname, MAX(S.age) FROM Sailors S
 ```
 
-*`MAX(S.age)` is a single value over the entire column, while `S.sname` has one value per row, so there is no meaningful row to pair the maximum with. The fix computes the maximum in an inner query, then retrieves every sailor whose age matches it:*
+`MAX(S.age)` is a single value over the entire column, while `S.sname` has one value per row, so there is no meaningful row to pair the maximum with. The fix computes the maximum in an inner query, then retrieves every sailor whose age matches it:
 
 ```sql
 SELECT S.sname, S.age
@@ -282,7 +286,7 @@ GROUP BY S.rating
 HAVING COUNT(*) > 1
 ```
 
-*Rating 8 contains only Lubber, so its group fails `COUNT(*) > 1` and is dropped. Ratings 3 and 7 remain:*
+Rating 8 contains only Lubber, so its group fails `COUNT(*) > 1` and is dropped. Ratings 3 and 7 remain:
 
 | rating | MIN(age) |
 |---|---|

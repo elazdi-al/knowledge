@@ -3,7 +3,7 @@ title: "Data Intensive Systems: Lecture 1"
 description: "Why DBMSs exist and what they guarantee, schemas and data independence, the layered DBMS architecture, and conceptual design with the ER model: entities, relationships, constraints, weak entities, ISA hierarchies, and aggregation."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## From Data to a DBMS
@@ -28,7 +28,7 @@ It records:
 - **Entities.** the kinds of objects we store data about
 - **Relationships.** the meaningful associations between them.
 
-*A university database stores students, courses, and professors, together with who enrolls in which course and who teaches it.*
+A university database stores students, courses, and professors, together with who enrolls in which course and who teaches it.
 
 A database on its own is passive, software has to manage it.
 
@@ -57,7 +57,7 @@ In both cases the answer is it's *unclear*. Each application needs to re-impleme
 
 This is precisely the contract a file system leaves unstated and that a DBMS provides systematically.
 
-The web has the same gap in a different form: it is strong at retrieval, but its data is unstructured and untyped, completeness is not guaranteed, and freshness and cross-item consistency are weak. 
+The web has the same gap in a different form. It is strong at retrieval, but its data is unstructured and untyped, completeness is not guaranteed, and freshness and cross-item consistency are weak. 
 
 Serious websites place a DBMS behind the web layer instead of treating the web as one. 
 
@@ -91,15 +91,15 @@ Courses(cid: string, cname: string, credits: integer)
 
 Relations connect to each other through values, not pointers.
 
-**Key.** An attribute, or minimal set of attributes, whose value uniquely identifies a tuple within its relation. *In `Students`, `sid` is a key: no two students share it.*
+**Key.** An attribute, or minimal set of attributes, whose value uniquely identifies a tuple within its relation. In `Students`, `sid` is a key: no two students share it.
 
-**Foreign key.** An attribute, or set of attributes, in one relation whose values are key values of another relation, linking the two. *In `Enrolled`, `sid` is a foreign key referencing `Students.sid`: the row `(53666, Carnatic101, 5)` makes sense only if student `53666` exists.*
+**Foreign key.** An attribute, or set of attributes, in one relation whose values are key values of another relation, linking the two. In `Enrolled`, `sid` is a foreign key referencing `Students.sid`: the row `(53666, Carnatic101, 5)` makes sense only if student `53666` exists.
 
 The same database is described at three levels of abstraction, each a schema in its own right.
 
-- **External schema.** What one user or application sees: views, often used for access control. *`Students_Info(sid, name)` hides age and GPA; `Course_Enrollment(cid, #enrolled)` exposes only counts.*
-- **Logical (conceptual) schema.** The single global structure of the data that all users and programs share. *The three university relations.*
-- **Physical (internal) schema.** How the data is stored: files, indexes, and layout. *Unordered files, with indexes on `Students.sid` and `Courses.cid`.*
+- **External schema.** What one user or application sees: views, often used for access control. `Students_Info(sid, name)` hides age and GPA; `Course_Enrollment(cid, #enrolled)` exposes only counts.
+- **Logical (conceptual) schema.** The single global structure of the data that all users and programs share (e.g. the three university relations).
+- **Physical (internal) schema.** How the data is stored: files, indexes, and layout (e.g. unordered files, with indexes on `Students.sid` and `Courses.cid`).
 
 The mapping runs
 
@@ -145,7 +145,7 @@ Conceptual design is the stage with its own modeling language. It fixes three th
 - what information about them the database must store,
 - which *integrity constraints* must always hold.
 
-Its standard language is the **Entity-Relationship (ER) model**, and the result is an **ER diagram**, a picture of the conceptual schema that maps systematically into a relational schema.
+Its standard language is the **Entity-Relationship (ER) model**. The result is an **ER diagram**, a picture of the conceptual schema that maps systematically into a relational schema.
 
 ---
 
@@ -171,7 +171,7 @@ In the diagram, an entity set is a rectangle, each attribute an ellipse joined t
   ]}
 />
 
-An **instance** of an entity set is the collection of entities currently stored in it. *For `Employees`: `(123-22-3666, John, P1)` and `(231-31-5368, Tom, P2)`, each a tuple over the declared attributes.*
+An **instance** of an entity set is the collection of entities currently stored in it. For `Employees`, two such entities are `(123-22-3666, John, P1)` and `(231-31-5368, Tom, P2)`, each a tuple over the declared attributes.
 
 *The pattern from relations repeats: the entity set declares the shape, the instance is the current content.*
 
@@ -179,7 +179,7 @@ Entities become useful when they are associated.
 
 **Relationship.** An association among two or more entities. A **relationship set** collects similar relationships and is drawn as a diamond joined to the participating entity sets. A relationship may carry its own *descriptive attributes*.
 
-*`Works_In` associates `Employees` and `Department`; its attribute `since` records when each assignment began. `since` belongs to the association itself, not to either entity.*
+`Works_In` associates `Employees` and `Department`; its attribute `since` records when each assignment began. `since` belongs to the association itself, not to either entity.
 
 <ERDiagram
   caption="The Works_In relationship set between Employees and Department, with descriptive attribute since."
@@ -251,7 +251,7 @@ A single entity set can participate in several relationship sets, and even sever
 
 **Role name.** A label identifying the function of an entity set that appears more than once in the same relationship set.
 
-*In `Reports_To`, `Employees` participates twice, as supervisor and as subordinate, so each relationship tuple pairs one employee in each role. The same entity set still participates in `Works_In` independently.*
+In `Reports_To`, `Employees` participates twice, as supervisor and as subordinate, so each relationship tuple pairs one employee in each role. The same entity set still participates in `Works_In` independently.
 
 <ERDiagram
   caption="Reports_To is a self-relationship on Employees: the same entity set participates twice, under the roles supervisor and subordinate, while still taking part in Works_In."
@@ -402,7 +402,7 @@ The weak entity set and its identifying relationship are drawn with thick border
   ]}
 />
 
-`Dependents` is owned by `Employees` through `Policy`. *Two employees may each insure a dependent named Bob, so `pname` alone identifies nobody; the pair (owner's `ssn`, `pname`) is unique.*
+`Dependents` is owned by `Employees` through `Policy`. Two employees may each insure a dependent named Bob, so `pname` alone identifies nobody; the pair (owner's `ssn`, `pname`) is unique.
 
 ## ISA Hierarchies
 
@@ -442,7 +442,7 @@ ISA earns its place in two situations: when a subclass needs its own descriptive
 
 **Example 2. Student hierarchy.**
 
-*A `Student` is classified by degree (Bachelor or Post-Graduate) and by status (Full-time or Part-time) at the same time: two overlapping branches off the same superclass. Within each branch the subclasses are disjoint: a student is a Bachelor or a Post-Graduate, never both. Post-Graduate specializes further into Master and Doctorate, and the leaves join their own relationships: Bachelors register for Projects, Post-Graduates for a Thesis.*
+A `Student` is classified by degree (Bachelor or Post-Graduate) and by status (Full-time or Part-time) at the same time: two overlapping branches off the same superclass. Within each branch the subclasses are disjoint: a student is a Bachelor or a Post-Graduate, never both. Post-Graduate specializes further into Master and Doctorate, and the leaves join their own relationships: Bachelors register for Projects, Post-Graduates for a Thesis.
 
 <ERDiagram
   caption="A deep ISA tree: Student specializes by degree and by status (two overlapping branches), Post-Graduate splits further into Master and Doctorate, and leaf subclasses join their own relationships."
@@ -499,7 +499,7 @@ ISA relates entity sets to entity sets. Aggregation answers a different need: le
 
 **Aggregation.** Treats a relationship set, together with its participating entity sets, as a single higher-level entity set. Drawn as a dashed box around the relationship; the box then participates in further relationships like any entity set.
 
-*Departments sponsor projects through `Sponsors`, and an employee must monitor each sponsorship.* A ternary relationship among Projects, Departments, and Employees would lose the point: monitoring applies to the sponsorship itself, not to an independent triple. Aggregating `Sponsors` gives `Monitors` the right second participant.
+Departments sponsor projects through `Sponsors`, and an employee must monitor each sponsorship. A ternary relationship among Projects, Departments, and Employees would lose the point: monitoring applies to the sponsorship itself, not to an independent triple. Aggregating `Sponsors` gives `Monitors` the right second participant.
 
 <ERDiagram
   caption="The Sponsors relationship together with Projects and Departments is enclosed in a dashed box and treated as a single entity set, which then participates in Monitors with an Employee."
@@ -536,10 +536,10 @@ ISA relates entity sets to entity sets. Aggregation answers a different need: le
 
 A correct ER schema is rarely unique. Three decisions recur, and each is settled by the semantics of the data and the queries the application must support.
 
-**Entity or attribute.** Attributes are atomic and single-valued, so a concept must become an entity as soon as one entity needs several of them, or their internal structure matters. *An employee with several addresses, or an address whose city, street, and zip must be queried separately: either way, address becomes an entity.* The same reasoning applies to relationship attributes: *if `Works_In` carries `from` and `to`, an employee can work in a department over only one period; recording several periods requires a separate `Duration` entity linked by its own relationship.*
+**Entity or attribute.** Attributes are atomic and single-valued, so a concept must become an entity as soon as one entity needs several of them, or their internal structure matters. An employee with several addresses, or an address whose city, street, and zip must be queried separately: either way, address becomes an entity. The same reasoning applies to relationship attributes: if `Works_In` carries `from` and `to`, an employee can work in a department over only one period. Recording several periods requires a separate `Duration` entity linked by its own relationship.
 
 **Entity or relationship.** If a concept has its own identity, or must participate in other relationships, make it an entity rather than a relationship.
 
 **Binary or ternary.** Prefer binary relationships when a ternary one decomposes into binary ones without losing information. Keep the ternary only when no combination of pairwise facts implies the triple.
 
-The ER model expresses a great deal of semantics directly in the diagram: keys, participation, weak entities, ISA, aggregation. What it cannot express, such as *a manager must also work in the department they manage*, has to be enforced by the application or by database-level integrity constraints.
+The ER model expresses a great deal of semantics directly in the diagram: keys, participation, weak entities, ISA, aggregation. What it cannot express, such as "a manager must also work in the department they manage", has to be enforced by the application or by database-level integrity constraints.

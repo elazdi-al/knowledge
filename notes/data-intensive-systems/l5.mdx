@@ -3,12 +3,12 @@ title: "Data Intensive Systems: Lecture 5"
 description: "B+ trees in depth: node structure and fan-out, search, insertion with leaf and internal splits, deletion with redistribution and merging, range scans over clustered vs unclustered data, and latch crabbing."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## Access Methods and Data Entries
 
-Access methods lead the engine to the right page instead of scanning all of them: a hash index computes a bucket and answers equality, a tree index keeps entries sorted and answers ranges and ordered scans as well. Whatever the family, the index must say how to reach the underlying record. That payload is the data entry.
+Access methods lead the engine to the right page instead of scanning all of them. A hash index computes a bucket and answers equality; a tree index keeps entries sorted and answers ranges and ordered scans as well. Whatever the family, the index must say how to reach the underlying record. That payload is the data entry.
 
 **Data entry ($k^*$).** The information stored in the index for a search-key value $k$. It tells the DBMS how to reach the matching record or records. There are three classic forms, and the choice is orthogonal to whether the index is a hash or a tree.
 
@@ -18,11 +18,11 @@ Access methods lead the engine to the right page instead of scanning all of them
 | 2 | $\langle k, \text{RID} \rangle$ | one key and one pointer per matching record; works even with duplicate keys |
 | 3 | $\langle k, \text{RID list} \rangle$ | one key and a list of pointers; compact when many records share a key |
 
-Alternatives 2 and 3 cost less to maintain than Alternative 1, and a file with several indexes can give only **one** of them Alternative 1, because the data can be physically organized only one way at a time. Alternative 3 saves space under heavy duplication, but its entries become variable-sized: one long RID list can spread a single entry across several pages.
+Alternatives 2 and 3 cost less to maintain than Alternative 1. A file with several indexes can give only **one** of them Alternative 1, because the data can be physically organized only one way at a time. Alternative 3 saves space under heavy duplication, but its entries become variable-sized: one long RID list can spread a single entry across several pages.
 
 **Example 1. Two access paths over one file.**
 
-*An employee file is hashed on `age`, so its buckets hold the actual records: this is Alternative 1. A second index on `salary` should not duplicate those records, so it stores $\langle \texttt{salary}, \text{RID}\rangle$ pairs or $\langle \texttt{salary}, \text{RID list}\rangle$ entries instead.*
+An employee file is hashed on `age`, so its buckets hold the actual records: this is Alternative 1. A second index on `salary` should not duplicate those records, so it stores $\langle \texttt{salary}, \text{RID}\rangle$ pairs or $\langle \texttt{salary}, \text{RID list}\rangle$ entries instead.
 
 ## Why Ordered Trees
 
@@ -36,21 +36,21 @@ WHERE gpa > 3.0
 
 If the file were physically sorted on `gpa`, the DBMS could binary-search to the first match and then scan forward. The catch is that keeping the whole relation sorted is expensive: every insert and delete disturbs the order. The fix is to sort a smaller **index file** instead of the data, search the index first, and follow it to the data pages. Keeping the index ordered rather than the relation is exactly the idea behind the $B^+$-tree.
 
-**$B^+$-tree.** A self-balancing, ordered, page-based tree. Search, insertion, deletion, and sequential access all run in $O(\log_F N)$, where $F$ is the fan-out and $N$ is the number of leaves.
+**$B^+$-tree.** A self-balancing, ordered, page-based tree (not an AVL tree: it is balanced and ordered, but each node holds one key instead of filling a page). Search, insertion, deletion, and sequential access all run in $O(\log_F N)$, where $F$ is the fan-out and $N$ is the number of leaves.
 
-**Fan-out.** The maximum number of child pointers an internal node can hold. Large fan-out is what keeps a disk-based tree shallow: one node is one page, each internal page packs many separator keys and pointers, and all leaves are chained in sorted order for range scans.
+**Fan-out.** The maximum number of child pointers an internal node can hold. Large fan-out is what keeps a disk-based tree shallow: one node is one page, and each internal page packs many separator keys and pointers. All leaves are chained in sorted order for range scans.
 
 A $B^+$-tree is an $n$-way search tree, and its shape is pinned down by a few invariants.
 
 - **Balanced.** Every leaf is at the same depth.
 - **Minimum occupancy.** Every node except the root is at least half full.
-- **Inner node.** Has between $\lceil n/2 \rceil$ and $n$ children; a node with $k$ children holds $k-1$ separator keys.
+- **Internal node.** Has between $\lceil n/2 \rceil$ and $n$ children; a node with $k$ children holds $k-1$ separator keys.
 - **Leaf node.** Holds between $\lceil (n-1)/2 \rceil$ and $n-1$ keys.
 - **Root exception.** The root alone may hold fewer entries than an ordinary internal node.
 
 Internal nodes store only separator keys and child pointers; leaves store the actual data entries and are connected left to right by sibling pointers. The tree decides *how to find* an entry; the chosen alternative decides *what the entry contains*.
 
-At implementation level a node is a **sorted array** of entries inside one page. An internal node with child pointers $P_1, \dots, P_q$ stores separator keys $K_1, \dots, K_{q-1}$, where $K_i$ separates the subtree under $P_i$ from the subtree under $P_{i+1}$. In a leaf, the value beside each key is a record pointer, a RID list, or the record itself, by the data-entry alternative, and **prev**/**next** links chain the leaves in key order.
+At implementation level a node is a **sorted array** of entries inside one page. An internal node with child pointers $P_1, \dots, P_q$ stores separator keys $K_1, \dots, K_{q-1}$, where $K_i$ separates the subtree under $P_i$ from the subtree under $P_{i+1}$. In a leaf, the value beside each key is a record pointer, a RID list, or the record itself, by the data-entry alternative. The **prev**/**next** links chain the leaves in key order.
 
 <PageLayout
   mode="node-strip"
@@ -99,7 +99,9 @@ At implementation level a node is a **sorted array** of entries inside one page.
 
 ## Search
 
-Search always starts at the root. At each internal node, key comparisons select one child pointer, and the descent stops at a leaf. The leaf then settles the query: the key is present, the key is absent (it would have to sit between two stored neighbors), or it is the first of a range that the sibling pointers continue. A lookup therefore returns either the matching entry or the exact leaf position where the key would belong, and this lower-bound behavior is what insertion and range scans reuse.
+Search always starts at the root. At each internal node, key comparisons select one child pointer, and the descent stops at a leaf. The leaf then settles the query: the key is present, the key is absent (it would have to sit between two stored neighbors), or it is the first of a range that the sibling pointers continue. A lookup therefore returns either the matching entry or the exact leaf position where the key would belong. Insertion and range scans reuse this lower-bound behavior.
+
+**Common mistake.** A search does not stop when it meets the key in an internal node. Internal nodes hold only separator keys for routing, and the data entry lives in a leaf, so every search ends at the leaf level.
 
 <Split cols="1.25fr 0.75fr" align="center">
 <Pane>
@@ -143,7 +145,7 @@ Equality search descends to one leaf and checks it. Range search descends once, 
 
 **Example 2. Insert 8.**
 
-*The search reaches the first leaf because $8 < 13$, but $[2,3,5,7]$ is full. A new leaf is allocated, the values are split into $[2,3]$ and $[5,7,8]$, and separator $5$ (the new right leaf's first key) is copied into the parent. The parent has room, so the insertion stops there.*
+The search reaches the first leaf because $8 < 13$, but $[2,3,5,7]$ is full. A new leaf is allocated, and the values are split into $[2,3]$ and $[5,7,8]$. Separator $5$ (the new right leaf's first key) is copied into the parent. The parent has room, so the insertion stops there.
 
 <BPlusTree
   title="Before"
@@ -195,7 +197,7 @@ Leaf splits and internal splits move keys upward in different ways, and this dis
 
 **Example 3. Insert 21 and split to the root.**
 
-*Inserting $21$ into the full leaf $[19,20,22,23]$ splits it into $[19,20]$ and $[21,22,23]$, copying $21$ into the parent. The parent now overflows, so an internal split pushes $17$ up into a brand-new root. The tree is one level taller.*
+Inserting $21$ into the full leaf $[19,20,22,23]$ splits it into $[19,20]$ and $[21,22,23]$, copying $21$ into the parent. The parent now overflows, so an internal split pushes $17$ up into a brand-new root. The tree is one level taller.
 
 <BPlusTree
   title="Before inserting 21"
@@ -245,16 +247,16 @@ Leaf splits and internal splits move keys upward in different ways, and this dis
   ]}
 />
 
-Redistributing entries differently could sometimes delay a root split, but most implementations use the local split rule because it is predictable and has low maintenance cost. The recurring lesson is that insertions begin locally at one leaf, yet their structural effect may travel all the way up.
+Redistributing entries differently could sometimes delay a root split. Most implementations still use the local split rule because it is predictable and has low maintenance cost. The recurring lesson is that insertions begin locally at one leaf, yet their structural effect may travel all the way up.
 
 **Example 4. Insert 28, 6, and 25.**
 
-*Inserting $28$ fits the rightmost leaf with no split. Inserting $6$ overflows $[5,7,8,11]$ into $[5,6]$ and $[7,8,11]$, copying $7$ up. Inserting $25$ overflows $[21,22,23,28]$ into $[21,22]$ and $[23,25,28]$, copying $23$ up; the parent then overflows and an internal split pushes $13$ up, giving the final two-level tree.*
+Inserting $28$ fits the rightmost leaf with no split. Inserting $6$ overflows $[5,7,8,11]$ into $[5,6]$ and $[7,8,11]$, copying $7$ up. Inserting $25$ overflows $[21,22,23,28]$ into $[21,22]$ and $[23,25,28]$, copying $23$ up. The parent then overflows, and an internal split pushes $13$ up, giving the final two-level tree.
 
 <BPlusTree
   caption="Final tree after inserting 28, 6, and 25; one local overflow forced an internal split."
   nodes={[
-    { id: "root", keys: [13, 30] },
+    { id: "root", keys: [13] },
     { id: "li", keys: [5, 7] },
     { id: "ri", keys: [20, 23] },
     { id: "l1", keys: [2, 3] },
@@ -284,7 +286,7 @@ The standard pattern descends to the leaf $L$ holding the entry and removes it. 
 
 **Example 5. Delete 19, then 20.**
 
-*Removing $19$ leaves $[20,22]$, which is legal. Removing $20$ leaves $[22]$, which underflows, so the leaf borrows from its right sibling $[24,27,29]$: the boundary shifts to give $[22,24]$ and $[27,29]$, and the parent separator updates from $24$ to $27$. A leaf-level boundary key is copied up, because leaves keep the actual entries.*
+Removing $19$ leaves $[20,22]$, which is legal. Removing $20$ leaves $[22]$, which underflows, so the leaf borrows from its right sibling $[24,27,29]$. The boundary shifts to give $[22,24]$ and $[27,29]$, and the parent separator updates from $24$ to $27$. A leaf-level boundary key is copied up, because leaves keep the actual entries.
 
 <BPlusTree
   title="After deleting 19"
@@ -338,7 +340,7 @@ The standard pattern descends to the leaf $L$ holding the entry and removes it. 
 
 **Example 6. Delete 24 and shrink the tree.**
 
-*Removing $24$ turns $[22,24]$ into $[22]$. Its sibling $[27,29]$ is already at minimum, so borrowing fails and the two merge into $[22,27,29]$. The parent loses a separator and underflows, so the merge propagates up, the old root is removed, and the tree height drops by one. Deletion can do the opposite of insertion: insertion may raise the height, deletion may lower it.*
+Removing $24$ turns $[22,24]$ into $[22]$. Its sibling $[27,29]$ is already at minimum, so borrowing fails and the two merge into $[22,27,29]$. The parent loses a separator and underflows, so the merge propagates up, the old root is removed, and the tree height drops by one. Deletion can do the opposite of insertion: insertion may raise the height, deletion may lower it.
 
 <BPlusTree
   title="Before deleting 24"
@@ -384,11 +386,11 @@ The standard pattern descends to the leaf $L$ holding the entry and removes it. 
   ]}
 />
 
-Redistribution is not only for leaves; internal nodes can redistribute too, but the mechanics differ. At the non-leaf level the move goes **through the parent**: one separator from the parent drops into the underfull node, one separator from the fuller sibling rises into the parent, and the child pointer travels with that separator. It is a push-through-parent rotation, not a direct sideways shift.
+Redistribution is not only for leaves; internal nodes can redistribute too, but the mechanics differ. At the non-leaf level the move goes **through the parent**. One separator from the parent drops into the underfull node. One separator from the fuller sibling rises into the parent, and the child pointer travels with that separator. It is a push-through-parent rotation, not a direct sideways shift.
 
 **Example 7. Non-leaf redistribution.**
 
-*The underfull internal node receives a separator pushed down from the parent, while a separator from the richer sibling is pushed up to replace it, carrying its child pointer along.*
+The underfull internal node receives a separator pushed down from the parent. A separator from the fuller sibling is pushed up to replace it, carrying its child pointer along.
 
 <BPlusTree
   title="Before non-leaf redistribution"
@@ -450,9 +452,9 @@ Redistribution is not only for leaves; internal nodes can redistribute too, but 
 
 ## Range Scans and Clustering
 
-A $B^+$-tree shines on ordered scans because the leaf chain already holds keys in order. To read many records in key order, the DBMS descends to the leftmost relevant leaf and then follows leaf links rightward. The traversal is identical regardless of how the data sits on disk; what changes is how leaf entries map to table pages.
+A $B^+$-tree shines on ordered scans because the leaf chain already holds keys in order. To read many records in key order, the DBMS descends to the leftmost relevant leaf and then follows sibling pointers rightward. The traversal is identical regardless of how the data sits on disk; what changes is how leaf entries map to table pages.
 
-**Clustered index.** An index whose logical order matches the physical order of the table data, so nearby entries point to nearby records. The table is stored in the sort order of one chosen key, either heap-organized but kept in that order or index-organized with the rows in the leaves. Because a file has only one physical order, a table has at most one clustered organization.
+**Clustered index.** An index whose logical order matches the physical order of the table data, so nearby entries point to nearby records. The table is stored in the sort order of one chosen key. It is either heap-organized but kept in that order, or index-organized with the rows in the leaves. Because a file has only one physical order, a table has at most one clustered organization.
 
 With a clustered index, consecutive leaf entries land on nearby table pages, so a scan reads data pages in mostly sequential order. With an unclustered index, consecutive entries point to tuples scattered across the file, so following the leaf order can trigger many random reads.
 
@@ -522,9 +524,9 @@ With a clustered index, consecutive leaf entries land on nearby table pages, so 
 </Pane>
 <Pane>
 
-Clustering makes ordered scans and large ranges cheap, but it costs on updates: keeping physical order may force page splits, record movement, or reorganization. Systems differ here. Some always organize a table around a clustered primary key and invent a hidden row identifier when none is declared; others keep ordinary heap files and let no index dictate the data order.
+Clustering makes ordered scans and large ranges cheap, but it costs on updates: keeping physical order may force page splits, record movement, or reorganization. Systems differ here. Some always organize a table around a clustered primary key and invent a hidden row identifier when none is declared. Others keep ordinary heap files and let no index dictate the data order.
 
-For an unclustered index, a common optimization first collects the matching RIDs from the leaves, sorts them by **table page id**, then fetches pages in page order. This abandons key order during fetching but saves many random reads when many tuples qualify.
+For an unclustered index, a common optimization first collects the matching RIDs from the leaves and sorts them by **table page id**. It then fetches pages in page order. This abandons key order during fetching but saves many random reads when many tuples qualify.
 
 </Pane>
 </Split>
@@ -597,9 +599,9 @@ Concurrency is harder in a tree than in isolated heap pages, because pages depen
 
 Because latches are taken in a fixed top-down order, ordinary traversals cannot deadlock. The pattern works for search and for updates that do not split or merge: latch the root, latch the next level, release the parent, and continue downward in canonical order.
 
-Inserts are trickier, because a split may propagate upward: a leaf split inserts a separator into the parent, that parent may split, and the cascade can reach the root. By then, naive coupling has already released those ancestors.
+Inserts are trickier, because a split may propagate upward. A leaf split inserts a separator into the parent, that parent may split, and the cascade can reach the root. By then, naive coupling has already released those ancestors.
 
-The common fix is **optimistic coupling**: first attempt the insert with ordinary lock coupling; if no split propagates through inner nodes, it succeeds; otherwise release the latches and restart with a conservative strategy that keeps the needed ancestors protected, then execute on the second pass. This reduces concurrency during the rare restarted operation, but the expensive case is uncommon and correctness stays manageable.
+The common fix is **optimistic coupling**. The thread first attempts the insert with ordinary lock coupling, which succeeds if no split propagates through internal nodes. Otherwise it releases the latches and restarts the insert in a second pass with a conservative strategy that keeps the needed ancestors protected. This reduces concurrency during the rare restarted operation, but the expensive case is uncommon and correctness stays manageable.
 
 </Pane>
 </Split>

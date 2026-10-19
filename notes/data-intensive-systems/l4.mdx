@@ -3,12 +3,12 @@ title: "Data Intensive Systems: Lecture 4"
 description: "The memory hierarchy and storage hardware: disk geometry and access time, flash and the FTL, RAID levels, disk space management, the buffer pool and page table, and replacement policies including Clock, LRU-K/2Q, and sequential flooding."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## The Memory Hierarchy
 
-A DBMS does not run on one uniform memory. Data lives across a hierarchy of storage levels with different latency, capacity, and cost, and the entire design of the storage layer follows from the gaps between those levels.
+A DBMS does not run on one uniform memory. Data lives across a hierarchy of storage levels with different latency, capacity, and cost. The entire design of the storage layer follows from the gaps between those levels.
 
 **Memory hierarchy.** The ordered set of storage levels a DBMS uses, from fast volatile memory near the CPU down to slow persistent and archival storage. Going up gives lower latency but less capacity at a higher cost per byte; going down gives the opposite.
 
@@ -26,15 +26,15 @@ The top levels (CPU registers, caches, DRAM) are volatile, byte-addressable, and
 
 Exact values vary by hardware, but the orders of magnitude do not: one extra I/O can cost more than millions of CPU instructions.
 
-Keeping everything in DRAM is impractical for general systems: production databases reach the TB or PB scale, so all-DRAM storage is costly, and conventional DRAM loses its contents on power failure while a database must survive across runs. Main-memory DBMSs remain useful for smaller or latency-critical workloads, but disks stay the default place to keep data, and the DBMS pulls in only what it needs.
+Keeping everything in DRAM is impractical for general systems: production databases reach the TB or PB scale, so all-DRAM storage is costly. Conventional DRAM also loses its contents on power failure, while a database must survive across runs. Main-memory DBMSs remain useful for smaller or latency-critical workloads. But disks stay the default place to keep data, and the DBMS pulls in only what it needs.
 
-**Page (disk block).** The page that stores records is also the basic unit of transfer between secondary storage and main memory. All DBMS I/O is organized around whole pages, never individual bytes: a **read** moves a page from disk to memory, a **write** moves a modified page back, and both are expensive.
+**Page (disk block).** The page that stores records is also the basic unit of transfer between secondary storage and main memory. All DBMS I/O is organized around whole pages, never individual bytes. A **read** moves a page from disk to memory, a **write** moves a modified page back, and both are expensive.
 
-Access cost depends on both the device and the access pattern. Magnetic disks (HDDs) offer large capacity at low cost per byte but slow random access; flash (SSDs) offer lower latency and strong random reads but stay far slower than DRAM and are more constrained on writes. Unlike RAM, page access time on these devices depends heavily on where a page sits and whether access is sequential or random.
+Access cost depends on both the device and the access pattern. Magnetic disks (HDDs) offer large capacity at low cost per byte but slow random access. Flash (SSDs) offer lower latency and strong random reads but stay far slower than DRAM and are more constrained on writes. Unlike RAM, page access time on these devices depends heavily on where a page sits and whether access is sequential or random.
 
 ## Magnetic Disk Geometry and Access Time
 
-A magnetic disk stores bits on rotating platters coated with magnetic material, and each surface is organized geometrically. A **track** is one concentric circle on a surface; a **sector** is a slice of a track and the smallest hardware-addressable unit; and a **cylinder** is the set of tracks at the same radius across all surfaces. A read/write head on a moving arm floats above each platter, and the platters spin under the heads at a fixed rate.
+A magnetic disk stores bits on rotating platters coated with magnetic material, and each surface is organized geometrically. A **track** is one concentric circle on a surface. A **sector** is a slice of a track and the smallest hardware-addressable unit. A **cylinder** is the set of tracks at the same radius across all surfaces. A read/write head on a moving arm floats above each platter, and the platters spin under the heads at a fixed rate.
 
 - **Zones.** Disks are divided into zones; all tracks in one zone hold the same number of sectors. Outer tracks are longer, so they store more sectors and offer higher transfer bandwidth than inner tracks.
 - **Sector size.** The hardware exposes a sector-addressable space, commonly 512 B or 4096 B. A DBMS page size is a fixed multiple of the sector size.
@@ -53,21 +53,21 @@ $$
 
 At 7200 RPM one rotation takes about $8.3$ ms, so the average rotational delay is about half of that. Once the head is already in position, moving the bytes of a single page costs far less than the positioning that preceded it. This is exactly why **sequential access** beats random access: neighboring blocks can be read with almost no extra positioning.
 
-To make access sequential, blocks of one file should be laid out in a sensible physical order. The best notion of the *next* block is a block on the same track, then a block on the same cylinder, then a block on an adjacent cylinder. Because the head is already near these neighbors, the DBMS can apply **pre-fetching**: reading nearby pages before they are explicitly requested, since sequential layout makes them cheap to fetch.
+To make access sequential, blocks of one file should be laid out in a sensible physical order. The best notion of the *next* block is a block on the same track, then a block on the same cylinder, then a block on an adjacent cylinder. Because the head is already near these neighbors, the DBMS can apply **pre-fetching**. Pre-fetching reads nearby pages before they are explicitly requested, since sequential layout makes them cheap to fetch.
 
 **Example 1. Cost of a 4 KB read on a 7200 RPM HDD.**
 
-*Take average seek $5$ ms, spindle $7200$ RPM so one rotation is $\tfrac{60{,}000}{7200}\approx 8.33$ ms and average rotational delay $\approx 4.17$ ms, transfer rate $50$ MB/s, and a $4096$ B page so transfer time $=\tfrac{4096}{50\times 10^6}\,\text{s}\approx 0.082$ ms. The access pattern decides which terms survive.*
+Take average seek $5$ ms and spindle $7200$ RPM, so one rotation is $\tfrac{60{,}000}{7200}\approx 8.33$ ms and average rotational delay $\approx 4.17$ ms, rounded to $4$ ms. Take transfer rate $50$ MB/s and a $4096$ B page, so transfer time $=\tfrac{4096}{50\times 10^6}\,\text{s}\approx 0.082$ ms. The access pattern decides which terms survive.
 
 | Access pattern | Time | Throughput |
 |---|---|---|
 | Random block anywhere on disk | $5 + 4 + 0.082 = 9.082$ ms | $\approx 451$ KB/s |
-| Random block in the same cylinder | $4 + 0.082 = 4.082$ ms | $\approx 1.03$ MB/s |
+| Random block in the same cylinder | $4 + 0.082 = 4.082$ ms | $\approx 1.00$ MB/s |
 | Next block on the same track (sequential) | $0.082$ ms | $\approx 50$ MB/s |
 
 *Good physical layout improves effective bandwidth by two orders of magnitude.*
 
-Two ratios drive the whole storage layer: memory access is roughly $1000\times$ faster than disk I/O, and on magnetic disks sequential I/O is roughly $10\times$ faster than random I/O. So a DBMS keeps hot data in memory and lays out pages sequentially on disk.
+Two ratios drive the whole storage layer. Memory access is roughly $1000\times$ faster than disk I/O, and on magnetic disks sequential I/O is roughly $10\times$ faster than random I/O. So a DBMS keeps hot data in memory and lays out pages sequentially on disk.
 
 ## Flash Storage
 
@@ -77,7 +77,7 @@ Flash offers orders-of-magnitude higher I/O performance than HDDs, and because t
 
 **Flash page and flash block.** Reads and writes operate at page granularity, while erases operate at block granularity. A flash block contains many pages.
 
-An SSD is a small parallel system rather than a single chip. A controller runs firmware and exports a disk-like block interface; flash packages connect through **channels**; each package holds several **dies**; and each die contains **planes**, **blocks**, and **pages**. Access time therefore depends on controller design, internal parallelism, firmware, and package bandwidth, not on a moving head.
+An SSD is a small parallel system rather than a single chip. A controller runs firmware and exports a disk-like block interface. Flash packages connect through **channels**; each package holds several **dies**; and each die contains **planes**, **blocks**, and **pages**. Access time therefore depends on controller design, internal parallelism, firmware, and package bandwidth, not on a moving head.
 
 Flash supports three basic operations, and their asymmetry is what shapes SSD design. A **read** and a **write** act at page granularity, but a write can only program cells from $1 \rightarrow 0$. To reset cells from $0 \rightarrow 1$ the device must **erase**, and erase works only at block granularity. Flash cannot overwrite a page in place the way a magnetic disk can.
 
@@ -92,7 +92,7 @@ The FTL exists precisely because of the no-in-place-overwrite constraint. Repeat
 | TLC | 3 | cheaper per bit, lower endurance and slower writes |
 | QLC | 4 | highest density, lowest endurance; best for read-heavy use |
 
-As density rises from SLC to QLC, cost per bit falls but endurance and write performance decline. In practice the two technologies serve different goals: HDDs win when the aim is large, inexpensive capacity, and flash wins when the workload needs low latency, high IOPS, and efficient random reads.
+As density rises from SLC to QLC, cost per bit falls but endurance and write performance decline. In practice the two technologies serve different goals. HDDs win when the aim is large, inexpensive capacity, and flash wins when the workload needs low latency, high IOPS, and efficient random reads.
 
 ---
 
@@ -102,7 +102,7 @@ A storage system should ideally be fast, reliable, and affordable, but a single 
 
 **RAID (Redundant Array of Inexpensive Disks).** A scheme that builds one logical disk from several physical disks to improve throughput, reliability, or both. It combines two ideas: **striping** spreads data across disks for higher throughput, and **redundancy** duplicates or protects data so the array can survive failures. The three canonical levels trade these ideas differently.
 
-**RAID 0 (striping).** File blocks are striped across disks with no redundancy, so the array uses the cumulative bandwidth of all disks and usable capacity is the sum of all disks. The cost is reliability: with $N$ independent disks, *any* failure breaks the array, so its mean time to failure is roughly $\tfrac{1}{N}$ of a single disk's.
+**RAID 0 (striping).** File blocks are striped across disks with no redundancy, so the array uses the cumulative bandwidth of all disks and usable capacity is the sum of all disks. The cost is reliability. With $N$ independent disks, *any* failure breaks the array, so its mean time to failure is roughly $\tfrac{1}{N}$ of a single disk's.
 
 <RAIDDiagram
   mode="striping"
@@ -147,7 +147,7 @@ A storage system should ideally be fast, reliable, and affordable, but a single 
 
 Two layers turn physical storage into clean page operations, the bottom two of the engine stack.
 
-**Disk space management.** The layer that tracks free space on disk and exports page-level operations: allocate, deallocate, read, write. Higher layers request pages without managing physical layout, and its best case is a request for a *sequence* of pages satisfied by pages stored sequentially, which delivers the full benefit of sequential I/O.
+**Disk space management.** The layer that tracks free space on disk and exports page-level operations: allocate, deallocate, read, write. Higher layers request pages without managing physical layout. Its best case is a request for a *sequence* of pages satisfied by pages stored sequentially, which delivers the full benefit of sequential I/O.
 
 **Buffer management** sits just above and turns in-memory page requests into page I/O.
 
@@ -248,17 +248,19 @@ A page request resolves as a hit or a miss. On a **hit**, the page is already in
 2. writes the victim back first if it is dirty,
 3. reads the requested page into the frame, pins it, and returns its address.
 
-When the caller finishes it must **unpin** the page and report whether it was modified. Because a page may be pinned several times, it becomes evictable only when its pin count returns to $0$. If the access pattern is predictable, the manager can pre-fetch several pages at once, and an eviction may itself trigger extra I/O when WAL forces older log records to disk ahead of a dirty page.
+When the caller finishes it must **unpin** the page and report whether it was modified. Because a page may be pinned several times, it becomes evictable only when its pin count returns to $0$. If the access pattern is predictable, the manager can pre-fetch several pages at once. An eviction may itself trigger extra I/O when WAL forces older log records to disk ahead of a dirty page.
 
 ## Replacement Policies
 
 When the buffer pool is full, some page must be replaced. A clean page can be discarded immediately, but a dirty one must be written back first. A good policy balances correctness, hit rate, speed, and metadata overhead.
 
-Page-fault rate decreases as buffer-pool size grows. No policy can beat **OPT**, the offline optimal that evicts the page whose next use is farthest in the future. OPT is a lower bound that requires knowledge of the future, so it is unrealizable; real policies sit above it and try to approach it cheaply. Common choices include FIFO, LRU, MFU, Clock, LRU-K, and 2Q.
+Page-fault rate usually decreases as buffer-pool size grows. No policy can beat **OPT**, the offline optimal that evicts the page whose next use is farthest in the future. OPT is a lower bound that requires knowledge of the future, so it is unrealizable. Real policies sit above it and try to approach it cheaply. Common choices include FIFO, LRU, MFU, Clock, LRU-K, and 2Q.
 
-**FIFO (first-in-first-out).** Keep frames in queue order, insert newly loaded pages at the tail, and evict from the head. It has low implementation cost but ignores locality: an old page may still be hot and yet be evicted first, so FIFO does not reliably retain reused pages.
+**FIFO (first-in-first-out).** Keep frames in queue order, insert newly loaded pages at the tail, and evict from the head. It has low implementation cost but ignores locality. An old page may still be hot and yet be evicted first, so FIFO does not reliably retain reused pages.
 
-**LRU (least recently used).** Evict the unpinned page whose last access is oldest. Conceptually this keeps a timestamp per page; a practical version keeps frames in recency order with a doubly-linked list, so reused pages drift toward the back and tend to stay cached. LRU is one of the most widely used policies because it exploits temporal locality well.
+**Common mistake.** A larger buffer pool never causes more page faults. Under FIFO, adding a frame can increase the faults on some request sequences (Belady's anomaly); LRU and OPT never show this anomaly.
+
+**LRU (least recently used).** Evict the unpinned page whose last access is oldest. Conceptually LRU keeps a timestamp per page. A practical version keeps frames in recency order with a doubly-linked list, so reused pages drift toward the back and tend to stay cached. LRU is one of the most widely used policies because it exploits temporal locality well.
 
 Maintaining exact recency on every access is more bookkeeping than necessary, and Clock approximates it for far less.
 
@@ -287,13 +289,13 @@ A hit does not move the page to another frame; it only turns the reference bit b
   ]}
 />
 
-**MFU (most frequently used).** Evict by access frequency rather than recency. It is uncommon in practice, but it shows that reuse history can be richer than "last access only", which is the weakness the next policies attack.
+**MFU (most frequently used).** Evict by access frequency rather than recency. It is uncommon in practice. But it shows that reuse history can be richer than "last access only", which is the weakness the next policies attack.
 
 Recency-based policies share a blind spot that a single large scan exposes.
 
 **Scan resistance.** The ability of a replacement policy to avoid filling the buffer pool with pages touched once during a large scan and never reused.
 
-Both LRU and Clock can suffer from **sequential flooding**. A long scan reads pages $p_5, p_6, \dots$ one by one; each is a miss that briefly enters the pool. If the number of frames is smaller than the number of pages in the file, almost every request triggers an I/O, and the pool ends up full of read-once pages while the previously hot working set has been evicted.
+Both LRU and Clock can suffer from **sequential flooding**. A long scan reads pages $p_5, p_6, \dots$ one by one; each is a miss that briefly enters the pool. If the number of frames is smaller than the number of pages in the file, almost every request triggers an I/O. The pool then ends up full of read-once pages, while the previously hot working set has been evicted.
 
 <BufferQueue
   title="Sequential flooding"

@@ -3,7 +3,7 @@ title: "Theory of Computation: Lecture 9"
 description: "NP-completeness reduction chains for CLIQUE, VERTEX COVER, SET COVER, and SUBSET-SUM, with graph complements and pseudo-polynomial subset-sum."
 tags: ["Theory of computation"]
 created: 2026-06-27
-updated: 2026-06-27
+updated: 2026-10-14
 ---
 
 ## Reduction Chains
@@ -35,7 +35,7 @@ The direction is essential. To prove $L$ hard, reduce a known hard problem *to* 
 
 ## CLIQUE and Graph Complements
 
-**Clique.** A $k$-clique in a graph $G$ is a subset of $k$ vertices such that every pair of distinct vertices in the subset is connected by an edge.
+**Clique.** A $k$-clique in a graph $G$ is a subset of $k$ vertices such that every two vertices in the subset are adjacent.
 
 **CLIQUE.** The language
 
@@ -143,9 +143,11 @@ The language is in $NP$: a certificate is $k$ chosen sets from $\mathcal F$, and
 
 **Example 1. Covering a universe.**
 
-*For $U=\{1,\ldots,9\}$, the three sets $\{1,2,4\}$, $\{3,5,6\}$, and $\{4,7,8,9\}$ cover $U$. No two of these three sets cover all elements.*
+For $U=\{1,\ldots,9\}$, the three sets $\{1,2,4\}$, $\{3,5,6\}$, and $\{4,7,8,9\}$ cover $U$. No two of these three sets cover all elements.
 
 **Theorem.** $\mathrm{SET\ COVER}$ is NP-complete.
+
+*Each vertex becomes the set of edges it touches, so covering edges by vertices becomes covering the universe by sets.*
 
 Reduce $\mathrm{VERTEX\ COVER}$ to $\mathrm{SET\ COVER}$. Given an instance $\langle G=(V,E),k\rangle$, build a set-cover instance as follows:
 
@@ -190,7 +192,7 @@ The language is in $NP$: a certificate is the chosen sub-multiset, or equivalent
 
 **Example 2. Subset sums.**
 
-*For $X=\{1,3,4,6,13,13\}$, $\langle X,8\rangle\in\mathrm{SUBSET\text{-}SUM}$ because $1+3+4=8$. But $\langle X,12\rangle\notin\mathrm{SUBSET\text{-}SUM}$.*
+For $X=\{1,3,4,6,13,13\}$, $\langle X,8\rangle\in\mathrm{SUBSET\text{-}SUM}$ because $1+3+4=8$. But $\langle X,12\rangle\notin\mathrm{SUBSET\text{-}SUM}$.
 
 **Dynamic-programming table for SUBSET-SUM.** Let $X=\{x_1,\ldots,x_m\}$ and let
 
@@ -216,7 +218,7 @@ $$
 
 The table has $(m+1)(T+1)$ entries, so the running time is $O(mT)$.
 
-**Pseudo-polynomial time.** An algorithm is pseudo-polynomial if its running time is polynomial in the numeric values of the input, but not necessarily polynomial in the number of bits needed to encode those values.
+**Pseudo-polynomial time.** An algorithm is pseudo-polynomial if its running time is polynomial in the numeric values of the input. The running time need not be polynomial in the number of bits that encode those values.
 
 For SUBSET-SUM, the distinction is decisive:
 

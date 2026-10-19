@@ -3,12 +3,12 @@ title: "Data Intensive Systems: Lecture 3"
 description: "Storage and access: files, pages, and records, page and record layouts, row vs column stores, file organizations and their cost, indexing (dense, sparse, clustered, secondary, multilevel, composite), and index selection."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## Files, Pages, and Records
 
-At the physical level a database is a file of records. This is where the access-methods and disk-space layers of the engine live: the DBMS creates and deletes files, inserts, deletes, and updates records, and reads them back through three access patterns.
+At the physical level a database is a file of records. This level is where the access-methods and disk-space layers of the engine live. The DBMS creates and deletes files, inserts, deletes, and updates records, and reads them back through three access patterns.
 
 - **Point access.** Retrieve one record by its identifier.
 - **Range access.** Retrieve all records satisfying a condition.
@@ -16,7 +16,7 @@ At the physical level a database is a file of records. This is where the access-
 
 How fast each of these runs is decided entirely by how the data is laid out on disk. The physical design layer makes three choices: how records sit inside pages, how pages are arranged inside a file, and which indexes exist. The metadata recording these choices lives in the *system catalog*.
 
-**Storage hierarchy.** A database is a set of files; a file is a set of fixed-size pages (blocks); a page stores several records; a record is a sequence of fields.
+**Storage hierarchy.** A database is a set of files. A file is a set of fixed-size pages (blocks). A page stores several records. A record is a sequence of fields.
 
 <StorageHierarchy
   stages={[
@@ -59,7 +59,7 @@ Once the page is found, the slot number points to the record inside it. Keeping 
 
 The first question a page format must answer is whether its records are fixed-length or variable-length, because that decides which slot layout is possible.
 
-**Fixed-length records.** All fields have fixed size (integers, fixed `char`), so every record has the same length, the schema is stored once in the catalog, field $i$ begins at a fixed offset, and the page can use a compact slot layout. Two such layouts trade space against RID stability.
+**Fixed-length records.** All fields have fixed size (integers, fixed `char`), so every record has the same length. Hence the schema is stored once in the catalog, field $i$ begins at a fixed offset, and the page can use a compact slot layout. Two such layouts trade space against RID stability.
 
 <Split cols="1fr 1fr" align="start">
 <Pane>
@@ -104,21 +104,21 @@ The first question a page format must answer is whether its records are fixed-le
 
 A packed page uses space perfectly but cannot delete without shifting; a bitmap page keeps positions fixed at the cost of one bit per slot. The moment a field is a `varchar`, or a single file mixes record types, neither fixed layout works.
 
-**Variable-length record.** A record whose length depends on its data. A common layout places fixed-size values at the front, then one $\langle \text{offset}, \text{length} \rangle$ entry per variable field, then the variable data at the end, plus a small null bitmap for missing attributes.
+**Variable-length record.** A record whose length depends on its data. A common layout places one $\langle \text{offset}, \text{length} \rangle$ entry per variable field and the fixed-size values at the front, then the variable data at the end. A small null bitmap marks missing attributes.
 
 <PageLayout
   mode="byte-strip"
   cells={[
     { label: "(21,5)", group: "Directory", state: "meta" },
     { label: "(26,10)", state: "meta" },
-    { label: "(36,9)", state: "meta" },
+    { label: "(36,10)", state: "meta" },
     { label: "65000", group: "Fixed" },
     { label: "0000", state: "meta" },
     { label: "10101", span: 1, group: "Payload" },
     { label: "Srinivasan", span: 1.6 },
     { label: "Comp. Sci.", span: 1.4 },
   ]}
-  offsets={[0, 4, 8, 12, 20, 21, 26, 36, 45]}
+  offsets={[0, 4, 8, 12, 20, 21, 26, 36, 46]}
   rulerLabel="bytes"
   caption="A variable-length record: a directory of (offset, length) entries, fixed values, a null bitmap, then the payload."
 />
@@ -172,7 +172,7 @@ Every layout so far is a row store: a slot holds one full tuple, so all of a tup
   caption="Row store keeps a complete tuple together (the ringed row); column store keeps same-attribute values together (the ringed column)."
 />
 
-The two models make opposite trade-offs. A row store gives fast inserts, updates, and deletes and reads or rewrites whole tuples cheaply, but a scan that needs a few of many attributes still pays I/O for all of them, and one page mixing many value types compresses poorly. A column store reads only the attributes a query touches, gains CPU cache locality, compresses each column far better, and processes values in vectorized batches; in return, reconstructing a full tuple is expensive, updates and deletes are harder, and compressed columns may need decompression first.
+The two models make opposite trade-offs. A row store gives fast inserts, updates, and deletes and reads or rewrites whole tuples cheaply. But a scan needing a few of many attributes still pays I/O for all of them, and one page mixing many value types compresses poorly. A column store reads only the attributes a query touches, gains CPU cache locality, compresses each column far better, and processes values in vectorized batches. In return, reconstructing a full tuple is expensive, updates and deletes are harder, and compressed columns may need decompression first.
 
 *Row stores fit OLTP, many small transactions; column stores fit OLAP, analytical scans over few attributes; hybrid systems support both.*
 
@@ -207,7 +207,7 @@ Pure column stores split attributes across the whole file. PAX keeps the file's 
   caption="PAX splits each row group into per-attribute partitions inside one page, keeping the page-based design of row stores."
 />
 
-This buys cache-friendly scans over a few attributes without abandoning the page-based design. Analytical file formats such as **Parquet** and **ORC** apply the same idea at file scale: they gather tuples into large row groups (or stripes) and store each group column by column.
+This buys cache-friendly scans over a few attributes without abandoning the page-based design. Analytical file formats such as **Parquet** and **ORC** apply the same idea at file scale. They gather tuples into large row groups (or stripes) and store each group column by column.
 
 <PageLayout
   mode="orc"
@@ -232,7 +232,7 @@ This buys cache-friendly scans over a few attributes without abandoning the page
   caption="An ORC file is a sequence of stripes; inside one stripe, per-column index and data streams are stored separately."
 />
 
-Each column stream compresses well, the engine can skip irrelevant columns and often whole groups, and a scan over a few attributes never touches the rest of the file.
+Each column stream compresses well, and the engine can skip irrelevant columns and often whole groups. A scan over a few attributes never touches the rest of the file.
 
 ---
 
@@ -240,7 +240,9 @@ Each column stream compresses well, the engine can skip irrelevant columns and o
 
 The next layer up is how pages are arranged inside a file. The choice is again driven by the workload: full scans and cheap inserts favor one organization, ordered reads favor another.
 
-**Heap file.** An unordered organization: records sit in no particular search order. Records are scanned sequentially or reached directly by RID, an insert goes into any page with free space, and the DBMS tracks free space as pages are allocated and freed. It finds heap pages either through *linked lists* (a header page points to a list of free pages and a list of data pages) or through *page directories* (directory pages hold each data page's location and remaining free space).
+**Heap file.** An unordered organization: records sit in no particular search order. Records are scanned sequentially or reached directly by RID. An insert goes into any page with free space, and the DBMS tracks free space as pages are allocated and freed.
+
+The DBMS finds heap pages either through *linked lists* or through *page directories*. With linked lists, a header page points to a list of free pages and a list of data pages. With page directories, directory pages hold each data page's location and remaining free space.
 
 <PageLayout
   mode="heap-dir"
@@ -257,7 +259,7 @@ The next layer up is how pages are arranged inside a file. The choice is again d
 
 Heap files are ideal when most queries scan the file, since no physical order is maintained. When queries instead read by key or by key range, ordering the file pays off.
 
-**Sorted (sequential) file.** Records are kept in **search-key** order, where the search key is the set of attributes used to physically order the file (it need not be unique). Scanning in order is cheap, and a range query becomes efficient: after the first match the DBMS reads forward.
+**Sorted (sequential) file.** Records are kept in **search-key** order, where the search key is the set of attributes used to look up records (it need not be unique). Scanning in order is cheap, and a range query becomes efficient: after the first match the DBMS reads forward.
 
 <PageLayout
   mode="overflow"
@@ -277,7 +279,7 @@ To compare the two, we measure cost in page I/Os.
 
 **Simplified I/O cost model.** Cost is counted only in page I/Os. I/O is assumed to dominate CPU work, so buffering, prefetching, and similar effects are ignored, and only the average case is considered.
 
-Let $B$ be the number of data pages. Each operation touches one record, an equality search returns one match, a heap insert appends at the end, and a sorted file searches on its ordering attribute and stays compacted after deletes.
+Let $B$ be the number of data pages. Each operation touches one record, and an equality search returns one match. A heap insert appends at the end, and a sorted file searches on its ordering attribute and stays compacted after deletes.
 
 | Operation | Heap file | Sorted file |
 |---|---|---|
@@ -339,11 +341,11 @@ A sorted file is fast only for its single physical order. If a file is sorted on
   caption="One physical order, multiple access paths: each index gives the same relation a different ordered entry point into the data file."
 />
 
-The search key need not be unique, any subset of attributes can serve as one, and every insert, delete, and update must also maintain the affected indexes. What an index speeds up is described by a predicate.
+The search key need not be unique, and any subset of attributes can serve as one. Every insert, delete, and update must also maintain the affected indexes. What an index speeds up is described by a predicate.
 
-**Index search condition.** A predicate of the form $\langle \text{search key}, \text{comparison operator} \rangle$. *`dept_name = "CS"` has search key `dept_name` and an equality operator; `gpa > 3` has search key `gpa` and a greater-than operator.* Equality asks for one exact value; the inequalities $<, \leq, >, \geq$ define ranges and so benefit most from ordered access paths.
+**Index search condition.** A predicate of the form $\langle \text{search key}, \text{comparison operator} \rangle$. The predicate `dept_name = "CS"` has search key `dept_name` and an equality operator. The predicate `gpa > 3` has search key `gpa` and a greater-than operator. Equality asks for one exact value; the inequalities $<, \leq, >, \geq$ define ranges and so benefit most from ordered access paths.
 
-Indexes are classified along four independent axes: **clustered vs unclustered**, **dense vs sparse**, **key vs non-key** search key, and whether the data file is **ordered** on the indexing field. The first axis is the one with the largest performance consequences.
+Indexes are classified along four axes: **clustered vs unclustered**, **dense vs sparse**, **key vs non-key** search key, and whether the data file is **ordered** on the indexing field. The first axis is the one with the largest performance consequences.
 
 **Clustered vs unclustered.** If the physical order of the data records follows the order of the index entries, the index is *clustered*; otherwise it is *unclustered*.
 
@@ -405,7 +407,7 @@ Indexes are classified along four independent axes: **clustered vs unclustered**
   caption="Clustered keeps matching records on nearby pages (parallel arrows); unclustered scatters them across the file (crossing arrows)."
 />
 
-A clustered index keeps matching records on nearby pages, so range queries stay efficient; an unclustered index may jump to many unrelated pages, so large result sets become expensive. A file can carry many unclustered indexes but only one clustered physical order at a time. In the clustered case, the file is ordered on `ID`, so neighbouring index entries point to neighbouring data pages.
+A clustered index keeps matching records on nearby pages, so range queries stay efficient. An unclustered index may jump to many unrelated pages, so large result sets become expensive. A file can carry many unclustered indexes but only one clustered physical order at a time. In the clustered case, the file is ordered on `ID`, so neighbouring index entries point to neighbouring data pages.
 
 <IndexMap
   mode="pages"
@@ -443,13 +445,13 @@ The second axis is how completely the index covers the data.
 
 **Dense index.** Has an index entry for every search-key value that appears in the data file.
 
-**Sparse index.** Has entries for only some values, typically one per data page. A sparse index uses less space and needs fewer updates, but works well only when the data file is ordered on the search key, since after reaching the right page the DBMS still searches within it.
+**Sparse index.** Has entries for only some values, typically one per data page. A sparse index uses less space and needs fewer updates. But it works well only when the data file is ordered on the search key, since after reaching the right page the DBMS still searches within it.
 
 *A dense index can answer "does K exist?" on its own; a sparse index must fetch the page to know.*
 
-For range predicates the clustered/unclustered distinction grows even larger: a **clustered** index costs roughly the number of *data pages* holding matches, while an **unclustered** index costs closer to the number of *matching index entries*, because each match may lead to a different page. So a clustered index is efficient for ranges and ordered scans but expensive to maintain when updates disturb the order, whereas an unclustered index is cheap to add as an extra access path but can trigger many random I/Os on a large result.
+For range predicates the clustered/unclustered distinction grows even larger. A **clustered** index costs roughly the number of *data pages* holding matches, while an **unclustered** index costs closer to the number of *matching index entries*, because each match may lead to a different page. So a clustered index is efficient for ranges and ordered scans but expensive to maintain when updates disturb the order. An unclustered index, in contrast, is cheap to add as an extra access path but can trigger many random I/Os on a large result.
 
-The shape of a dense index depends on whether its search key is a key. If the search key *is* a key, each value identifies one record, so a dense index has one entry per record, each pointing straight at a single RID.
+The shape of a dense index depends on whether its search key is a key. If the search key *is* a key, each value identifies one record, so a dense index has one entry per record. Each entry points straight at a single RID.
 
 <IndexMap
   mode="rows"
@@ -486,7 +488,7 @@ The shape of a dense index depends on whether its search key is a key. If the se
   caption="Dense index on a key: exactly one entry per record, each pointing directly at its row."
 />
 
-If instead the file is sorted on a *non-key* attribute, equal values are adjacent, so a dense index keeps one entry per *distinct* value and points to the first record of that group.
+If instead the file is sorted on a *non-key* attribute, equal values are adjacent, so a dense index keeps one entry per *distinct* value. Each entry points to the first record of its group.
 
 <IndexMap
   mode="rows"
@@ -561,11 +563,11 @@ A sparse index pushes this further by keeping one *anchor* entry per data page.
   caption="Sparse index: to find K, jump to the page with the largest anchor key ≤ K and scan forward."
 />
 
-To locate a value $K$, find the index entry with the largest key $\leq K$, follow its pointer to that data page, and scan forward until $K$ is found or passed. Because the method relies on the file's sequential order, a sparse index is normally clustered.
+To locate a value $K$, find the index entry with the largest key $\leq K$ and follow its pointer to that data page. Then scan forward until $K$ is found or passed. Because the method relies on the file's sequential order, a sparse index is normally clustered.
 
 When an index itself spans many pages, finding the right index page is its own search, solved by recursion.
 
-**Multilevel index.** Treat the index file as a sorted file and build a sparse index on top of it, repeating until the top level is small enough to search cheaply. In a two-level design the *inner index* is the ordinary index on the data file and the *outer index* is a sparse index over the inner index's pages.
+**Multilevel index.** Treat the index file as a sorted file and build a sparse index on top of it. Repeat until the top level is small enough to search cheaply. In a two-level design the *inner index* is the ordinary index on the data file. The *outer index* is a sparse index over the inner index's pages.
 
 <IndexMap
   mode="levels"
@@ -593,9 +595,9 @@ When an index itself spans many pages, finding the right index page is its own s
   caption="Multilevel index: build a sparse index over the index, repeating until the top level scans cheaply."
 />
 
-Search descends level by level to the target data page, and more levels can be added if the outer index also grows too large; the cost is that an insertion or deletion may need updates at several levels. When the indexing field is not the file's physical order, the index is necessarily unclustered, and a different structure is needed.
+Search descends level by level to the target data page, and more levels can be added if the outer index also grows too large. The cost is that an insertion or deletion may need updates at several levels. When the indexing field is not the file's physical order, the index is necessarily unclustered, and a different structure is needed.
 
-**Secondary index.** An index whose search key does not define the physical order of the data file, so it is unclustered. For a non-key search key it stores one entry per value, and each entry points to a *bucket* (or list) of RIDs holding all matching records.
+**Secondary index.** An index whose search key does not define the physical order of the data file, so it is unclustered. For a non-key search key it stores one entry per value. Each entry points to a *bucket* (or list) of RIDs holding all matching records.
 
 <IndexMap
   mode="rows"
@@ -659,13 +661,13 @@ Search descends level by level to the target data page, and more levels can be a
   caption="Secondary index on an unsorted field: one entry per value points to a bucket of RIDs, which point into the scattered file."
 />
 
-A secondary index on an unsorted column must be dense; a sparse one would leave some matching records unreachable. This fixes the vocabulary: a clustered (primary) index sits on a file physically ordered on the indexing field and may be sparse or dense, while an unclustered (secondary) index sits on a file that is not so ordered, points to records or RID buckets, and must be dense. The core question is always whether the data file itself follows the search-key order.
+A secondary index on an unsorted column must be dense; a sparse one would leave some matching records unreachable. A clustered (primary) index sits on a file physically ordered on the indexing field and may be sparse or dense. An unclustered (secondary) index sits on a file that is not so ordered, points to records or RID buckets, and must be dense. The core question is always whether the data file itself follows the search-key order.
 
 ## Tree and Hash Index Structures
 
 Sequential dense and sparse indexes explain the ideas, but a static index degrades under updates. Real systems prefer the B+-tree because it stays balanced.
 
-**B+-tree.** A balanced search tree whose nodes are page-sized blocks: every root-to-leaf path has the same length, internal nodes store separator keys and child pointers that route a search, and leaf nodes store the sorted entries, linked left-to-right for range scans. The node capacity (the tree's *order*) controls fan-out, and fan-out controls height.
+**B+-tree.** A balanced search tree whose nodes are page-sized blocks. Every root-to-leaf path has the same length. Internal nodes store separator keys and child pointers that route a search, and leaf nodes store the sorted entries, linked left-to-right for range scans. The node capacity (the tree's *order*) controls fan-out, and fan-out controls height.
 
 <BPlusTree
   caption="Order 4: small fan-out, so the tree is wider and deeper."
@@ -710,8 +712,7 @@ Sequential dense and sparse indexes explain the ideas, but a static index degrad
   ]}
 />
 
-
-A small order gives limited fan-out, so the tree grows wide and deep quickly; a larger order packs more keys and pointers per node and indexes the same data with fewer levels, which is why disk-based trees aim for high fan-out. In both, leaves are linked in sorted order, so once the first matching leaf is found a range scan continues sequentially.
+A small order gives limited fan-out, so the tree grows wide and deep quickly. A larger order packs more keys and pointers per node and indexes the same data with fewer levels, which is why disk-based trees aim for high fan-out. In both, leaves are linked in sorted order, so once the first matching leaf is found a range scan continues sequentially.
 
 The B+-tree is one of two index families, each tuned to a different predicate. A hash index optimizes the other.
 
@@ -737,9 +738,9 @@ The B+-tree is one of two index families, each tuned to a different predicate. A
   caption="Hash index: an equality lookup computes one bucket; collisions create overflow pages."
 />
 
-Hash indexes are best for equality predicates: to evaluate `age = 44` the DBMS computes $h(44)$ and reads one bucket, duplicates land in the same bucket, and inserts and deletes usually touch one bucket only. Because entries are not kept in order, hash indexes do not help range predicates such as `age > 40`: the DBMS would have to inspect nearly every bucket, which is close to a full scan.
+Hash indexes are best for equality predicates. To evaluate `age = 44` the DBMS computes $h(44)$ and reads one bucket, and duplicates land in the same bucket. Inserts and deletes usually touch one bucket only. Because entries are not kept in order, hash indexes do not help range predicates such as `age > 40`. The DBMS would have to inspect nearly every bucket, which is close to a full scan.
 
-A **tree-based index**, in practice a B+-tree, keeps entries sorted, so its leaf links turn a range predicate into one descent plus a sequential walk, and the same structure also serves equality, ordered scans, and prefix lookups.
+A **tree-based index**, in practice a B+-tree, keeps entries sorted, so its leaf links turn a range predicate into one descent plus a sequential walk. The same structure also serves equality, ordered scans, and prefix lookups.
 
 *Hashing trades away order for $O(1)$ equality; trees keep order and answer everything else.*
 
@@ -751,9 +752,9 @@ FROM Employees E
 WHERE E.age > 40
 ```
 
-`age > 40` is a range, so a tree index on `age` is the natural choice and a hash index would not help. If many tuples qualify, a *clustered* tree index beats an unclustered one; and if the predicate matches a large fraction of the relation, a plain sequential scan may still be cheaper than any index.
+The predicate `age > 40` is a range, so a tree index on `age` is the natural choice and a hash index would not help. If many tuples qualify, a *clustered* tree index beats an unclustered one. If the predicate matches a large fraction of the relation, a plain sequential scan may still be cheaper than any index.
 
-**Selective predicate.** A predicate matching a small fraction of the relation. Indexes help most here; when most records qualify, scanning is often cheaper.
+**Selective predicate.** A predicate matching a small fraction of the relation (not selective: `age > 0`, which every employee satisfies). Indexes help most here; when most records qualify, scanning is often cheaper.
 
 ## Composite Search Keys
 
@@ -766,7 +767,7 @@ WHERE sname = 'Mary'
   AND gpa > 3.9
 ```
 
-An index on `sname` helps the equality `sname = 'Mary'` (a hash index suffices if such lookups dominate); an index on `gpa` helps the range `gpa > 3.9` (this must be a tree index); but an index on the pair $\langle \texttt{sname}, \texttt{gpa} \rangle$ is usually best, narrowing to `Mary` first and then scanning only the qualifying GPAs inside that group.
+An index on `sname` helps the equality `sname = 'Mary'` (a hash index suffices if such lookups dominate). An index on `gpa` helps the range `gpa > 3.9` (this must be a tree index). But an index on the pair $\langle \texttt{sname}, \texttt{gpa} \rangle$ is usually best, narrowing to `Mary` first and then scanning only the qualifying GPAs inside that group.
 
 **Composite search key.** An index whose search key is a tuple of attributes. In a tree index entries follow **lexicographic order**: sorted first by the leading attribute, then, among equal values, by the next.
 
@@ -831,7 +832,7 @@ WHERE E.age = 25
   AND E.sal BETWEEN 3000 AND 5000
 ```
 
-`BETWEEN` is a range, so this needs a tree index, and the order $\langle \texttt{age}, \texttt{sal} \rangle$ is right: it fixes one age, then scans only the salary interval inside that age group, whereas $\langle \texttt{sal}, \texttt{age} \rangle$ would scan the salary interval for every age and then filter. Since the query reads only `sal`, which is already in the key, the index alone suffices.
+The `BETWEEN` predicate is a range, so this query needs a tree index. The order $\langle \texttt{age}, \texttt{sal} \rangle$ is right: it fixes one age, then scans only the salary interval inside that age group. The order $\langle \texttt{sal}, \texttt{age} \rangle$ would instead scan the salary interval for every age and then filter. Since the query reads only `sal`, which is already in the key, the index alone suffices.
 
 **Index-only evaluation (covering index).** If every attribute the query needs is already in the index entries, the DBMS answers from the index alone, never fetching the data records. This is especially effective for aggregates such as `AVG`, `COUNT`, `MIN`, and `MAX`.
 
@@ -841,10 +842,10 @@ Putting the four axes together, the choice of index follows a short decision pat
 
 1. **Tiny or update-dominated table.** With only a few hundred tuples, or with frequent updates and low-cost queries, use **no index**: a full scan is negligible and any index only adds write overhead.
 2. **No predicate, full scan, or whole-relation aggregation.** Use a **heap file**: inserts are append-only and the query reads everything anyway.
-3. **Equality predicate.** A **hash index** gives $O(1)$ lookup. If updates are infrequent, make it **clustered and sparse** (clustering packs matches together; sparse works because the data is sorted on the key); if updates are frequent, make it **unclustered and dense** to avoid maintaining physical order.
+3. **Equality predicate.** A **hash index** gives $O(1)$ lookup. If updates are infrequent, make it **clustered and sparse** (clustering packs matches together; sparse works because the data is sorted on the key). If updates are frequent, make it **unclustered and dense** to avoid maintaining physical order.
 4. **Range predicate.** Use a **B+-tree**, since hashing destroys order. Again **clustered and sparse** for infrequent updates (the scan reads consecutive pages, sparse keeps the index small) and **unclustered and dense** for frequent updates.
 5. **Choosing the key.** Index the attribute in the predicate; with several predicates, index the **most selective** one and apply the others as in-memory post-filters.
-6. **Sorted file vs B+-tree.** For static data with range queries, a plain **sorted file** with binary search ($O(\log B)$) is enough; for dynamic data, prefer a **B+-tree**, since sorted files are costly to maintain under inserts and deletes.
+6. **Sorted file vs B+-tree.** For static data with range queries, a plain **sorted file** with binary search ($O(\log B)$) is enough. For dynamic data, prefer a **B+-tree**, since sorted files are costly to maintain under inserts and deletes.
 
 | Scenario | Structure | Clustered? | Density |
 |---|---|---|---|
@@ -860,7 +861,7 @@ Several traps recur in this decision.
 
 **Clustered ≠ primary key.** Clustering means data pages are physically ordered on the indexed attribute, which may be non-unique (you can cluster on `year`). Only one clustered index per table, because physical order is a single global property.
 
-**Sparse requires clustering.** A sparse index keeps one entry per data page and works only if the data is sorted on that key; an unclustered index must therefore be dense, or some matching records become unreachable.
+**Sparse requires clustering.** A sparse index keeps one entry per data page and works only if the data is sorted on that key. An unclustered index must therefore be dense, or some matching records become unreachable.
 
 **Unclustered range can lose to a full scan.** Each qualifying entry may point to a different page, so the cost is as many random I/Os as matches. Above roughly $5$-$10\%$ selectivity, a sequential scan usually wins.
 
@@ -868,7 +869,7 @@ Several traps recur in this decision.
 
 **Sorted files support equality too.** Binary search gives $O(\log B)$; "sorted = range only" is false. The hash advantage is $O(1)$ vs $O(\log B)$ for equality.
 
-**Inserts and deletes on a sorted file are expensive.** An insert is at least $2$ I/Os and degrades to $O(B)$ when shifting; a worst-case delete on a non-sort attribute scans all $B$ pages and rewrites them, $2B$ I/Os. Prefer B+-trees for dynamic data.
+**Inserts and deletes on a sorted file are expensive.** An insert is at least $2$ I/Os and degrades to $O(B)$ when shifting. A worst-case delete on a non-sort attribute scans all $B$ pages and rewrites them, $2B$ I/Os. Prefer B+-trees for dynamic data.
 
 **PAX ≠ DSM.** PAX reorganizes columns *within* a page, so the page count matches NSM; DSM decomposes into separate column files with different page counts.
 
@@ -880,7 +881,7 @@ File organizations, indexes, and statistics are recorded in one place the optimi
 
 **System catalog.** The DBMS's metadata repository, storing information about relations, attributes, indexes, views, constraints, statistics, and access control.
 
-For each relation it keeps the name, backing file, file organization, attribute names and types, and integrity constraints; for each index, the name, structure (B+-tree, hash), search-key fields, and clustering status; for each view, its name and definition; and for the optimizer, statistics such as relation cardinality, page count, and average row length, plus authorization data. The catalog is itself stored as relations, so it can be queried like any table. Oracle, for example, exposes it through views such as `USER_TABLES` and `USER_TAB_COLUMNS`:
+For each relation it keeps the name, backing file, file organization, attribute names and types, and integrity constraints. For each index it keeps the name, structure (B+-tree, hash), search-key fields, and clustering status, and for each view its name and definition. It also keeps optimizer statistics such as relation cardinality, page count, and average row length, plus authorization data. The catalog is itself stored as relations, so it can be queried like any table. Oracle, for example, exposes it through views such as `USER_TABLES` and `USER_TAB_COLUMNS`:
 
 ```sql
 SELECT table_name, num_rows, blocks, avg_row_len
@@ -891,4 +892,4 @@ FROM user_tables
 |---|---|---|---|
 | STUDENT | 5 | 5 | 20 |
 
-These views are exactly what the optimizer and storage manager consult: they describe the schema, give size estimates, and report which access paths already exist, closing the loop from physical layout back to query planning.
+These views are exactly what the optimizer and storage manager consult. They describe the schema, give size estimates, and report which access paths already exist, closing the loop from physical layout back to query planning.

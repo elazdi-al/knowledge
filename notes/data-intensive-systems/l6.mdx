@@ -3,7 +3,7 @@ title: "Data Intensive Systems: Lecture 6"
 description: "Hashing and sorting for data systems: static and dynamic hashing (chained, extendible, linear), open addressing with linear probing, and external merge sort."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## Hash Tables
@@ -18,7 +18,7 @@ Hash indexes, hash joins, and hash aggregation all stand on one structure.
 
 Hash tables serve equality predicates well. They do not preserve key order, so they are weak for ordered scans and range predicates.
 
-*A query such as `id = 42` can use a hash index directly. A query such as `id BETWEEN 40 AND 60` needs ordered access, usually a B$^+$-tree or a scan.*
+A query such as `id = 42` can use a hash index directly. A query such as `id BETWEEN 40 AND 60` needs ordered access, usually a B$^+$-tree or a scan.
 
 ## Static Hash Tables
 
@@ -111,7 +111,7 @@ with constants $a$ and $b$. Good hashing spreads keys evenly, is fast to compute
 
 ## Open Addressing and Linear Probing
 
-**Open addressing.** A collision-handling scheme where all entries live inside one array of slots. If the home slot is occupied, the DBMS follows a probe sequence to alternative slots.
+**Open addressing.** A collision-handling scheme where all entries live inside one array of slots (not overflow chaining, which puts colliding entries in pages outside the array). If the key's home slot $h(k) \bmod N$ is occupied, the DBMS follows a probe sequence to alternative slots.
 
 Common probe sequences differ only in the next position they try:
 
@@ -119,7 +119,7 @@ Common probe sequences differ only in the next position they try:
 - **Quadratic probing.** Use displacements $1^2,2^2,3^2,\dots$.
 - **Double hashing.** Compute the step size from a second hash function.
 
-**Linear probing.** A static open-addressing scheme where, if the home slot is occupied, the DBMS checks the next slot, then the next, until it finds the key or a free slot. The probe sequence is
+**Linear probing.** A static open-addressing scheme that probes consecutive slots. If the home slot is occupied, the DBMS checks the next slot, then the next, until it finds the key or a free slot. The probe sequence is
 
 $$
 \text{slot}_i(k) = \bigl(h(k) + i\bigr) \bmod N,
@@ -166,7 +166,7 @@ A truly empty slot proves absence because no later key in that probe run could h
 
 **Example 1. Five insertions colliding at slot 2.**
 
-*Inserting in order $A,B,C,D,E$ shows how later keys are displaced forward from their home slots along the probe run.*
+Inserting in order $A,B,C,D,E$ shows how later keys are displaced forward from their home slots along the probe run.
 
 | Key | Home | Final | What happens |
 |---|---|---|---|
@@ -218,7 +218,7 @@ Static hashing is fast when the size estimate is right. It breaks down when that
 
 ## Chained Hashing
 
-**Chained hashing.** Each directory slot points to a bucket, and all entries hashing to that slot stay in its bucket; when a bucket fills, it continues through overflow pages linked into a chain.
+**Chained hashing.** A hashing scheme in which each directory slot points to a bucket that holds every entry hashing to that slot. When a bucket fills, it continues through overflow pages linked into a chain.
 
 The structure has two levels:
 
@@ -264,6 +264,8 @@ Two depths control the structure:
 
 *The gap is the sharing: a bucket with local depth $\ell$ under global depth $d$ is pointed to by $2^{d-\ell}$ directory entries.*
 
+**Common mistake.** A bucket split does not always double the directory. If the bucket's local depth is below the global depth, several entries already point to it, and the split only redirects some of them.
+
 Assume the directory is indexed with the **least significant bits** of the hash. At global depth $2$, $h(r)=5=101_2$ goes to entry $01$, and $h(r)=7=111_2$ goes to entry $11$.
 
 <HashDiagram
@@ -305,12 +307,12 @@ The benefit is locality. The DBMS touches the overflowing bucket and the directo
 
 **Example 2. Inserting into the current directory, with $h(x)=x$.**
 
-*Insert $21=(10101)_2$ with $h(x)=x$.* The last two bits are $01$, so the entry targets bucket B. B is full, and its local depth $1$ is below the global depth $2$, so the bucket splits without directory doubling.
+Insert $21=(10101)_2$ with $h(x)=x$. The last two bits are $01$, so the entry targets bucket B. B is full, and its local depth $1$ is below the global depth $2$, so the bucket splits without directory doubling.
 
 The split separates the old shared bucket:
 
-- $7=111_2$ ends in $11$ and moves to new bucket D.
-- $1,5,13,21$ end in $01$ and stay in bucket B.
+- Key $7=111_2$ ends in $11$ and moves to new bucket D.
+- Keys $1,5,13,21$ end in $01$ and stay in bucket B.
 
 <HashDiagram
   mode="directory"
@@ -331,9 +333,9 @@ The split separates the old shared bucket:
   caption="After inserting 21: bucket B splits into B and D; entry 11 now points to D instead of B."
 />
 
-*Insert $19=(10011)_2$ and $15=(01111)_2$.* Both end in $11$, so both go to bucket D if it has room.
+Insert $19=(10011)_2$ and $15=(01111)_2$. Both end in $11$, so both go to bucket D if it has room.
 
-*Insert $20=(10100)_2$.* The last two bits are $00$, so it targets bucket A. If A is full and its local depth already equals the global depth, the directory doubles from $2^2$ to $2^3$ entries before A splits.
+Insert $20=(10100)_2$. The last two bits are $00$, so it targets bucket A. If A is full and its local depth already equals the global depth, the directory doubles from $2^2$ to $2^3$ entries before A splits.
 
 A directory can use least significant bits (LSB) or most significant bits (MSB). The logical rule is the same. The implementation differs: with LSB, doubling copies the old directory and appends the copy; with MSB, earlier pointer positions must be rewritten more carefully.
 
@@ -374,7 +376,7 @@ $$
 
 where $N$ is the initial bucket count and $i$ is the current level. Each level doubles the hash range.
 
-*With $N=4$: $h_0(k)=h(k)\bmod 4$, $h_1(k)=h(k)\bmod 8$, and $h_2(k)=h(k)\bmod 16$.*
+With $N=4$, the levels use $h_0(k)=h(k)\bmod 4$, then $h_1(k)=h(k)\bmod 8$, then $h_2(k)=h(k)\bmod 16$.
 
 The state is:
 
@@ -413,7 +415,7 @@ Linear hashing grows without a directory. Rehashing is spread across insertions,
 
 **Example 3. One overflow triggers a split.**
 
-*Start with $N=4$ buckets and $\text{next}=0$, holding bucket $0:\{8,20\}$, bucket $1:\{5,9,13\}$ (full), bucket $2:\{6\}$, bucket $3:\{7,11\}$.*
+Start with $N=4$ buckets and $\text{next}=0$, holding bucket $0:\{8,20\}$, bucket $1:\{5,9,13\}$ (full), bucket $2:\{6\}$, bucket $3:\{7,11\}$.
 
 Searching for $6$ gives $6\bmod 4 = 2$. Since $2\ge\text{next}$, bucket $2$ has not split, so no recomputation is needed.
 
@@ -421,8 +423,8 @@ Inserting $17$ gives $17\bmod 4=1$. Bucket $1$ is full, so $17$ goes to an overf
 
 The split uses $h_1(k)=k\bmod 8$:
 
-- $8\bmod 8=0$, so $8$ stays in bucket $0$.
-- $20\bmod 8=4$, so $20$ moves to new bucket $4$.
+- Since $8\bmod 8=0$, key $8$ stays in bucket $0$.
+- Since $20\bmod 8=4$, key $20$ moves to new bucket $4$.
 - `next` advances to $1$.
 
 | Bucket | Contents | Comment |
@@ -433,7 +435,7 @@ The split uses $h_1(k)=k\bmod 8$:
 | 3 | $7, 11$ | not split yet |
 | 4 | $20$ | new bucket from the split |
 
-*After the split, searching for $20$ first gives $20\bmod 4=0$. Since $0<\text{next}$, bucket $0$ has split, so recompute $20\bmod 8=4$ and search bucket $4$. Searching for $9$ gives $9\bmod 4=1$, and $1\ge\text{next}$, so bucket $1$ has not split and no recomputation is needed.*
+After the split, searching for $20$ first gives $20\bmod 4=0$. Since $0<\text{next}$, bucket $0$ has split, so recompute $20\bmod 8=4$ and search bucket $4$. Searching for $9$ gives $9\bmod 4=1$, and $1\ge\text{next}$, so bucket $1$ has not split and no recomputation is needed.
 
 The split pointer eventually reaches every bucket, so overflow chains are reduced in round-robin order. Linear hashing still depends on a good hash function, and temporary overflow pages can lengthen lookups.
 
@@ -501,7 +503,7 @@ $$
 
 I/Os.
 
-**External merge sort with $B$ buffers.** The practical version uses all available buffer pages.
+**External merge sort with $B$ buffers.** The practical version of external sorting, which uses all $B$ available buffer pages.
 
 Pass 0 creates
 
@@ -529,7 +531,7 @@ $$
 2N \cdot P.
 $$
 
-*Every pass reads and writes every page exactly once, so the cost is always $2N$ per pass; all sorting optimization is about reducing the number of passes.*
+*Every pass costs $2N$, so all sorting optimization is about reducing the number of passes.*
 
 A larger buffer pool creates fewer initial runs and gives each merge pass a larger fan-in.
 
@@ -542,7 +544,7 @@ A larger buffer pool creates fewer initial runs and gives each merge pass a larg
 | 2 | $\lceil 6/4\rceil=2$ | Merge again into $2$ runs of $80$ and $28$ pages. |
 | 3 | $1$ | A final merge produces one sorted file of $108$ pages. |
 
-*The pass count is $1+\lceil\log_4 22\rceil = 1+3 = 4$, matching the four rows.*
+The pass count is $1+\lceil\log_4 22\rceil = 1+3 = 4$, matching the four rows.
 
 **Double buffering.** An I/O technique that prefetches the next page or run fragment while the current buffer is being processed.
 

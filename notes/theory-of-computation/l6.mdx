@@ -3,12 +3,12 @@ title: "Theory of Computation: Lecture 6"
 description: "Computable functions, mapping reductions, reduction-based undecidability proofs, ATM reductions to HALT and REG_TM, and unrecognizability via EQ_TM."
 tags: ["Theory of computation"]
 created: 2026-06-25
-updated: 2026-06-25
+updated: 2026-10-14
 ---
 
 ## From Hard Problems to Reductions
 
-Concrete undecidable and unrecognizable languages, such as $A_{\mathrm{TM}}$ and $\overline{A_{\mathrm{TM}}}$, become tools once they can be transformed into other problems. Reductions turn one hard example into a method: to prove that a new problem is hard, show that a known hard problem can be translated into it.
+Concrete undecidable and unrecognizable languages, such as $A_{\mathrm{TM}}$ and $\overline{A_{\mathrm{TM}}}$, become tools once they can be transformed into other problems. Reductions turn one hard example into a method. To prove that a new problem is hard, show that a known hard problem can be translated into it.
 
 **Reduction.** A transformation from instances of one decision problem to instances of another decision problem that preserves yes/no answers.
 
@@ -19,21 +19,23 @@ The direction matters. If $A$ reduces to $B$, then $B$ is at least as hard as $A
 - if $B$ is decidable, then $A$ is decidable;
 - if $A$ is undecidable, then $B$ is undecidable.
 
+**Common mistake.** Reducing the new problem to a known undecidable problem does not prove the new problem undecidable. It only shows that the new problem is at most as hard as an undecidable one, which a decidable problem also is. The known undecidable problem must be the source, and the new problem the target.
+
 **Example 1. DFA nonemptiness as reachability.**
 
-*Let*
+Let
 
 $$
 NE_{\mathrm{DFA}}=\{\langle D\rangle\mid D\text{ is a DFA and }L(D)\ne\varnothing\}.
 $$
 
-*Let*
+Let
 
 $$
 L_{\mathrm{path}}=\{\langle G,v,w\rangle\mid G\text{ is a directed graph and there is a path from }v\text{ to }w\}.
 $$
 
-Given a DFA $D=(Q,\Sigma,\delta,q_0,F)$, build a directed graph from its transition graph, ignore transition labels, add a fresh target vertex $t$, and add an edge $q\to t$ from every accepting state $q\in F$. Then:
+Given a DFA $D=(Q,\Sigma,\delta,q_0,F)$, build a directed graph from its transition graph, ignoring transition labels. Add a fresh target vertex $t$ and an edge $q\to t$ from every accepting state $q\in F$. Then:
 
 $$
 L(D)\ne\varnothing
@@ -75,13 +77,15 @@ The function need not be surjective. Some instances of $B$ may never appear as $
 
 **Theorem.** If $A\le_m B$ and $B$ is decidable, then $A$ is decidable.
 
+*Translate the input with $f$, then let the decider for $B$ answer.*
+
 **Proof.** Let $M_B$ decide $B$, and let $f$ be a mapping reduction from $A$ to $B$. Construct a TM $N$:
 
 1. On input $w$, compute $f(w)$.
 2. Run $M_B$ on input $f(w)$.
 3. Output whatever $M_B$ outputs.
 
-$N$ halts because $f$ is computable and $M_B$ is a decider. Also,
+The machine $N$ halts because $f$ is computable and $M_B$ is a decider. Also,
 
 $$
 N\text{ accepts }w
@@ -93,7 +97,7 @@ f(w)\in B
 w\in A.
 $$
 
-So $N$ decides $A$.
+Since $N$ always halts and accepts exactly the strings of $A$, it decides $A$.
 
 **Corollary.** If $A\le_m B$ and $A$ is undecidable, then $B$ is undecidable.
 
@@ -123,6 +127,8 @@ $$
 the same language previously denoted $\mathrm{HALT}$.
 
 **Theorem.** $A_{\mathrm{TM}}\le_m\mathrm{HALT}_{\mathrm{TM}}$. Therefore $\mathrm{HALT}_{\mathrm{TM}}$ is undecidable.
+
+*Build a machine that halts exactly when $M$ accepts $w$.*
 
 Given $x=\langle M,w\rangle$, define
 
@@ -154,6 +160,8 @@ $$
 Unlike $E_{\mathrm{DFA}}$ or $EQ_{\mathrm{DFA}}$, this problem asks a property of a Turing machine's language. The machine itself is finite, but the language it accepts may be non-regular, undecidable, or only recognizable.
 
 **Theorem.** $REG_{\mathrm{TM}}$ is undecidable.
+
+*Build a machine whose language is all of $\{0,1\}^*$ when $M$ accepts $w$, and the non-regular $B$ otherwise.*
 
 Reduce from $A_{\mathrm{TM}}$. Let
 
