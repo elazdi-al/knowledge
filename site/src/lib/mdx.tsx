@@ -7,7 +7,7 @@ import rehypeSlug from "rehype-slug";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { createHighlighter, type LanguageRegistration } from "shiki";
+import { bundledThemes, createHighlighter, type LanguageRegistration } from "shiki";
 import { useMDXComponents } from "@/mdx-components";
 
 // Relational schema notation, `Students(sid: string, ...)`, colored with the
@@ -38,6 +38,15 @@ const gdbLang: LanguageRegistration = {
   ],
 };
 
+// Python's grammar scopes call names as meta.function-call.generic, which the
+// GitHub themes leave uncolored. Give them the function color that JS and C
+// calls already get, so Sage calls such as xgcd(a, b) stand out.
+async function withPythonCalls(name: "github-light" | "github-dark-dimmed", color: string) {
+  const theme = (await bundledThemes[name]()).default;
+  const rule = { scope: "meta.function-call.generic.python", settings: { foreground: color } };
+  return { ...theme, tokenColors: [...(theme.tokenColors ?? []), rule] };
+}
+
 export async function renderMDX(source: string) {
   const { default: Content } = await evaluate(source, {
     ...runtime,
@@ -55,7 +64,10 @@ export async function renderMDX(source: string) {
       [
         rehypePrettyCode,
         {
-          theme: { light: "github-light", dark: "github-dark-dimmed" },
+          theme: {
+            light: await withPythonCalls("github-light", "#6F42C1"),
+            dark: await withPythonCalls("github-dark-dimmed", "#DCBDFB"),
+          },
           keepBackground: false,
           defaultLang: "plaintext",
           getHighlighter: (options: Parameters<typeof createHighlighter>[0]) =>
