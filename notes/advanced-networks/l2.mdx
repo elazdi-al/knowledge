@@ -3,7 +3,7 @@ title: "Advanced Networks: Lecture 2"
 description: "How IP forwards by longest prefix match, how IPv4 and IPv6 addresses and headers are built and which blocks are reserved, and how NAT lets a private network share one public address."
 tags: ["Advanced networks"]
 created: 2026-10-04
-updated: 2026-10-06
+updated: 2026-10-14
 ---
 
 ## The Two Rules of IP Unicast
@@ -16,13 +16,13 @@ IP interconnects LANs. Routers forward each packet from LAN to LAN by its destin
 
 **Example 1. The destination address inside a LAN.**
 
-*Host W sends a packet to host P through the switch. Which addresses does the frame carry at point 1?*
+Host W sends a packet to host P through the switch. Which addresses does the frame carry at point 1?
 
 <LanCaptureSchema />
 
 **IP rule 2.** Addresses have structure. Each address says how to reach its interface, in a form routers can process in hardware.
 
-**Host part.** The bits of an address after the prefix, also called the suffix. Interfaces of one subnet share the prefix and differ in their host parts. *In `128.178.71.202/24`, the prefix is `128.178.71` and the host part is `202`.*
+**Host part.** The bits of an address after the prefix, also called the suffix. Interfaces of one subnet share the prefix and differ in their host parts. In `128.178.71.202/24`, the prefix is `128.178.71` and the host part is `202`.
 
 Forwarding uses this structure through a table of prefixes.
 
@@ -59,11 +59,11 @@ A prefix drops its trailing zero bytes: `128.178/16` is `128.178.0.0/16`.
 
 **Example 2. A valid address for H.**
 
-*A router's north interface is `2.4.8.1/23` and its south interface `2.4.7.1/23`. Host H sits behind a switch on the north side. Which of `2.4.8.2` and `2.4.9.1` can H take?*
+A router's north interface is `2.4.8.1/23` and its south interface `2.4.7.1/23`. Host H sits behind a switch on the north side. Which of `2.4.8.2` and `2.4.9.1` can H take?
 
 <SubnetBitsSchema />
 
-*Both. Their third bytes, 8 and 9, differ only in the last bit, a host bit under /23.*
+Both. Their third bytes, 8 and 9, differ only in the last bit, a host bit under /23.
 
 A /n subnet holds $2^{32-n}$ addresses. Host part all 0s names the subnet, host part all 1s is its broadcast address, and every other address can go to an interface (e.g. `2.4.8/23` holds 512 addresses, 510 of them for interfaces).
 
@@ -83,7 +83,7 @@ IPv4 reserves some blocks for special uses.
 
 **Private address.** An address any network may use internally, at home for instance. Public internet routers drop packets sent to one.
 
-**Link-local address.** An address used only within one LAN, assigned automatically and never routed.
+**Link-local address.** An address used only within one LAN, assigned automatically and never routed (a private address is not link-local: routers inside its network forward it).
 
 Every other address is **global**, or public: it identifies one interface in the whole internet.
 
@@ -144,7 +144,7 @@ Two rules shorten the notation.
 
 **Example 3. Which prefix length fits.**
 
-*Host A and interface eth0 of router R1 share one bridged LAN. Interface eth1 of R1 and host B share another. All four use the same prefix length. Which of /64, /80, /96 and /128 is valid?*
+Host A and interface eth0 of router R1 share one bridged LAN. Interface eth1 of R1 and host B share another. All four use the same prefix length. Which of /64, /80, /96 and /128 is valid?
 
 ```text
 A      2019:0002:0003:0004:0005:0000:0007:b0b0
@@ -153,7 +153,7 @@ eth1   2019:0002:0003:0004:0005:0001:0000:0001
 B      2019:0002:0003:0004:0005:0001:0000:baba
 ```
 
-*Only /96. Bridges do not split subnets, so A and eth0 need the same prefix, and so do eth1 and B, while the router's two sides need different ones. The two sides first differ in hextet 6, which /64 and /80 leave out. A and eth0 differ in hextet 7, which /128 takes in.*
+Only /96. Bridges do not split subnets, so A and eth0 need the same prefix, and so do eth1 and B. The router's two sides need different ones. The two sides first differ in hextet 6, which /64 and /80 leave out. A and eth0 differ in hextet 7, which /128 takes in.
 
 IPv6 reserves its own blocks.
 
@@ -221,7 +221,7 @@ sw-la-01 and ed2-in both use `fe80::1`. This is legal because they sit on differ
 
 **Example 4. Three IPv6 destinations at ed0-swi.**
 
-*Where does ed0-swi send each packet?*
+Where does ed0-swi send each packet?
 
 | Destination | Longest match | Next hop |
 |---|---|---|
@@ -229,7 +229,7 @@ sw-la-01 and ed2-in both use `fe80::1`. This is legal because they sit on differ
 | `2001:620:618:1ad:a00:20ff:fe78:30f9`, host lrcmac4 | the /48 | `fe80::1%2` |
 | `2001:620:8::1`, at ETHZ | `::/0` | `fe80::1%1` |
 
-*Host lrcmac4 sits in subnet `1ad`, not LEMA's `1a4`, so only the /48 matches.*
+Host lrcmac4 sits in subnet `1ad`, not LEMA's `1a4`, so only the /48 matches.
 
 An IPv4 interface usually has one address. An IPv6 interface usually has several: at least one link-local address and one or more global ones (e.g. the interface of sw-la-01 toward ed0-swi holds `fe80::1` and `2001:620:618:10a::1`).
 
@@ -286,7 +286,7 @@ On an inbound packet, the NAT rewrites the *destination* back to the internal pa
 
 *Outbound rewrites only the source, inbound only the destination; the far end is never touched.*
 
-The NAT adds an entry whenever an inside client contacts an outside server, and picks NAT ports that do not collide (e.g. host B also uses internal port 1029, so it gets NAT port 3442). On Linux, `iptables` implements NAT.
+The NAT adds an entry whenever an inside client contacts an outside server. It picks NAT ports that do not collide (e.g. host B also uses internal port 1029, so it gets NAT port 3442). On Linux, `iptables` implements NAT.
 
 A NAT creates entries only when the inside host speaks first, which a server never does.
 
@@ -315,6 +315,6 @@ EPFL's VPN (virtual private network), which connects remote users into EPFL's ne
 | User 1 | `192.168.178.34` | `10.252.13.211` | `128.178.15.x` |
 | User 2 | `192.168.178.34` | `10.252.87.129` | `128.178.15.x` |
 
-*Two users can hold the same home address, since each home is its own private network, and the same public address, since the CGNAT shares it.*
+Two users can hold the same home address, since each home is its own private network, and the same public address, since the CGNAT shares it.
 
 Internet service providers use CGNAT to save public IPv4 addresses, with `100.64/10` inside rather than `10/8`. The two sides of a NAT must be different subnets, and many home networks already use `10/8`.

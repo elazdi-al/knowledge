@@ -57,10 +57,13 @@ import {
   DhcpRelaySchema,
   GatewayResolutionSchema,
   HolePunchingSchema,
+  TurnRelaySchema,
   Nat64Schema,
   PrefixDelegationSchema,
   SolicitedNodeSchema,
   TracerouteSchema,
+  UpnpSchema,
+  StunSchema,
 } from "@/components/IpServicesSchemas";
 import { LanguageClasses } from "@/components/LanguageClasses";
 import { PerceptronBoundarySchema, PerceptronUnitSchema, RegressionPlaneSchema, XorSchema } from "@/components/LinearModelSchemas";
@@ -146,6 +149,7 @@ export function useMDXComponents(
     GridSearchSchema,
     HashDiagram,
     HolePunchingSchema,
+    TurnRelaySchema,
     hr: IdeaBreak,
     IndexMap,
     Ipv4HeaderSchema,
@@ -203,6 +207,8 @@ export function useMDXComponents(
     TransactionLogSchema,
     TuringTape,
     TuringTrace,
+    UpnpSchema,
+    StunSchema,
     VerifierSchema,
     WaitForGraphSchema,
     WalRulesSchema,
