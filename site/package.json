@@ -9,8 +9,7 @@
     "typecheck": "tsc --noEmit",
     "deploy": "next build && wrangler deploy",
     "preview": "next build && wrangler dev",
-    "verify": "bun scripts/verify-note.tsx",
-    "lint:figures": "bun scripts/lint-figures.tsx"
+    "verify": "bun scripts/verify-note.tsx"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

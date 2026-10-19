@@ -129,9 +129,6 @@ Run these from `site/`:
 - `bun run verify ../notes/data-intensive-systems/l9.mdx` compiles and renders
   one note the way the site does. It fails on MDX syntax errors and unknown
   components.
-- `bun run lint:figures` renders every note and prints the figure engine's
-  warnings: overlapping items, text wider than its box, edge labels over
-  items, figures wider than 660px.
 - `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots every figure,
   light and dark, into `/tmp/figures`. It needs `bun run dev` running and
   Playwright's headless Chromium.
