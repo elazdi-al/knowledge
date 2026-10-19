@@ -3,7 +3,7 @@ title: "Theory of Computation: Lecture 4"
 description: "Turing machines, configurations, recognizable and decidable languages, basic TM algorithm design, unary powers of two, and the Church-Turing thesis."
 tags: ["Theory of computation"]
 created: 2026-06-14
-updated: 2026-06-14
+updated: 2026-10-14
 ---
 
 ## From Finite Memory to Work Tape
@@ -219,7 +219,7 @@ Turing machines are usually designed at a high level. A step such as "scan right
 
 **Example 1. Equal numbers of `0`s and `1`s.**
 
-*The language $C$ from the opening is not regular, yet it is decidable.*
+The language $C$ from the opening is not regular, yet it is decidable.
 
 The machine pairs off one `0` with one `1` per sweep until nothing is left. It uses
 
@@ -229,7 +229,7 @@ Q=\{q_0,q_1,q_2,q_3,q_A,q_R\},\qquad
 \Gamma=\{0,1,X,\sqcup\},
 $$
 
-where $q_A=q_{\text{accept}}$ and $q_R=q_{\text{reject}}$ are the halts, $X$ temporarily marks a matched symbol, and $\sqcup$ is the blank. Each edge still reads as $a\to b,D$, with two shorthands: a comma-separated read set fires on any of the listed symbols, and an omitted write leaves the cell unchanged. So $X,0\to R$ means "on $X$ or $0$, leave the cell and move right".
+where $q_A=q_{\text{accept}}$ and $q_R=q_{\text{reject}}$ are the halts, $X$ temporarily marks a matched symbol, and $\sqcup$ is the blank. Each edge still reads as $a\to b,D$, with two shorthands. A comma-separated read set fires on any of the listed symbols, and an omitted write leaves the cell unchanged. So $X,0\to R$ means "on $X$ or $0$, leave the cell and move right".
 
 <Automaton
   caption="The decider for C. Each loop through q0 erases the leftmost symbol, finds and marks its opposite, then walks back; q0 accepts when only blanks remain."
@@ -262,7 +262,7 @@ where $q_A=q_{\text{accept}}$ and $q_R=q_{\text{reject}}$ are the halts, $X$ tem
 
 Read the diagram as one repeating loop:
 
-- **$q_0$: pick the leftmost symbol.** A `0` is erased ($\sqcup$) and the machine remembers "find a 1" by entering $q_1$; a `1` is erased and it enters $q_2$ to find a `0`; a leftover $X$ is erased and skipped; a $\sqcup$ means everything is gone, so accept.
+- **$q_0$: pick the leftmost symbol.** A `0` is erased ($\sqcup$) and the machine remembers "find a 1" by entering $q_1$. A `1` is erased and it enters $q_2$ to find a `0`. A leftover $X$ is erased and skipped. A $\sqcup$ means everything is gone, so accept.
 - **$q_1$ / $q_2$: find the opposite symbol.** $q_1$ runs right over `0`s and `X`s to the first `1`, writes $X$, and turns back in $q_3$; $q_2$ is the mirror image. Hitting $\sqcup$ first means the partner is missing, so reject.
 - **$q_3$: rewind.** Walk left over everything until the blank gap on the left, then step right into $q_0$ for the next sweep.
 
@@ -288,7 +288,7 @@ The run on `0110` is traced configuration by configuration, the scanned cell inv
   ]}
 />
 
-The invariant is that each completed loop removes exactly one `0` and one `1` (one rewritten to $\sqcup$ in $q_0$, its partner marked $X$ and then erased on the next sweep), so the consumed symbols always hold equally many `0`s and `1`s. Accepting requires a fully blank tape, which is reachable only when the counts matched; rejecting happens the instant $q_1$ or $q_2$ runs off the end with no partner. Every loop consumes two cells, so the remaining input strictly shrinks and the machine always halts.
+The invariant is that each completed loop removes exactly one `0` and one `1` (one rewritten to $\sqcup$ in $q_0$, its partner marked $X$ and then erased on the next sweep), so the consumed symbols always hold equally many `0`s and `1`s. Accepting requires a fully blank tape, which is reachable only when the counts matched. Rejecting happens the instant $q_1$ or $q_2$ runs off the end with no partner. Every loop consumes two cells, so the remaining input strictly shrinks and the machine always halts.
 
 *The tape converts an unbounded counting problem into a bookkeeping problem: remember progress by writing on the input.*
 
@@ -308,9 +308,9 @@ A TM can decide $P$ by repeatedly testing whether the current number of unmarked
 4. If an odd number greater than one was seen, reject.
 5. If an even number was seen, return to the left end and repeat on the unmarked zeros.
 
-Each non-halting pass divides the number of unmarked zeros by $2$. A positive integer eventually reaches $1$ exactly when it is a power of two; otherwise, some pass reaches an odd number greater than $1$ and rejects. Because the number of unmarked zeros strictly decreases after every non-halting pass, the machine always halts.
+Each non-halting pass divides the number of unmarked zeros by $2$. A positive integer eventually reaches $1$ exactly when it is a power of two. Otherwise, some pass reaches an odd number greater than $1$ and rejects. Because the number of unmarked zeros strictly decreases after every non-halting pass, the machine always halts.
 
-*Accepted: `0`, `00`, `0000`. Rejected: `000` and `000000`; halving six unmarked zeros leaves three, and the next pass sees an odd count greater than one, so it rejects.*
+Accepted: `0`, `00`, `0000`. Rejected: `000` and `000000`; halving six unmarked zeros leaves three, and the next pass sees an odd count greater than one, so it rejects.
 
 ---
 
@@ -324,8 +324,8 @@ This is not a theorem, because one side is informal. Its force comes from robust
 
 **Diophantine equation.** A polynomial equation with integer coefficients whose solutions are required to be integers.
 
-*For example, $3x^2-2xy-y^2z-7=0$ has the integer solution $x=1$, $y=2$, $z=-2$.*
+For example, $3x^2-2xy-y^2z-7=0$ has the integer solution $x=1$, $y=2$, $z=-2$.
 
-Hilbert's tenth problem asked for an algorithm deciding whether an arbitrary Diophantine equation has an integer solution. Once "algorithm" had a formal meaning, the problem could be answered precisely: Matiyasevich proved in 1970, building on work of Davis, Putnam, and Robinson, that no such algorithm exists.
+Hilbert's tenth problem asked for an algorithm deciding whether an arbitrary Diophantine equation has an integer solution. Once "algorithm" had a formal meaning, the problem could be answered precisely. Matiyasevich proved in 1970, building on work of Davis, Putnam, and Robinson, that no such algorithm exists.
 
-Turing machines therefore do two jobs at once. They show that simple finite programs with unbounded work tape can decide many non-regular languages, and they provide the language needed to prove that some computational problems have no algorithm at all.
+Turing machines therefore do two jobs at once. They show that simple finite programs with unbounded work tape can decide many non-regular languages. They also provide the language needed to prove that some computational problems have no algorithm at all.

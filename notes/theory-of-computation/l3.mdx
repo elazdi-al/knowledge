@@ -3,7 +3,7 @@ title: "Theory of Computation: Lecture 3"
 description: "Non-regular languages, the pigeonhole argument, the pumping lemma as an adversary game, closure-based reductions, and a regular surprise."
 tags: ["Theory of computation"]
 created: 2026-06-11
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## The Edge of Finite Memory
@@ -15,11 +15,13 @@ Every NFA has an equivalent DFA, so DFAs, NFAs, and all the closure construction
 - **Bounded position information.** Fixed prefixes, suffixes, or positions, such as strings whose second-to-last bit is `1`.
 - **Pattern shapes.** Languages like $0^*110^*=\{0^n110^m\mid n,m\ge 0\}$, and anything assembled from regular pieces by complement, union, intersection, and concatenation.
 
-The common thread is that finitely many states suffice to summarize everything relevant about the prefix read so far. The limit appears when a language needs exact unbounded memory: a finite automaton can count modulo a fixed number, but it cannot remember an arbitrary number exactly.
+The common thread is that finitely many states suffice to summarize everything relevant about the prefix read so far. The limit appears when a language needs exact unbounded memory. A finite automaton can count modulo a fixed number, but it cannot remember an arbitrary number exactly.
 
 **Non-regular language.** A language that no DFA, and equivalently no NFA, recognizes.
 
-Proving non-regularity is a statement about every machine at once. It is not enough that the language feels hard or that one design fails; the proof must show that every possible finite automaton is wrong somewhere. Three test languages calibrate where the boundary runs: $B$, the strings $0^n1^n$; $C$, the strings with as many `0`s as `1`s; and $D$, the strings with as many occurrences of `01` as of `10` as substrings. Which of the three are regular? The intuition "anything that counts is non-regular" misleads for exactly one of them.
+Proving non-regularity is a statement about every machine at once. It is not enough that the language feels hard or that one design fails. The proof must show that every possible finite automaton is wrong somewhere.
+
+Three test languages calibrate where the boundary runs: $B$, the strings $0^n1^n$; $C$, the strings with as many `0`s as `1`s; and $D$, the strings with as many occurrences of `01` as of `10` as substrings. Which of the three are regular? The intuition "anything that counts is non-regular" misleads for exactly one of them.
 
 ## The First Non-Regular Language
 
@@ -32,7 +34,7 @@ $$
 
 The number of `1` symbols must match exactly the number of earlier `0` symbols, and the number to remember is unbounded. That intuition becomes a proof through the pigeonhole principle: a DFA with $p$ states cannot keep $p+1$ different prefixes apart.
 
-**Theorem.** $B$ is not regular.
+**Theorem.** The language $B$ is not regular.
 
 **1. Assumption.** Suppose, for contradiction, that a DFA $M$ with $p$ states recognizes $B$.
 
@@ -42,9 +44,11 @@ The number of `1` symbols must match exactly the number of earlier `0` symbols, 
 
 **4. Contradiction.** Because $j>i$, the string $0^j1^i$ has more `0`s than `1`s, so it is not in $B$. Thus $M$ accepts a string outside $B$, contradicting $L(M)=B$.
 
+Since $M$ was an arbitrary DFA, no DFA recognizes $B$.
+
 *Once two different prefixes share a state, the machine has forgotten their difference forever, and no suffix can restore the lost information.*
 
-The argument never used anything specific to $B$ except at the very end. Long accepted strings force a repeated state, and the input read between the two visits can be repeated or removed freely. Packaging that observation once and for all gives the central tool of the lecture.
+The argument never used anything specific to $B$ except at the very end. Long accepted strings force a repeated state, and the input read between the two visits can be repeated or removed freely. Packaging that observation once and for all gives the central tool for proving non-regularity.
 
 ---
 
@@ -52,9 +56,9 @@ The argument never used anything specific to $B$ except at the very end. Long ac
 
 **Pumping lemma for regular languages.** If $A$ is regular, then there exists a number $p$, the pumping length, such that every string $s\in A$ with $|s|\ge p$ can be written as $s=xyz$ with:
 
-1. $xy^iz\in A$ for every $i\ge 0$,
-2. $|y|\ge 1$,
-3. $|xy|\le p$.
+1. the string $xy^iz$ is in $A$ for every $i\ge 0$,
+2. the string $y$ is nonempty ($|y|\ge 1$),
+3. the prefix $xy$ has length $|xy|\le p$.
 
 | Part | Meaning |
 |---|---|
@@ -65,7 +69,9 @@ The argument never used anything specific to $B$ except at the very end. Long ac
 
 With $i=0$ the loop is removed and the string becomes $xz$; with $i=2$ the loop is taken twice and the string becomes $xyyz$. A pumping length is not unique: if $p$ works, any larger number works. And if $A$ is finite, the lemma holds vacuously, because choosing $p$ longer than every string in $A$ leaves no string with $|s|\ge p$.
 
-**Proof.** Choose a DFA $M=(Q,\Sigma,\delta,q_0,F)$ with $L(M)=A$ and let $p=|Q|$. Take any $s\in A$ with $|s|\ge p$. Reading the first $p$ symbols visits $p+1$ state positions, the start state plus one per symbol, so some state $q$ repeats; say its first two visits happen at times $j<k\le p$. Split $s$ into $x$, the first $j$ symbols, $y$, the symbols from $j+1$ through $k$, and $z$, the rest. Then $y$ is nonempty and $|xy|=k\le p$, and the accepting run has the shape
+*The pumping lemma is the pigeonhole principle applied to a DFA run, stated once so that each non-regularity proof does not have to reopen the machine.*
+
+**Proof.** Choose a DFA $M=(Q,\Sigma,\delta,q_0,F)$ with $L(M)=A$ and let $p=|Q|$. Take any $s\in A$ with $|s|\ge p$. Reading the first $p$ symbols visits $p+1$ state positions, the start state plus one per symbol, so some state $q$ repeats, say at times $j<k\le p$. Split $s$ into $x$, the first $j$ symbols, $y$, the symbols from $j+1$ through $k$, and $z$, the rest. Then $y$ is nonempty and $|xy|=k\le p$, and the accepting run has the shape
 
 $$
 q_0 \xrightarrow{\;x\;} q
@@ -83,11 +89,13 @@ $$
 
 so $xy^iz\in A$ for every $i\ge 0$.
 
-*The pumping lemma is the pigeonhole principle applied to a DFA run, stated once so that each non-regularity proof does not have to reopen the machine.*
+This split meets all three conditions, and $s$ was an arbitrary string of $A$ with $|s|\ge p$, so $p=|Q|$ is a pumping length.
 
 ## Proving Non-Regularity
 
 The lemma gives a necessary condition for regularity, so it is used by contradiction: exhibit a string that cannot be pumped. The proof is best played as a game against an adversary who defends the (impossible) DFA.
+
+**Common mistake.** A language that satisfies the pumping lemma is regular. The lemma states only a necessary condition, and some non-regular languages satisfy it. Pumping can prove non-regularity, never regularity.
 
 **Recipe: non-regularity via the pumping lemma.**
 
@@ -101,7 +109,9 @@ The lemma gives a necessary condition for regularity, so it is used by contradic
 
 **Example 1. The copy language.**
 
-*Let $F=\{ww\mid w\in\{0,1\}^*\}$: strings made by writing the same string twice. In $F$: $\epsilon$, `00`, `0101`, `001001`. Not in $F$: `01`, `001`, `0110`.*
+Let $F=\{ww\mid w\in\{0,1\}^*\}$: strings made by writing the same string twice. In $F$: $\epsilon$, `00`, `0101`, `001001`. Not in $F$: `01`, `001`, `0110`.
+
+*Choose a witness that forces every legal $y$ into the first zero block, so pumping damages only the first copy.*
 
 Assume $F$ is regular with pumping length $p$, and pick the witness
 
@@ -115,13 +125,13 @@ $$
 xy^2z=0^{p+k}1^p0^p1^p.
 $$
 
-If $k$ is odd, the length is odd and the string cannot be $ww$. If $k=2h$ is even, the midpoint moves into the first block of `1`s, so the first half starts with `0` and the second half starts with `1`, and the halves differ. Either way $xy^2z\notin F$, contradiction: $F$ is not regular.
-
-The witness did the work. Choosing $s=0^p1^p0^p1^p$ forces every legal $y$ into the first zero block, so pumping damages only the first copy.
+If $k$ is odd, the length is odd and the string cannot be $ww$. If $k=2h$ is even, the midpoint moves into the first block of `1`s, so the first half starts with `0` and the second half starts with `1`. The halves therefore differ. Either way $xy^2z\notin F$, contradiction: $F$ is not regular.
 
 **Example 2. More zeros than ones.**
 
-*Let $E=\{0^m1^n\mid m>n\}$.*
+Let $E=\{0^m1^n\mid m>n\}$.
+
+*A witness with exactly one spare zero breaks when $y$ is removed.*
 
 Assume $E$ is regular with pumping length $p$, and pick $s=0^{p+1}1^p\in E$. Every legal split has $y=0^k$ with $k>0$. Pumping up only adds zeros and stays in $E$; the contradiction comes from pumping down with $i=0$:
 
@@ -133,9 +143,9 @@ Since $k\ge 1$, the string has at most $p$ zeros against $p$ ones, so $xz\notin 
 
 **Example 3. Equal zeros and ones.**
 
-*Let $C=\{w\in\{0,1\}^*\mid w\text{ has as many }0\text{s as }1\text{s}\}$.*
+Let $C=\{w\in\{0,1\}^*\mid w\text{ has as many }0\text{s as }1\text{s}\}$.
 
-A first witness attempt fails instructively. The string $s=(01)^p$ is in $C$ and long enough, but the adversary answers with the split $x=\epsilon$, $y=01$: then $xy^iz=(01)^{p+i-1}$ stays in $C$ for every $i$, and that single surviving split destroys the whole attempt. A witness must lose to no split.
+A first witness attempt fails instructively. The string $s=(01)^p$ is in $C$ and long enough, but the adversary answers with the split $x=\epsilon$ and $y=01$. Then $xy^iz=(01)^{p+i-1}$ stays in $C$ for every $i$, and that single surviving split destroys the whole attempt. A witness must lose to no split.
 
 Pick instead $s=0^p1^p$. Now every legal split has $y=0^k$ with $k>0$, and pumping up gives
 
@@ -143,13 +153,13 @@ $$
 xy^2z=0^{p+k}1^p\notin C.
 $$
 
-Contradiction: $C$ is not regular.
+Every legal split fails at $i=2$, so $C$ is not regular.
 
 ## Non-Regularity by Closure
 
 Knowing one non-regular language unlocks others without touching the pumping lemma again: reduce the new language to a known one through closure operations.
 
-Containment alone proves nothing. $B\subseteq C$ and $B$ non-regular does not make $C$ non-regular, just as $B\subseteq\{0,1\}^*$ does not make $\{0,1\}^*$ non-regular. The operation must transform the whole language, and intersection with a regular filter is the workhorse.
+Containment alone proves nothing. A non-regular subset $B\subseteq C$ does not make $C$ non-regular, just as $B\subseteq\{0,1\}^*$ does not make $\{0,1\}^*$ non-regular. The operation must transform the whole language, and intersection with a regular filter is the workhorse.
 
 **Recipe: non-regularity by closure reduction.**
 
@@ -230,6 +240,6 @@ The accepting states $q_0$, $q_1$, $q_2$ are exactly the cases where the string 
 </Pane>
 </Split>
 
-*Accepted: $\epsilon$, `0`, `1`, `00`, `11`, `010`, `101`. Rejected: `01`, `10`, `001`, `110`.*
+Accepted: $\epsilon$, `0`, `1`, `00`, `11`, `010`, `101`. Rejected: `01`, `10`, `001`, `110`.
 
-$D$ looks like it compares two unbounded counts, but the difference between the counts is fully determined by the first and last symbols, and that is two bits of memory. Regularity is about how much information must be carried, not about how the language is phrased; whenever a counting language is regular, some bounded quantity secretly carries the count. Past this boundary lies computation with unbounded memory, Turing machines, where both the powers and the limits change shape.
+The language $D$ looks like it compares two unbounded counts, but the difference between the counts is fully determined by the first and last symbols. Those two symbols are two bits of memory. Regularity is about how much information must be carried, not about how the language is phrased. Whenever a counting language is regular, some bounded quantity secretly carries the count. Past this boundary lies computation with unbounded memory, Turing machines, where both the powers and the limits change shape.

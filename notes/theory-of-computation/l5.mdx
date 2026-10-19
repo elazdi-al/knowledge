@@ -3,7 +3,7 @@ title: "Theory of Computation: Lecture 5"
 description: "Encoded decision problems, decidability of DFA emptiness and equivalence, diagonalization, HALT and ATM, and the boundary between decidable, recognizable, and unrecognizable languages."
 tags: ["Theory of computation"]
 created: 2026-06-16
-updated: 2026-06-16
+updated: 2026-10-14
 ---
 
 ## Encoded Decision Problems
@@ -126,13 +126,13 @@ $$
 L(D)=L(D')\quad\Longleftrightarrow\quad L(D)\oplus L(D')=\varnothing.
 $$
 
-Regular languages are closed under complement, union, and intersection, so $L(D)\oplus L(D')$ is regular. More concretely, for $D=(Q,\Sigma,\delta,q_0,F)$ and $D'=(Q',\Sigma,\delta',q_0',F')$ the product construction from Lecture 1 builds a DFA $D^\oplus$ with states $Q\times Q'$, start state $(q_0,q_0')$, and transition $\delta^\oplus((q,q'),a)=(\delta(q,a),\delta'(q',a))$. Only the accepting set is new, the disagreement pairs where exactly one side accepts:
+Regular languages are closed under complement, union, and intersection, so $L(D)\oplus L(D')$ is regular. More concretely, for $D=(Q,\Sigma,\delta,q_0,F)$ and $D'=(Q',\Sigma,\delta',q_0',F')$ the product construction builds a DFA $D^\oplus$ with states $Q\times Q'$, start state $(q_0,q_0')$, and transition $\delta^\oplus((q,q'),a)=(\delta(q,a),\delta'(q',a))$. Only the accepting set is new, the disagreement pairs where exactly one side accepts:
 
 $$
 \big(F\times(Q'\setminus F')\big)\cup\big((Q\setminus F)\times F'\big).
 $$
 
-*If $D$ accepts the strings ending in `0` and $D'$ accepts the even-length strings, then `0` lies in their symmetric difference, so a disagreement pair is reachable and the two DFAs are not equivalent.*
+Suppose $D$ accepts the strings ending in `0` and $D'$ accepts the even-length strings. Then `0` lies in their symmetric difference, so a disagreement pair is reachable and the two DFAs are not equivalent.
 
 **Recipe: deciding $EQ_{\mathrm{DFA}}$.**
 
@@ -149,15 +149,15 @@ $$
 
 Decidable languages are not all languages. The reason is already visible at the level of size: there are only countably many machines but uncountably many languages.
 
-**Bijection.** A function that is both injective and surjective. It pairs the elements of two sets with no duplicates and no omissions.
+**Bijection.** A function that is both injective and surjective. It pairs the elements of two sets with no duplicates and no omissions (not a bijection from $\mathbb{N}$ to $\mathbb{N}$: $n\mapsto 2n$ omits the odd numbers).
 
-**Countable set.** A set that is finite or can be listed as $a_1,a_2,a_3,\ldots$. Equivalently, it has a bijection with $\mathbb{N}$.
+**Countable set.** A set that is finite or can be listed as $a_1,a_2,a_3,\ldots$. Equivalently, it is finite or has a bijection with $\mathbb{N}$.
 
 *The even numbers are countable by $n\mapsto 2n$. The positive rationals are countable by listing them in a grid and skipping duplicates.*
 
 **Diagonalization.** A proof method that assumes a complete list and constructs an object that differs from the $i$-th listed object at position $i$. The constructed object cannot appear anywhere in the list.
 
-Cantor's diagonal argument shows that the real numbers are uncountable: given a supposed list of decimal expansions, choose a new number whose $i$-th digit differs from the $i$-th digit of the $i$-th listed real.
+Cantor's diagonal argument shows that the real numbers are uncountable. Given a supposed list of decimal expansions, it chooses a new number whose $i$-th digit differs from the $i$-th digit of the $i$-th listed real.
 
 The same idea applies to languages. Fix an order
 
@@ -165,13 +165,13 @@ $$
 \Sigma^*=\{s_1,s_2,s_3,\ldots\}.
 $$
 
-Every language $L\subseteq\Sigma^*$ has a characteristic sequence $\chi_L\in\{0,1\}^{\mathbb{N}}$, where the $i$-th bit is $1$ iff $s_i\in L$. The same diagonal argument makes these sequences uncountable: given any list of them, flip the $i$-th bit of the $i$-th sequence to get one that is missing. So the set of all languages is uncountable.
+Every language $L\subseteq\Sigma^*$ has a characteristic sequence $\chi_L\in\{0,1\}^{\mathbb{N}}$, where the $i$-th bit is $1$ iff $s_i\in L$. The same diagonal argument makes these sequences uncountable. Given any list of them, flipping the $i$-th bit of the $i$-th sequence gives one that is missing. So the set of all languages is uncountable.
 
 Turing machines are countable because every machine has a finite encoding, and all finite strings can be listed by length. Since each TM recognizes at most one language, some languages are not Turing-recognizable.
 
 *There are more yes/no string problems than there are programs.*
 
-**Diagonal language.** List $\Sigma^*$ by length and read each string as a Turing machine, treating any string that is not a valid encoding as a fixed machine that rejects everything. This enumerates all Turing machines as $M_1,M_2,M_3,\ldots$, and every machine appears as some $M_i$.
+**Diagonal language.** List $\Sigma^*$ by length and read each string as a Turing machine. Any string that is not a valid encoding is read as a fixed machine that rejects everything. This enumerates all Turing machines as $M_1,M_2,M_3,\ldots$, and every machine appears as some $M_i$.
 
 Tabulate how each machine behaves on each encoding: write **A** when it accepts, **R** when it rejects, and $\infty$ when it loops forever. Row $i$ records $M_i$ and column $j$ uses the input $\langle M_j\rangle$, so the entry in row $i$, column $j$ is the outcome of running $M_i$ on $\langle M_j\rangle$.
 
@@ -191,14 +191,16 @@ $$
 
 where "does not accept" covers both rejecting and looping. So $\mathrm{DIAG}$ collects exactly the encodings whose diagonal entry is **not** A, the **R** and $\infty$ cases. Reading the diagonal above:
 
-- $M_1$ accepts $\langle M_1\rangle$ (A), so $\langle M_1\rangle\notin\mathrm{DIAG}$.
-- $M_2$ loops on $\langle M_2\rangle$ ($\infty$), so $\langle M_2\rangle\in\mathrm{DIAG}$.
-- $M_3$ rejects $\langle M_3\rangle$ (R), so $\langle M_3\rangle\in\mathrm{DIAG}$.
-- $M_4$ accepts $\langle M_4\rangle$ (A), so $\langle M_4\rangle\notin\mathrm{DIAG}$.
+- Machine $M_1$ accepts $\langle M_1\rangle$ (A), so $\langle M_1\rangle\notin\mathrm{DIAG}$.
+- Machine $M_2$ loops on $\langle M_2\rangle$ ($\infty$), so $\langle M_2\rangle\in\mathrm{DIAG}$.
+- Machine $M_3$ rejects $\langle M_3\rangle$ (R), so $\langle M_3\rangle\in\mathrm{DIAG}$.
+- Machine $M_4$ accepts $\langle M_4\rangle$ (A), so $\langle M_4\rangle\notin\mathrm{DIAG}$.
 
-Equivalently, $\mathrm{DIAG}$ is the *complement of the diagonal*: for every $i$ it is built to disagree with $M_i$ at the single input $\langle M_i\rangle$, turning accept into non-membership and reject-or-loop into membership.
+Equivalently, $\mathrm{DIAG}$ is the *complement of the diagonal*. For every $i$ it is built to disagree with $M_i$ at the single input $\langle M_i\rangle$, turning accept into non-membership and reject-or-loop into membership.
 
 **Theorem: $\mathrm{DIAG}$ is undecidable.**
+
+*The impossible machine would have to answer the opposite of its own answer on its own encoding.*
 
 **1. Assumption.** Suppose some TM $M$ decides $\mathrm{DIAG}$.
 
@@ -210,9 +212,7 @@ If $\langle M_i\rangle\in L(M_i)$, then $\langle M_i\rangle\in\mathrm{DIAG}$, so
 
 If $\langle M_i\rangle\notin L(M_i)$, then $M_i$ does not accept $\langle M_i\rangle$, so $\langle M_i\rangle\in\mathrm{DIAG}=L(M_i)$, contradiction.
 
-**4. Conclusion.** No decider for $\mathrm{DIAG}$ exists.
-
-*The impossible machine would have to answer the opposite of its own answer on its own encoding.*
+**4. Conclusion.** Both cases contradict the assumption, so no decider for $\mathrm{DIAG}$ exists.
 
 ---
 
@@ -241,15 +241,19 @@ If $M$ loops on $w$, this recognizer also loops. That is why it recognizes $\mat
 
 **Theorem: $\mathrm{HALT}$ is undecidable.**
 
+*A decider for $\mathrm{HALT}$ tells when simulating $M$ on $\langle M\rangle$ is safe, which is enough to decide $\mathrm{DIAG}$.*
+
 Assume, for contradiction, that $H$ decides $\mathrm{HALT}$. Build a decider $D$ for $\mathrm{DIAG}$:
 
 1. On input $\langle M\rangle$, run $H$ on $\langle M,\langle M\rangle\rangle$.
 2. If $H$ rejects, then $M$ loops on $\langle M\rangle$, so $M$ does not accept $\langle M\rangle$; accept.
 3. If $H$ accepts, simulate $M$ on $\langle M\rangle$ until it halts. If $M$ accepts, reject; if $M$ rejects, accept.
 
-$D$ halts on every input because $H$ halts, and in the third case $H$ has certified that the simulation of $M$ will halt. Moreover, $D$ accepts exactly the machines that do not accept their own encoding. Therefore $D$ decides $\mathrm{DIAG}$, contradiction.
+The machine $D$ halts on every input because $H$ halts, and in the third case $H$ has certified that the simulation of $M$ will halt. Moreover, $D$ accepts exactly the machines that do not accept their own encoding. Therefore $D$ decides $\mathrm{DIAG}$, contradiction.
 
 *The hard part is not noticing when a machine halts. It is proving in finite time that it never will.*
+
+**Common mistake.** Undecidability of $\mathrm{HALT}$ does not mean that some particular pair $\langle M,w\rangle$ can never be settled. Each pair has a fixed answer, and a machine that always outputs that answer decides the one-pair question. What does not exist is one TM that answers correctly on every pair.
 
 **Acceptance problem.**
 
@@ -258,6 +262,8 @@ A_{\mathrm{TM}}=\{\langle M,w\rangle\mid M\text{ is a TM and }M\text{ accepts }w
 $$
 
 **Theorem: $A_{\mathrm{TM}}$ is undecidable.**
+
+*On inputs $\langle M,\langle M\rangle\rangle$, membership in $A_{\mathrm{TM}}$ is the opposite of membership of $\langle M\rangle$ in $\mathrm{DIAG}$.*
 
 Assume, for contradiction, that $H_A$ decides $A_{\mathrm{TM}}$. Build a decider $D$ for $\mathrm{DIAG}$: on input $\langle M\rangle$, run $H_A$ on $\langle M,\langle M\rangle\rangle$ and output the opposite answer. Then $D$ always halts because $H_A$ does, and $D$ accepts $\langle M\rangle$ exactly when $M$ does not accept $\langle M\rangle$, which is exactly $\langle M\rangle\in\mathrm{DIAG}$. So $D$ decides $\mathrm{DIAG}$, contradiction.
 
@@ -278,6 +284,8 @@ The halting problem separates recognizability from decidability: $\mathrm{HALT}$
 
 **Complement recognizability theorem.** A language $L$ is decidable if and only if both $L$ and $\overline{L}$ are recognizable.
 
+*Every input lies in exactly one of $L$ and $\overline{L}$, so running both recognizers together always produces an answer.*
+
 **1. Decidable to recognizable.** If $L$ is decidable, its decider recognizes $L$. Swapping accept and reject gives a decider, hence a recognizer, for $\overline{L}$.
 
 **2. Recognizable complements to decidable.** Suppose $M_1$ recognizes $L$ and $M_2$ recognizes $\overline{L}$. Construct a machine $M$:
@@ -292,7 +300,7 @@ For every $w$, either $w\in L$ or $w\in\overline{L}$. Therefore one of the two r
 
 **Corollary.** $\overline{\mathrm{HALT}}$ is not recognizable.
 
-$\mathrm{HALT}$ is recognizable but undecidable. If $\overline{\mathrm{HALT}}$ were recognizable too, the complement recognizability theorem would imply that $\mathrm{HALT}$ is decidable, contradiction.
+The language $\mathrm{HALT}$ is recognizable but undecidable. If $\overline{\mathrm{HALT}}$ were recognizable too, the complement recognizability theorem would imply that $\mathrm{HALT}$ is decidable, contradiction.
 
 <LanguageClasses
   caption="Known containment after HALT: regular languages are decidable, HALT is recognizable but not decidable, and complement HALT is not recognizable."

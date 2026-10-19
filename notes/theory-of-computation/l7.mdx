@@ -3,7 +3,7 @@ title: "Theory of Computation: Lecture 7"
 description: "Worst-case time complexity, asymptotic notation, TIME and P, polynomial-time verification, NP, nondeterministic polynomial time, and the P versus NP question."
 tags: ["Theory of computation"]
 created: 2026-06-26
-updated: 2026-06-26
+updated: 2026-10-14
 ---
 
 ## Worst-Case Time
@@ -51,7 +51,7 @@ Big-O means "eventually no more than a constant multiple." Small-o means "eventu
 
 **Example 1. Common comparisons.**
 
-*$5n^3+1=O(2^n)$ because exponentials eventually dominate polynomials. But $5n^3+1\ne O(20n+5)$ because the ratio grows like $n^2/4$. Also $\sqrt n=o(n)$, while an eventually positive function never satisfies $f(n)=o(f(n))$.*
+We have $5n^3+1=O(2^n)$ because exponentials eventually dominate polynomials. But $5n^3+1\ne O(20n+5)$ because the ratio grows like $n^2/4$. Also $\sqrt n=o(n)$, while an eventually positive function never satisfies $f(n)=o(f(n))$.
 
 **Time complexity class.** For a time bound $t(n)$,
 
@@ -89,13 +89,13 @@ $$
 
 **Example 2. Languages in $P$.**
 
-*The language of sorted integer arrays is in $P$: scan adjacent entries and reject at the first inversion. The graph path language*
+The language of sorted integer arrays is in $P$: scan adjacent entries and reject at the first inversion. The graph path language
 
 $$
 \{\langle G,s,t\rangle\mid s\text{ and }t\text{ are connected in }G\}
 $$
 
-*is in $P$ by breadth-first search. The language of connected graphs is in $P$ by running one graph search from an arbitrary vertex and checking whether every vertex is reached.*
+is in $P$ by breadth-first search. The language of connected graphs is in $P$ by running one graph search from an arbitrary vertex and checking whether every vertex is reached.
 
 ---
 
@@ -109,7 +109,7 @@ Many decision problems have a useful split between finding a solution and checki
 
 <VerifierSchema />
 
-**Conjunctive normal form (CNF).** A Boolean formula in CNF is an AND of clauses, where each clause is an OR of literals, and each literal is a variable or its negation.
+**Conjunctive normal form (CNF).** A Boolean formula in CNF is an AND of clauses, where each clause is an OR of literals. A literal is a variable or its negation (not CNF: $x\vee(y\wedge z)$, since $y\wedge z$ is not a literal).
 
 **Satisfying assignment.** A Boolean assignment to the variables of a formula $\varphi$ that makes $\varphi$ true.
 
@@ -143,13 +143,13 @@ A brute-force decider for SAT tries every truth assignment and runs the verifier
 
 **Example 3. SAT certificate.**
 
-*For*
+For
 
 $$
 \varphi=(x\vee y\vee z)\wedge(\neg x\vee \neg y)\wedge(x\vee \neg z),
 $$
 
-*the assignment $x=\mathrm{true}$, $y=\mathrm{false}$, $z=\mathrm{true}$ is a certificate: each clause has at least one true literal.*
+the assignment $x=\mathrm{true}$, $y=\mathrm{false}$, $z=\mathrm{true}$ is a certificate: each clause has at least one true literal.
 
 Graph problems show the same pattern with certificates that are mappings or subsets.
 
@@ -237,6 +237,8 @@ For $x\notin L$, no certificate of the allowed length can make $V$ accept.
 
 *NP means yes-instances have short certificates that can be checked quickly.*
 
+**Common mistake.** NP does not mean "not polynomial-time". It stands for nondeterministic polynomial time, and every language in $P$ is also in $NP$.
+
 | Model | Input | Yes-instance condition | No-instance condition |
 |---|---|---|---|
 | Decider | $x$ | accepts $x$ | rejects $x$ |
@@ -273,10 +275,14 @@ One input may therefore generate a tree of computations rather than a single run
 
 **Theorem.** A language has a polynomial-time verifier if and only if it has a polynomial-time nondeterministic decider.
 
+*A certificate is the record of the choices along one accepting branch.*
+
 **Proof sketch.**
 
 1. **Verifier to NTM.** On input $x$, nondeterministically write a certificate $C$ of polynomial length, then run the verifier on $\langle x,C\rangle$. If a valid certificate exists, one branch accepts. If no valid certificate exists, every branch rejects.
 2. **NTM to verifier.** Let $C$ encode the sequence of nondeterministic choices along one computation branch. The verifier simulates the NTM on $x$, following the choices in $C$, and accepts exactly when that branch accepts.
+
+Both constructions run in polynomial time because certificates and branches have polynomial length, so the two definitions describe the same languages.
 
 **Nondeterministic time class.**
 

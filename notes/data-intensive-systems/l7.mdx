@@ -3,7 +3,7 @@ title: "Data Intensive Systems: Lecture 7"
 description: "Query processing with relational operators: physical plans, iterator and materialization models, access paths, selections, projections, and join algorithm costs."
 tags: ["Data intensive systems"]
 created: 2026-06-10
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## Physical Query Plans
@@ -14,7 +14,7 @@ A SQL query is not executed directly. The DBMS first parses and rewrites it into
 
 - **Processing model.** The scheduling rule for moving tuples between operators.
 - **Operator implementation.** The concrete algorithm for an algebra operator, such as nested loops join or hash join.
-- **Access path.** The method used to reach base data, such as a file scan, an index lookup, or a multi-index RID lookup.
+- **Access path.** The method used to reach base data, such as a sequential scan, an index scan, or a multi-index scan.
 
 <QueryProcessingFlow />
 
@@ -52,7 +52,7 @@ The tree fixes the logical shape:
 It does not yet decide the physical choices:
 
 - **Join algorithm.** Nested loops, hash join, or sort-merge join.
-- **Access path for `S`.** Scan, index lookup, or multi-index lookup.
+- **Access path for `S`.** Sequential scan, index scan, or multi-index scan.
 - **Processing model.** Iterator, materialization, push, or pull execution.
 
 </Pane>
@@ -109,7 +109,7 @@ Select.Next():
 
 The important cost property is not the order of these operators, but the size of the intermediate state. Iterator execution does not store a full result at each edge. It stores only enough local state to resume: scan positions, a predicate cursor, pending join matches, or a hash table for a blocking build phase.
 
-Once the hash table has been built, the probe side can stream. A qualifying tuple can move upward immediately instead of first being written into a full intermediate relation. This saves memory and avoids spill I/O when the intermediate result would be large, but it adds per-tuple function-call overhead because every output row travels through repeated `Next()` calls.
+Once the hash table has been built, the probe side can stream. A qualifying tuple can move upward immediately instead of first being written into a full intermediate relation. This saves memory and avoids spill I/O when the intermediate result would be large. But it adds per-tuple function-call overhead because every output row travels through repeated `Next()` calls.
 
 Some operators are **blocking**. A sort must usually see all input before it can return the first sorted tuple. A hash join must build its hash table before probing it. Blocking operators break a pipeline into stages, even inside an iterator engine.
 
@@ -173,7 +173,7 @@ Pull execution gives precise output control. It is natural for `LIMIT`, cursors,
 3. Each operator processes the tuple and pushes resulting tuples upward.
 4. Work continues until sources are exhausted or a parent stops accepting input.
 
-Push execution can keep data in CPU caches and registers more effectively, especially in compiled or vectorized pipelines. It is also more flexible for dynamic re-optimization because runtime information appears as data flows upward. Its challenge is control: if a child produces many tuples, the parent must absorb them, buffer them, or stop the producer; blocking operators such as sort and hash build phases still require special handling.
+Push execution can keep data in CPU caches and registers more effectively, especially in compiled or vectorized pipelines. It is also more flexible for dynamic re-optimization because runtime information appears as data flows upward. Its challenge is control: if a child produces many tuples, the parent must absorb them, buffer them, or stop the producer. Blocking operators such as sort and hash build phases still require special handling.
 
 The purpose of these choices is not to change the query answer. They change when work happens, how much intermediate data exists, and where the CPU overhead appears. Iterator/pull execution favors streaming and output control. Materialization favors simple batches. Push execution favors tight pipelines but needs more careful flow control.
 
@@ -185,7 +185,7 @@ Logically, selection $\sigma$ keeps the rows satisfying a predicate; physically,
 
 **Selectivity.** The fraction of tuples expected to satisfy a predicate. If relation $R$ has $M$ pages and selectivity $s$, the result size is roughly $sM$ pages when matching tuples are clustered.
 
-Selectivity is also called the **reduction factor**. It is estimated from statistics, and it drives the physical choice: a predicate that returns 0.1% of a relation should usually use an index, while a predicate that returns most pages may be cheaper as a scan.
+Selectivity is also called the **reduction factor**. It is estimated from statistics. It drives the physical choice: a predicate that returns 0.1% of a relation should usually use an index, while a predicate that returns most pages may be cheaper as a scan.
 
 **Sequential scan.** Read the entire relation page by page. The cost is $M$ page reads. This is the fallback access path: it is always available, and it is often reasonable when many tuples qualify.
 
@@ -199,13 +199,13 @@ For a simple selection, the common cases are:
 - **No index, sorted file.** Binary-search to the first matching page, then scan matching pages. Cost: search cost plus selected pages.
 - **Index on the selection attribute.** Use the index to find qualifying data entries, then retrieve records.
 
-With `Reserves` at 1000 pages, the unsorted scan costs 1000 I/Os. If the file is sorted on `rname`, a range such as `rname < 'C%'` costs roughly a binary search plus the matching pages, for example about 10 I/Os plus `selectivity * 1000` pages.
+With `Reserves` at 1000 pages, the unsorted scan costs 1000 I/Os. If the file is sorted on `rname`, a range such as `rname < 'C%'` costs roughly a binary search plus the matching pages. Here that is about 10 I/Os plus `selectivity * 1000` pages.
 
-For an index scan, clustering decides the data-read cost: a clustered index reads about as many pages as hold matches, while an unclustered index may read close to one page per matching tuple, since each RID can lead somewhere else.
+For an index scan, clustering decides the data-read cost. A clustered index reads about as many pages as hold matches. An unclustered index may read close to one page per matching tuple, since each RID can lead somewhere else.
 
 **Example 1. Clustered and unclustered index cost.**
 
-*Suppose `Reserves` has $100{,}000$ tuples in $1000$ pages, and 10% of tuples satisfy `rname < 'C%'`. The qualifying tuples occupy about $100$ pages if the index is clustered, so the data-read cost is a little over $100$ I/Os. With an unclustered index, the $10{,}000$ qualifying tuples may live on unrelated pages, so the worst case is close to $10{,}000$ data-page reads.*
+Suppose `Reserves` has $100{,}000$ tuples in $1000$ pages, and 10% of tuples satisfy `rname < 'C%'`. The qualifying tuples occupy about $100$ pages if the index is clustered, so the data-read cost is a little over $100$ I/Os. With an unclustered index, the $10{,}000$ qualifying tuples may live on unrelated pages, so the worst case is close to $10{,}000$ data-page reads.
 
 **RID sorting for an unclustered index.** An optimization that turns many scattered record fetches into fewer page fetches by grouping RIDs by page id.
 
@@ -215,7 +215,7 @@ The process is:
 2. **Sort RIDs by page id.** Group RIDs that refer to the same data page.
 3. **Fetch pages in order.** Read each data page once and retrieve all matching tuples on that page.
 
-Without RID sorting, six matching tuples might cause repeated reads such as `P1, P3, P1, P5, P3, P1`, which reads `P1` three times and `P3` twice. With RID sorting, the DBMS reads `P1`, `P3`, and `P5` once each.
+Without RID sorting, six matching tuples might cause repeated reads such as `P1, P3, P1, P5, P3, P1`. This sequence reads `P1` three times and `P3` twice. With RID sorting, the DBMS reads `P1`, `P3`, and `P5` once each.
 
 General selections combine predicates. The optimizer wants a form where index results can be combined cleanly. `AND` corresponds to **intersection** of RID sets. `OR` corresponds to **union** of RID sets.
 
@@ -250,13 +250,13 @@ The first method uses one access path and CPU filtering. The second lets both in
 
 For `(day < '8/9/94' AND rname = 'Paul') OR bid = 5 OR sid = 3`, the top-level connective is `OR`. The DBMS cannot simply use the `day` index, because tuples with `bid = 5` or `sid = 3` may fail the `day` predicate and still belong in the answer. The fix is to rewrite the condition so `AND` is on top.
 
-**Conjunctive normal form (CNF).** A predicate written as an `AND` of clauses: `C1 AND C2 AND ... AND Ck`. Each clause `Ci` is an `OR` of smaller terms, such as `ai1 OR ai2 OR ...`.
+**Conjunctive normal form (CNF).** A predicate written as an `AND` of clauses: `C1 AND C2 AND ... AND Ck`. Each clause `Ci` is an `OR` of smaller terms, such as `ai1 OR ai2 OR ...`. The predicate `(A AND B) OR C` is not in CNF, since its top-level connective is `OR`.
 
 Within one CNF clause, `OR` means union of matching RID sets. Between clauses, `AND` means intersection.
 
 **Example 2. Rewriting an OR-heavy predicate.**
 
-*Let $A$ be `day < 8/9/94`, $B$ be `rname = 'Paul'`, $C$ be `bid = 5`, and $D$ be `sid = 3`. The predicate `(A AND B) OR C OR D` has `OR` at the top, so using just one index can miss tuples that match a different branch. Distributing `OR` over `AND` gives `(A OR C OR D) AND (B OR C OR D)`.*
+Let $A$ be `day < 8/9/94`, $B$ be `rname = 'Paul'`, $C$ be `bid = 5`, and $D$ be `sid = 3`. The predicate `(A AND B) OR C OR D` has `OR` at the top, so using just one index can miss tuples that match a different branch. Distributing `OR` over `AND` gives `(A OR C OR D) AND (B OR C OR D)`.
 
 The DBMS executes the CNF form by RID-set operations:
 
@@ -296,9 +296,9 @@ Let $M$ be the number of pages in the original relation, $T$ the number of pages
 
 **Example 3. Projection by ordinary sorting.**
 
-*If `Reserves` has $M=1000$ pages, the projected columns occupy $T=250$ pages, and sorting takes $P=2$ passes, the four terms are 1000, 250, 1000, and 250 I/Os. The total is 2500 I/Os, ignoring the final write of the query result.*
+If `Reserves` has $M=1000$ pages, the projected columns occupy $T=250$ pages, and sorting takes $P=2$ passes, the four terms are 1000, 250, 1000, and 250 I/Os. The total is 2500 I/Os, ignoring the final write of the query result.
 
-The sort can be specialized for projection. During pass 0, the DBMS reads the original relation, drops unwanted columns, sorts each in-memory run on the projected attributes, and writes only the projected runs. During merge, duplicates are removed as soon as equal projected tuples become adjacent. With enough buffers for a two-pass sort, the cost becomes
+The sort can be specialized for projection. During pass 0, the DBMS reads the original relation and drops unwanted columns. It sorts each in-memory run on the projected attributes and writes only the projected runs. During merge, duplicates are removed as soon as equal projected tuples become adjacent. With enough buffers for a two-pass sort, the cost becomes
 
 $$
 M + 2T.
@@ -326,7 +326,7 @@ Sort-based projection is the standard choice when the output order is useful for
 
 ## Joins
 
-Selections and projections are unary; a join $\bowtie$ reads two inputs, so the algorithm choice matters far more. A multiway join is usually executed as a sequence of pairwise joins, $R \bowtie S \bowtie T$ as $(R \bowtie S) \bowtie T$. Executing the definition literally, a cross product followed by a selection, is hopeless at scale because the intermediate product is enormous; physical join algorithms exist to avoid forming pairs that cannot match.
+Selections and projections are unary; a join $\bowtie$ reads two inputs, so the algorithm choice matters far more. A multiway join is usually executed as a sequence of pairwise joins, $R \bowtie S \bowtie T$ as $(R \bowtie S) \bowtie T$. Executing the definition literally, a cross product followed by a selection, is hopeless at scale because the intermediate product is enormous. Physical join algorithms exist to avoid forming pairs that cannot match.
 
 Assume relation $R$ has $M$ pages and $p_R$ tuples per page. Relation $S$ has $N$ pages and $p_S$ tuples per page. This cost model counts reads and ignores CPU cost and the cost of writing the output.
 
@@ -342,7 +342,7 @@ The outer relation is scanned once. Then, for every outer tuple, the inner relat
 
 **Example 4. Tuple-oriented nested loops.**
 
-*Let `Reserves` be $R$ with $M=1000$ pages and $p_R=100$, and let `Sailors` be $S$ with $N=500$ pages and $p_S=80$. With `Reserves` outer, the cost is 50,001,000 I/Os, about 139 hours at 10 ms per I/O. With `Sailors` outer, the cost is 40,000,500 I/Os, about 111 hours. The inner/outer choice matters even for the simplest algorithm.*
+Let `Reserves` be $R$ with $M=1000$ pages and $p_R=100$, and let `Sailors` be $S$ with $N=500$ pages and $p_S=80$. With `Reserves` outer, the cost is 50,001,000 I/Os, about 139 hours at 10 ms per I/O. With `Sailors` outer, the cost is 40,000,500 I/Os, about 111 hours. The inner/outer choice matters even for the simplest algorithm.
 
 **Page-oriented nested loops join.** For each page of the outer relation, scan every page of the inner relation and compare the tuples inside the two pages.
 
@@ -368,7 +368,7 @@ The buffer pool usually reserves one page for the inner scan and one page for ou
 
 **Example 5. Using buffers.**
 
-*With `Reserves` outer, `Sailors` inner, and block size $b=100$, the outer relation forms 10 blocks. The DBMS reads `Reserves` once and scans `Sailors` once per block, for 6000 I/Os, about one minute at 10 ms per I/O.*
+With `Reserves` outer, `Sailors` inner, and block size $b=100$, the outer relation forms 10 blocks. The DBMS reads `Reserves` once and scans `Sailors` once per block, for 6000 I/Os, about one minute at 10 ms per I/O.
 
 **One-pass hash join.** A join that builds an in-memory hash table on one relation, then scans the other relation and probes the hash table for matches.
 

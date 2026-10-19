@@ -3,16 +3,16 @@ title: "Data Intensive Systems: Lecture 2"
 description: "The relational model and its algebra: tuples and instances, the key hierarchy, integrity constraints, SQL basics, the five basic operators, compound operators including join and division, and the query trees an optimizer rewrites."
 tags: ["Data intensive systems"]
 created: 2026-06-09
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## The Relational Model
 
-In the relational model the entire database is a set of named relations; every attribute carries a type (its *domain*), and every stored fact is a row.
+In the relational model the entire database is a set of named relations. Every attribute carries a type (its *domain*), and every stored fact is a row.
 
 **Tuple.** A single row of a relation, holding one value per attribute. The tuples of a relation are distinct, and they have no inherent order.
 
-*Two running instances: `Students` records people, `Colleges` records institutions.*
+The two running instances are `Students`, which records people, and `Colleges`, which records institutions.
 
 <Split cols="1.15fr 0.85fr" align="start">
 <Pane>
@@ -35,7 +35,7 @@ In the relational model the entire database is a set of named relations; every a
 </Pane>
 </Split>
 
-A relation has two complementary aspects: its schema, the declared shape `Students(sid: string, name: string, login: string, age: integer, gpa: real)` with `sid` underlined as the key, and its content at a given moment.
+A relation has two complementary aspects: its schema and its content at a given moment. The schema is the declared shape `Students(sid: string, name: string, login: string, age: integer, gpa: real)`, with `sid` underlined as the key.
 
 **Instance.** The set of tuples held in a relation at one point in time. Two numbers describe it: its **cardinality**, the number of rows, and its **arity** (degree), the number of attributes.
 
@@ -59,13 +59,15 @@ A key identifies tuples and lets one relation point into another. That single id
 
 **Example 1. Keys of Students.**
 
-*In `Students(sid, name, login, age, gpa)`, both `sid` and `login` identify a student, so each alone is a candidate key. The DBA picks `sid` as the primary key. Any superset such as `{sid, name}` is a superkey but not minimal, so not a candidate key.*
+In `Students(sid, name, login, age, gpa)`, both `sid` and `login` identify a student, so each alone is a candidate key. The DBA picks `sid` as the primary key. Any superset such as `{sid, name}` is a superkey but not minimal, so not a candidate key.
 
 Key uniqueness is one instance of a broader contract between the schema and every future state of the data.
 
 **Integrity constraint (IC).** A condition that must hold on every valid instance of the database. ICs are declared with the schema and checked on every modification. Domain types, key uniqueness, and referential integrity are all ICs.
 
 **Legal instance.** An instance that satisfies every declared IC. The DBMS must reject any modification that would produce an illegal instance, which keeps stored data faithful to its real-world meaning and catches data-entry errors early.
+
+**Common mistake.** A key can be found by checking which attributes are unique in the current instance. Every name in the `Students` instance is distinct, yet `name` is not a key, since two students may share a name. A key is an IC about every future instance, so one instance can show only that a constraint is violated, never that it holds.
 
 **Foreign key.** A set of attributes in one relation that references the *primary key* of another. The IC it carries is **referential integrity**: every foreign-key value must match an existing key in the referenced relation, so there are no dangling references.
 
@@ -125,7 +127,7 @@ VALUES ('53688', 'Smith', 'smith@cs', 18, 3.2)
 DELETE FROM Students S WHERE S.name = 'Smith'
 ```
 
-Keys are declared inside `CREATE TABLE`. `PRIMARY KEY` names the primary key; `UNIQUE` marks additional candidate keys. *In `Person`, `ssn` is the primary key and `licence#` is a second candidate key.*
+Keys are declared inside `CREATE TABLE`. `PRIMARY KEY` names the primary key; `UNIQUE` marks additional candidate keys. In `Person`, `ssn` is the primary key and `licence#` is a second candidate key.
 
 <Split cols="1fr 1fr" align="start">
 <Pane>
@@ -165,11 +167,11 @@ CREATE TABLE Enrolled
    PRIMARY KEY(sid, cid))
 ```
 
-A wrong key states a different rule: declaring `PRIMARY KEY(sid)` with `UNIQUE(cid, grade)` instead means "each student takes only one course, and no two students in a course get the same grade".
+A wrong key states a different rule. Declaring `PRIMARY KEY(sid)` with `UNIQUE(cid, grade)` instead means "each student takes only one course, and no two students in a course get the same grade".
 
 *A key is a constraint, not a label.*
 
-A foreign key acts as a logical pointer from one relation into another. *`Enrolled.sid` references `Students.sid`, so every enrolled student must exist in `Students`.*
+A foreign key acts as a logical pointer from one relation into another. `Enrolled.sid` references `Students.sid`, so every enrolled student must exist in `Students`.
 
 <Split cols="1.1fr 0.9fr" align="start">
 <Pane>
@@ -224,7 +226,7 @@ Relational algebra examples use a university database. Key attributes are underl
 | teaches | <u>ID</u>, <u>course_id</u>, <u>sec_id</u>, <u>semester</u>, <u>year</u> |
 | section | <u>course_id</u>, <u>sec_id</u>, <u>semester</u>, <u>year</u>, building, room_number, time_slot_id |
 | student | <u>ID</u>, name, dept_name, tot_cred |
-| takes | <u>ID</u>, <u>course_id</u>, <u>sec_id</u>, semester, year, grade |
+| takes | <u>ID</u>, <u>course_id</u>, <u>sec_id</u>, <u>semester</u>, <u>year</u>, grade |
 
 The operator examples use this *instructor* instance.
 
@@ -461,7 +463,7 @@ Only suppliers carrying *every* part in $B$ survive. As $B$ accumulates parts, t
 </Pane>
 </Split>
 
-Division is not primitive: it rewrites using only $\pi$, $\times$, and $-$. The idea is to compute every $x$ that is *not* disqualified, where an $x$ is disqualified if pairing it with some $y \in B$ produces a tuple missing from $A$.
+Division is not primitive: it rewrites using only $\pi$, $\times$, and $-$. The idea is to compute every $x$ that is *not* disqualified. An $x$ is disqualified if pairing it with some $y \in B$ produces a tuple missing from $A$.
 
 $$
 A / B \;=\; \pi_x(A) \;-\; \pi_x\!\left((\pi_x(A) \times B) - A\right)
@@ -469,7 +471,7 @@ $$
 
 **Example 2. Tracing the rewrite with $B_3 = \{\text{p1, p2, p4}\}$.**
 
-*$\pi_{\textit{sno}}(A) = \{\text{s1, s2, s3, s4}\}$ lists the candidate suppliers, and $\pi_{\textit{sno}}(A) \times B_3$ forms all $4 \times 3 = 12$ required pairs. Subtracting $A$ leaves only the missing pairs $(\text{s2, p4}), (\text{s3, p1}), (\text{s3, p4}), (\text{s4, p1})$, whose suppliers $\{\text{s2, s3, s4}\}$ are disqualified. Removing them gives $\{\text{s1, s2, s3, s4}\} - \{\text{s2, s3, s4}\} = \{\text{s1}\}$.*
+The projection $\pi_{\textit{sno}}(A) = \{\text{s1, s2, s3, s4}\}$ lists the candidate suppliers, and $\pi_{\textit{sno}}(A) \times B_3$ forms all $4 \times 3 = 12$ required pairs. Subtracting $A$ leaves only the missing pairs $(\text{s2, p4}), (\text{s3, p1}), (\text{s3, p4}), (\text{s4, p1})$, whose suppliers $\{\text{s2, s3, s4}\}$ are disqualified. Removing them gives $\{\text{s1, s2, s3, s4}\} - \{\text{s2, s3, s4}\} = \{\text{s1}\}$.
 
 ---
 
@@ -484,7 +486,7 @@ $$
 $$
 
 $$
-\pi_{\textit{name, title}}\!\left(\left(\sigma_{\textit{dept\_name} = \text{"Music"}}(\textit{instructor})\right) \bowtie \left(\textit{teaches} \bowtie \pi_{\textit{course\_id, title}}(\textit{course}))\right)\right)
+\pi_{\textit{name, title}}\!\left(\left(\sigma_{\textit{dept\_name} = \text{"Music"}}(\textit{instructor})\right) \bowtie \left(\textit{teaches} \bowtie \pi_{\textit{course\_id, title}}(\textit{course})\right)\right)
 $$
 
 The first joins all three relations and only then filters; the second pushes the selection down onto *instructor* before the join. Both return the same result, but the second is far cheaper, because the expensive join then operates on a tiny filtered relation instead of the full table. The two trees show the move: the highlighted $\sigma$ is the same operator, relocated.

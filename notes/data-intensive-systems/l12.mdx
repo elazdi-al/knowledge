@@ -3,7 +3,7 @@ title: "Data Intensive Systems: Lecture 12"
 description: "Dynamic databases and phantom reads, predicate and index locking, SQL isolation levels, replication tradeoffs, CAP and PACELC, quorum tuning, Dynamo-style eventual consistency, and causal consistency."
 tags: ["Data intensive systems"]
 created: 2026-06-24
-updated: 2026-06-24
+updated: 2026-10-14
 ---
 
 ## Dynamic Databases and Phantoms
@@ -16,11 +16,11 @@ Strict 2PL protects database objects that already exist. Real databases also cha
 
 **Phantom read.** An isolation anomaly where a transaction repeats a predicate query and sees a tuple appear, disappear, or change membership because another transaction changed the set of matching tuples.
 
-*A phantom is not a changed value inside a tuple already locked by the reader. It is a changed membership of the predicate result.*
+**Common mistake.** A phantom is not a changed value inside a tuple already locked by the reader. It is a changed membership of the predicate result.
 
 **Example 1. Counting matching people.**
 
-*Transaction $T_1$ runs `SELECT COUNT(*) FROM people WHERE status = 'lit'` and gets $99$. Transaction $T_2$ inserts a new committed row with `status = 'lit'`. If $T_1$ repeats the same query and gets $100$, the new row is a phantom for $T_1$. Tuple locks on the original $99$ rows did not protect the missing $100$th row because it did not exist yet.*
+Transaction $T_1$ runs `SELECT COUNT(*) FROM people WHERE status = 'lit'` and gets $99$. Transaction $T_2$ inserts a new committed row with `status = 'lit'`. If $T_1$ repeats the same query and gets $100$, the new row is a phantom for $T_1$. Tuple locks on the original $99$ rows did not protect the missing $100$th row because it did not exist yet.
 
 Conflict-serializability analysis assumes a fixed set of objects. With inserts and deletes, locking each existing tuple can still miss the logical object that matters: the set of tuples described by a predicate.
 
@@ -74,7 +74,7 @@ The tradeoff is the same as multi-granularity locking: coarse range locks reduce
 
 **Locking without a useful index.** If no index supports the predicate, the DBMS may have to lock every page, or lock the whole table, to prevent matching inserts and deletes.
 
-*Good indexes are not only access paths. They also give the lock manager a precise object to protect.*
+*Good indexes are not only access paths; they also give the lock manager a precise object to protect.*
 
 ---
 
@@ -193,7 +193,7 @@ Dynamo-style systems accept that concurrent writes may reach different replicas.
 
 **Example 2. Shopping cart merge.**
 
-*One stale replica stores `{shoes, sunglasses}`, another stores `{shoes, book}`, and another stores `{shoes, towel}`. A shopping cart can often reconcile by set union, producing `{shoes, sunglasses, book, towel}`. A bank account balance cannot be repaired so casually because addition, withdrawal, and transfer semantics matter.*
+One stale replica stores `{shoes, sunglasses}`, another stores `{shoes, book}`, and another stores `{shoes, towel}`. A shopping cart can often reconcile by set union, producing `{shoes, sunglasses, book, towel}`. A bank account balance cannot be repaired so casually because addition, withdrawal, and transfer semantics matter.
 
 Eventual consistency shifts work from the storage system to the application. It works well when conflicts have a natural merge rule, such as unioning cart items or merging social-feed updates. It is risky when the application invariant depends on one immediate global order.
 
@@ -221,6 +221,6 @@ Concurrent writes have no causal order, so different replicas may observe them i
 
 **Example 3. Comment correction.**
 
-*User $A$ posts "pi is 3", then edits it to "pi is about 3.14". User $B$ reads the correction and replies "agreed". Causal consistency prevents another user from seeing the reply without also seeing the correction, because the reply depends on the correction. It does not require a global order for unrelated comments written at the same time.*
+User $A$ posts "pi is 3", then edits it to "pi is about 3.14". User $B$ reads the correction and replies "agreed". Causal consistency prevents another user from seeing the reply without also seeing the correction, because the reply depends on the correction. It does not require a global order for unrelated comments written at the same time.
 
 Causal consistency is useful when order-of-events matters but full strong consistency is too expensive. It still leaves conflict handling to the system or application for writes that are genuinely concurrent.

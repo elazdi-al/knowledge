@@ -3,7 +3,7 @@ title: "Data Intensive Systems: Lecture 11"
 description: "Concurrency control through conflict serializability, precedence graphs, two-phase locking, strict 2PL, deadlocks, prevention schemes, and multi-granularity locks."
 tags: ["Data intensive systems"]
 created: 2026-06-23
-updated: 2026-06-23
+updated: 2026-10-14
 ---
 
 ## Conflict Serializability
@@ -48,7 +48,7 @@ If the graph is acyclic, any topological order of the graph is an equivalent ser
 
 **Example 1. A back-edge breaks serializability.**
 
-*Suppose $T_1$ writes $A$ before $T_2$ reads or writes $A$, so the graph contains $T_1\to T_2$. If later $T_2$ writes $B$ before $T_1$ reads or writes $B$, the graph also contains $T_2\to T_1$. The schedule treats $A$ as if $T_1$ came first, but treats $B$ as if $T_2$ came first. No single serial order explains both objects.*
+Suppose $T_1$ writes $A$ before $T_2$ reads or writes $A$, so the graph contains $T_1\to T_2$. If later $T_2$ writes $B$ before $T_1$ reads or writes $B$, the graph also contains $T_2\to T_1$. The schedule treats $A$ as if $T_1$ came first, but treats $B$ as if $T_2$ came first. No single serial order explains both objects.
 
 **Conflict serializability versus other equivalences.** Conflict serializability is a sufficient, efficiently checkable notion of correctness, but it is not the broadest possible one.
 
@@ -100,7 +100,7 @@ Lock execution has three steps:
 
 Strict 2PL is stronger than basic conflict serializability. It also prevents dirty reads and cascading aborts because no transaction can read a value written by another transaction before the writer has finished.
 
-The release point connects to recovery: after a commit, locks can be released only when the commit decision is durable, usually after the commit log record is on stable storage. After an abort, locks can be released after rollback removes the transaction's partial effects.
+The release point connects to recovery. After a commit, locks can be released only when the commit decision is durable, usually after the commit log record is on stable storage. After an abort, locks can be released after rollback removes the transaction's partial effects.
 
 **Cascading abort.** A situation where aborting one transaction forces other transactions to abort because they read or used its uncommitted writes.
 
@@ -108,7 +108,7 @@ Basic 2PL can allow cascading aborts if a transaction releases an X-lock before 
 
 **Example 2. Transfer and sum.**
 
-*Let $A=1000$ and $B=1000$. $T_1$ transfers $100$ from $A$ to $B$, and $T_2$ returns $A+B$. Without 2PL, $T_1$ can write $A=900$ and release $A$ before updating $B$; then $T_2$ can read $A=900$ and $B=1000$, returning $1900$. Under 2PL, $T_1$ must acquire the lock on $B$ before releasing $A$, so $T_2$ cannot observe a mixed before/after state. Under strict 2PL, $T_2$ waits until $T_1$ commits or aborts.*
+Let $A=1000$ and $B=1000$. Transaction $T_1$ transfers $100$ from $A$ to $B$, and $T_2$ returns $A+B$. Without 2PL, $T_1$ can write $A=900$ and release $A$ before updating $B$; then $T_2$ can read $A=900$ and $B=1000$, returning $1900$. Under 2PL, $T_1$ must acquire the lock on $B$ before releasing $A$, so $T_2$ cannot observe a mixed before/after state. Under strict 2PL, $T_2$ waits until $T_1$ commits or aborts.
 
 2PL increases correctness by reducing freedom. Some conflict-serializable schedules are rejected because their lock acquisitions would require a transaction to reacquire locks after it already started shrinking.
 
@@ -116,9 +116,11 @@ Basic 2PL can allow cascading aborts if a transaction releases an X-lock before 
 
 ## Deadlocks
 
-Locks can block a transaction. Blocking is safe when it is temporary, but it becomes a deadlock when every transaction in a group waits for another member of the same group.
+Locks can block a transaction. Blocking is safe when it is temporary. It becomes a deadlock when every transaction in a group waits for another member of the same group.
 
 **Deadlock.** A cycle of transactions waiting for locks held by each other.
+
+**Common mistake.** Two-phase locking does not prevent deadlocks. Two transactions in their growing phases can each hold a lock that the other requests.
 
 **Wait-for graph.** A directed graph with one node per active transaction and an edge $T_i\to T_j$ when $T_i$ is waiting for a lock currently held by $T_j$.
 
@@ -231,10 +233,10 @@ The standard compatibility matrix is:
 
 **Example 3. Reading one tuple and updating another.**
 
-*To read tuple $A$ in table $R$, $T_1$ takes IS($R$) and then S($A$). To update tuple $B$ in the same table, $T_2$ takes IX($R$) and then X($B$). IS and IX are compatible at the table level, and S($A$) and X($B$) are on different tuples, so the transactions can run together.*
+To read tuple $A$ in table $R$, $T_1$ takes IS($R$) and then S($A$). To update tuple $B$ in the same table, $T_2$ takes IX($R$) and then X($B$). IS and IX are compatible at the table level, and S($A$) and X($B$) are on different tuples, so the transactions can run together.
 
 **Example 4. Scan all tuples and update one.**
 
-*If $T_1$ scans all tuples of $R$ and updates one tuple, it can take SIX($R$) and X on the updated tuple. A transaction $T_2$ that reads one different tuple can take IS($R$) and S on that tuple, because IS is compatible with SIX. A transaction $T_3$ that scans all tuples wants S($R$), which conflicts with SIX($R$), so it waits.*
+If $T_1$ scans all tuples of $R$ and updates one tuple, it can take SIX($R$) and X on the updated tuple. A transaction $T_2$ that reads one different tuple can take IS($R$) and S on that tuple, because IS is compatible with SIX. A transaction $T_3$ that scans all tuples wants S($R$), which conflicts with SIX($R$), so it waits.
 
 Applications usually do not acquire ordinary transaction locks manually. The DBMS chooses locks while executing queries under the selected isolation level. Explicit locks and hints are still useful for operations such as major schema changes, large batch updates, update-after-read patterns, or skipping rows that are already locked.

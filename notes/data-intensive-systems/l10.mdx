@@ -3,7 +3,7 @@ title: "Data Intensive Systems: Lecture 10"
 description: "Transaction management through ACID, write-ahead logging, rollback, isolation, schedules, conflicts, and crash recovery."
 tags: ["Data intensive systems"]
 created: 2026-06-22
-updated: 2026-06-22
+updated: 2026-10-14
 ---
 
 ## Transaction Management
@@ -17,14 +17,14 @@ Query execution chooses efficient physical operators. Transaction management add
 
 These components cut across the engine: query operators, access methods, the buffer manager, and the disk manager all need to cooperate with them. A join algorithm can be costed in I/Os, but a transaction also pays for log writes, lock waits, commit flushes, and recovery metadata.
 
-**Database object.** A named unit of database state that a transaction can read or write. For transaction reasoning, objects are abstract names such as $A$, $B$, $C$, or $X$; in an implementation they may correspond to tuples, records, pages, or index entries.
+**Database object.** A named unit of database state that a transaction can read or write. For transaction reasoning, objects are abstract names such as $A$, $B$, $C$, or $X$. In an implementation they may correspond to tuples, records, pages, or index entries.
 
 **Transaction.** A sequence of database reads and writes treated as one unit of work, usually delimited by `BEGIN` and either `COMMIT` or `ABORT`.
 
 The DBMS observes only database operations:
 
-- $R_i(X)$ means transaction $T_i$ reads object $X$.
-- $W_i(X)$ means transaction $T_i$ writes object $X$.
+- $R_i(X)$: transaction $T_i$ reads object $X$.
+- $W_i(X)$: transaction $T_i$ writes object $X$.
 
 Application code may compute arbitrary values between these operations, but concurrency control and recovery reason about the reads and writes that touch database objects.
 
@@ -36,7 +36,7 @@ Application code may compute arbitrary values between these operations, but conc
 
 **Example 1. Lost arithmetic on one account.**
 
-*Let $X=100$. $T_1$ subtracts $20$ and $T_2$ adds $10$. Every serial order ends at $90$. If both read $100$ before either writes, the final value can be $80$ or $110$, depending on which write lands last. The arithmetic is correct inside each transaction; the interleaving is not.*
+Let $X=100$. Transaction $T_1$ subtracts $20$ and $T_2$ adds $10$. Every serial order ends at $90$. If both read $100$ before either writes, the final value can be $80$ or $110$, depending on which write lands last. The arithmetic is correct inside each transaction; the interleaving is not.
 
 Serial execution avoids these bugs but wastes concurrency. Copying the whole database before each transaction would also make abort easy, but it is far too expensive. Transactions are the DBMS contract that gives the effect of safe serial execution without physically running everything one at a time.
 
@@ -56,7 +56,7 @@ The DBMS checks declared integrity constraints automatically and aborts a transa
 
 **Application-level invariant.** A consistency rule the DBMS cannot enforce unless it is expressed as a database constraint or checked by transaction code.
 
-*If "the sum of all account balances equals total bank assets" is not declared in the schema, the DBMS does not know how to enforce it.*
+If "the sum of all account balances equals total bank assets" is not declared in the schema, the DBMS does not know how to enforce it.
 
 Consistency is only as strong as the rules the system can check. If no relevant constraints are declared and the application does not check the invariant, there is no enforcement.
 
@@ -147,11 +147,11 @@ Interleaving is the point of concurrency: while one transaction waits for disk, 
 
 **Serializable schedule.** An interleaved schedule whose effect is equivalent to some serial schedule, including the values read by transactions and the final database state.
 
-*Serializable does not mean "not interleaved". It means "interleaved, but indistinguishable from one-at-a-time execution".*
+**Common mistake.** Serializable does not mean "not interleaved". It means "interleaved, but indistinguishable from one-at-a-time execution".
 
 **Example 2. Transfer and interest.**
 
-*Accounts $A$ and $B$ both start at $1000$. $T_1$ transfers $100$ from $A$ to $B$. $T_2$ applies $6\%$ interest to both accounts. If $T_1$ runs before $T_2$, the final state is $A=954, B=1166$. If $T_2$ runs before $T_1$, the final state is $A=960, B=1160$. Both serial outcomes preserve $A+B=2120$.*
+Accounts $A$ and $B$ both start at $1000$. Transaction $T_1$ transfers $100$ from $A$ to $B$, and $T_2$ applies $6\%$ interest to both accounts. If $T_1$ runs before $T_2$, the final state is $A=954, B=1166$. If $T_2$ runs before $T_1$, the final state is $A=960, B=1160$. Both serial outcomes preserve $A+B=2120$.
 
 <ScheduleEquivalenceSchema />
 
@@ -171,7 +171,7 @@ Read-read pairs do not conflict because they do not change the object. The three
 
 **Example 3. Dirty read.**
 
-*$T_1$ writes $A=12$ but later aborts. If $T_2$ reads that uncommitted value and commits a decision based on it, $T_2$ has depended on a state the database must later pretend never happened.*
+Transaction $T_1$ writes $A=12$ but later aborts. If $T_2$ reads that uncommitted value and commits a decision based on it, $T_2$ has depended on a state the database must later pretend never happened.
 
 **Lock-based concurrency control.** A pessimistic protocol where readers acquire shared locks and writers acquire exclusive locks before accessing objects.
 

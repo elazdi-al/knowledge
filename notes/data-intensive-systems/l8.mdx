@@ -3,14 +3,14 @@ title: "Data Intensive Systems: Lecture 8"
 description: "Selectivity estimation and CNF in practice, then the join algorithms: index nested loops, Grace and hybrid hash join, sort-merge join, general join conditions, set operations, and aggregation."
 tags: ["Data intensive systems"]
 created: 2026-06-11
-updated: 2026-06-11
+updated: 2026-10-14
 ---
 
 ## Estimating Selectivity
 
 Access paths are chosen by predicted work, and the prediction rests on selectivity: the fraction of tuples that satisfy a predicate. The optimizer cannot run the query to measure it, so it estimates it from catalog statistics before execution.
 
-**Selectivity estimation.** Approximating a predicate's selectivity from per-attribute statistics, the number of distinct values $\mathrm{NKeys}(A)$ and the value range $[\min(A), \max(A)]$, assuming values are uniformly distributed and predicates are independent.
+**Selectivity estimation.** Approximating a predicate's selectivity from per-attribute statistics, the number of distinct values $\mathrm{NKeys}(A)$ and the value range $[\min(A), \max(A)]$. The approximation assumes values are uniformly distributed and predicates are independent.
 
 | Predicate | Estimated selectivity |
 |---|---|
@@ -25,19 +25,19 @@ Multiplying $|R|$ by the combined selectivity predicts the result cardinality, w
 
 **Example 1. Sailors estimates.**
 
-*`Sailors` has $40{,}000$ tuples, `rating` uniform in $1..10$, `age` in $20..60$. For `rating = 8`: $\mathrm{sel} = 1/10$, about $4{,}000$ tuples. For `rating > 7`: $\mathrm{sel} = (10-7)/(10-1) \approx 0.33$, about $13{,}300$ tuples. For `rating = 8 AND age > 35`: $\mathrm{sel} = 0.1 \times (60-35)/(60-20) = 0.0625$, about $2{,}500$ tuples.*
+`Sailors` has $40{,}000$ tuples, `rating` uniform in $1..10$, `age` in $20..60$. For `rating = 8`: $\mathrm{sel} = 1/10$, about $4{,}000$ tuples. For `rating > 7`: $\mathrm{sel} = (10-7)/(10-1) \approx 0.33$, about $13{,}300$ tuples. For `rating = 8 AND age > 35`: $\mathrm{sel} = 0.1 \times (60-35)/(60-20) = 0.0625$, about $2{,}500$ tuples.
 
 ## General Selection Conditions
 
-Optimizers rewrite every `WHERE` clause to conjunctive normal form, because CNF lets the engine apply one clause at a time: each clause filters the survivors of the previous one, so the candidate set only shrinks. The rewrite always happens; whether it actually speeds anything up depends on the shape of the predicate.
+Optimizers rewrite `WHERE` clauses to conjunctive normal form, because CNF lets the engine apply one clause at a time. Each clause filters the survivors of the previous one, so the candidate set only shrinks. Whether the rewrite actually speeds anything up depends on the shape of the predicate.
 
 The profitable shape has a predicate shared by every OR-term. Factored out, it is evaluated once, and if it is selective and indexed it shrinks the candidate set before anything else runs.
 
 **Example 2. A common factor.**
 
-*Find rating-10 sailors who are young or old: `(rating = 10 AND age < 25) OR (rating = 10 AND age > 60)`. Evaluated as written, `rating = 10` runs once per AND-term, two candidate sets are built, and their union must deduplicate. The CNF form `rating = 10 AND (age < 25 OR age > 60)` evaluates the factor once: a hash index on `rating` cuts $40{,}000$ sailors to about $4{,}000$, the age test runs only on those survivors, and no deduplication is needed. Roughly ten times fewer predicate evaluations.*
+Find rating-10 sailors who are young or old: `(rating = 10 AND age < 25) OR (rating = 10 AND age > 60)`. Evaluated as written, `rating = 10` runs once per AND-term, two candidate sets are built, and their union must deduplicate. The CNF form `rating = 10 AND (age < 25 OR age > 60)` evaluates the factor once. A hash index on `rating` cuts $40{,}000$ sailors to about $4{,}000$, the age test runs only on those survivors, and no deduplication is needed. Roughly ten times fewer predicate evaluations.
 
-The unprofitable shape has no such factor. `(day < 8/9/94 AND rname = 'Paul') OR bid = 5 OR sid = 3` rewrites to `(day < 8/9/94 OR bid = 5 OR sid = 3) AND (rname = 'Paul' OR bid = 5 OR sid = 3)`: each clause is still a three-way OR, so no single index covers a clause and the engine still probes three indexes and unions the RID sets. Worse, `bid = 5` and `sid = 3` appear in both clauses, so a tuple passing one clause through them automatically passes the other: the AND between the clauses adds almost no filtering. The rewrite buys nothing over the original form.
+The unprofitable shape has no such factor. `(day < 8/9/94 AND rname = 'Paul') OR bid = 5 OR sid = 3` rewrites to `(day < 8/9/94 OR bid = 5 OR sid = 3) AND (rname = 'Paul' OR bid = 5 OR sid = 3)`. Each clause is still a three-way OR, so no single index covers a clause and the engine still probes three indexes and unions the RID sets. Worse, `bid = 5` and `sid = 3` appear in both clauses, so a tuple passing one clause through them automatically passes the other: the AND between the clauses adds almost no filtering. The rewrite buys nothing over the original form.
 
 | Shape | CNF form | Effect |
 |---|---|---|
@@ -57,7 +57,7 @@ Three yes answers mean the CNF rewrite wins big; each no pushes the plan toward 
 Whether a clause maps onto a $B^+$-tree at all follows the leftmost-prefix rule, but among matching composite keys the column order still decides the cost. For `day < 8/9/94 AND rname = 'Paul'`:
 
 - **Index on ⟨rname, day⟩.** The equality pins the `Paul` region with one descent; inside it entries are sorted by `day`, so the range is one contiguous leaf walk.
-- **Index on ⟨day, rname⟩.** The range comes first: every entry with a qualifying day is visited, and within that range `rname` is sorted only inside each distinct day, so the name must be checked entry by entry.
+- **Index on ⟨day, rname⟩.** The range comes first, so every entry with a qualifying day is visited. Within that range `rname` is sorted only inside each distinct day, so the name must be checked entry by entry.
 
 *In a composite key, put equality columns first: each equality pins one contiguous region, and a single trailing range stays contiguous inside it.*
 
@@ -65,7 +65,7 @@ Whether a clause maps onto a $B^+$-tree at all follows the leftmost-prefix rule,
 
 ## Index Nested Loops Join
 
-The running numbers stay fixed: `Reserves` is $R$ with $M = 1000$ pages and $p_R = 100$ tuples per page, `Sailors` is $S$ with $N = 500$ pages and $p_S = 80$, the join attribute is `sid`, an I/O costs 10 ms, and the cost model counts reads only. Block nested loops still reads every inner page once per outer block, whether or not it could match. An index on the inner join attribute replaces that scan with lookups that touch only matching tuples.
+The running numbers stay fixed: `Reserves` is $R$ with $M = 1000$ pages and $p_R = 100$ tuples per page, and `Sailors` is $S$ with $N = 500$ pages and $p_S = 80$. The join attribute is `sid`, an I/O costs 10 ms, and the cost model counts reads only. Block nested loops still reads every inner page once per outer block, whether or not it could match. An index on the inner join attribute replaces that scan with lookups that touch only matching tuples.
 
 **Index nested loops join.** A nested loops join where, for each tuple of the outer relation, the matching inner tuples are found through an index on the inner join attribute instead of a scan.
 
@@ -75,20 +75,20 @@ $$
 
 where $c$ is the cost of finding the matching inner tuples for one outer tuple. The outer relation is scanned once; everything else is probes. The probe cost $c$ has two parts:
 
-- **Probe cost.** Reaching the data entries: about $1.2$ I/Os for a hash index, $2$ to $4$ for a $B^+$-tree descent.
+- **Search cost.** Reaching the data entries: about $1.2$ I/Os for a hash index, $2$ to $4$ for a $B^+$-tree descent.
 - **Retrieval cost.** Fetching the matching tuples (Alternative 2 or 3 entries): with a clustered index about one I/O per page of matches, with an unclustered index up to one I/O per matching tuple.
 
 **Example 3. Probing each side.**
 
-*With `Reserves` outer and a hash index on `Sailors.sid`: `sid` is the key of `Sailors`, so each probe finds exactly one match, costing $1.2 + 1 = 2.2$ I/Os. Total: $1000 + 100{,}000 \times 2.2 = 221{,}000$ I/Os, about 37 minutes.*
+With `Reserves` outer and a hash index on `Sailors.sid`: `sid` is the key of `Sailors`, so each probe finds exactly one match, costing $1.2 + 1 = 2.2$ I/Os. Total: $1000 + 100{,}000 \times 2.2 = 221{,}000$ I/Os, about 37 minutes.
 
-*With `Sailors` outer and an unclustered hash index on `Reserves.sid`: each sailor has on average $100{,}000 / 40{,}000 = 2.5$ reservations, so a probe costs $1.2 + 2.5$ I/Os. Total: $500 + 40{,}000 \times 3.7 = 148{,}500$ I/Os, about 25 minutes.*
+With `Sailors` outer and an unclustered hash index on `Reserves.sid`: each sailor has on average $100{,}000 / 40{,}000 = 2.5$ reservations, so a probe costs $1.2 + 2.5$ I/Os. Total: $500 + 40{,}000 \times 3.7 = 148{,}500$ I/Os, about 25 minutes.
 
 Both lose badly to the $6{,}000$ I/Os of block nested loops. The index pays off when few outer tuples probe.
 
 **Example 4. A selective outer.**
 
-*For `Sailors.sid = Reserves.sid AND Sailors.sid = 100`, one sailor survives the filter. Index nested loops scans `Sailors` ($500$ I/Os worst case) and probes the hash index on `Reserves.sid` once: $1.2$ plus about $2.5$ I/Os of matching reservations, roughly $504$ I/Os in total, about 5 seconds. Block nested loops still scans all of `Reserves` for the one-tuple block: $500 + 1000 = 1500$ I/Os.*
+For `Sailors.sid = Reserves.sid AND Sailors.sid = 100`, one sailor survives the filter. Index nested loops scans `Sailors` ($500$ I/Os worst case) and probes the hash index on `Reserves.sid` once. The probe costs $1.2$ plus about $2.5$ I/Os of matching reservations, so the total is roughly $504$ I/Os, about 5 seconds. Block nested loops still scans all of `Reserves` for the one-tuple block: $500 + 1000 = 1500$ I/Os.
 
 *Index nested loops turns join cost into "probing tuples times cost per probe", so it wins exactly when few tuples probe.*
 
@@ -99,7 +99,7 @@ The one-pass hash join needs its build side in memory. When neither relation fit
 **Grace hash join (two-pass hash join).** A hash join that first partitions both relations on the join attribute with a hash function $h_1$, then joins each pair of matching partitions in memory using a second hash function $h_2$.
 
 1. **Partition.** Stream $R$ through $h_1$ with one input buffer and $B-1$ output buffers, writing each of the $B-1$ partitions to disk as it fills. Partition $S$ the same way, with the same $h_1$.
-2. **Probe.** For each pair $(R_i, S_i)$: read $R_i$ and build an in-memory hash table on it with $h_2$; stream $S_i$ one page at a time, probe the table, and emit matches.
+2. **Probe.** For each pair $(R_i, S_i)$: read $R_i$ and build an in-memory hash table on it with $h_2$. Then stream $S_i$ one page at a time, probe the table, and emit matches.
 
 *Matching tuples agree on the join attribute, so they agree on $h_1$: every match is confined to one partition pair, and the pairs can be joined independently.*
 
@@ -125,7 +125,7 @@ $$
 
 The **fudge factor** $f \approx 1.2$ admits two realities. A hash table on a partition of $X$ pages occupies about $1.2X$ pages of memory, for buckets, pointers, and empty slots. And $h_1$ spreads tuples evenly only on average: with skewed data one partition can land far above $M/(B-1)$. Either relation can play the build role, so the smaller one should: building on `Sailors` weakens the requirement to $B > \sqrt{f \cdot N}$.
 
-When a partition still does not fit, it is split again with yet another hash function (**recursive partitioning**, rarely needed), and the clean $3(M+N)$ no longer holds. A bad hash function is worse than bad luck: if every join value is a multiple of 100 and $h_1(a) = a \bmod 100$, all tuples land in partition 0. Such **hash-table overflow** is avoided by choosing a robust, uniform hash function, and resolved, when it happens anyway, by repartitioning with a different one.
+When a partition still does not fit, it is split again with yet another hash function (**recursive partitioning**, rarely needed). The clean $3(M+N)$ then no longer holds. A bad hash function is worse than bad luck. If every join value is a multiple of 100 and $h_1(a) = a \bmod 100$, all tuples land in partition 0. Such **hash-table overflow** is avoided by choosing a robust, uniform hash function, and resolved, when it happens anyway, by repartitioning with a different one.
 
 ## Hybrid Hash Join
 
@@ -133,7 +133,7 @@ Grace costs $3(M+N)$ whether memory is barely $\sqrt{f M}$ or nearly enough for 
 
 **Hybrid hash join.** A Grace join that keeps the first $t$ of $k$ partitions resident in memory through the partition phase, joining them on the fly, and falls back to Grace for the remaining $k-t$.
 
-1. **Partition the build side.** Hash `Sailors` through $h_1$ into $k$ partitions. $S_1, \dots, S_t$ stay in memory as hash tables; $S_{t+1}, \dots, S_k$ are written to disk.
+1. **Partition the build side.** Hash `Sailors` through $h_1$ into $k$ partitions. Partitions $S_1, \dots, S_t$ stay in memory as hash tables; $S_{t+1}, \dots, S_k$ are written to disk.
 2. **Partition the probe side.** Hash `Reserves` through $h_1$. A tuple landing in partitions $1..t$ probes the resident table immediately and its matches are emitted; the rest is written to disk.
 3. **Finish with Grace.** Join the spilled pairs $(R_i, S_i)$ for $i = t+1..k$ exactly as in the Grace probe phase.
 
@@ -143,7 +143,9 @@ $$
 \text{Cost} = \left(3 - \frac{2t}{k}\right)(M+N).
 $$
 
-At $t = 0$ this is Grace; at $t = k$ it is the one-pass hash join at $M+N$. *Extra memory converts linearly into saved I/O: each resident partition skips one write and one read of its pages.*
+At $t = 0$ this is Grace; at $t = k$ it is the one-pass hash join at $M+N$.
+
+*Extra memory converts linearly into saved I/O: each resident partition skips one write and one read of its pages.*
 
 During partitioning the $B$ buffers must hold one input page, one join-output page, $k-t$ partition output buffers, and $t$ resident hash tables of about $f N / k$ pages each:
 
@@ -157,11 +159,11 @@ The rule of thumb $t/k \approx B/N$ keeps as many partitions resident as the bui
 2. Insert build tuples as they stream in.
 3. When memory runs out, spill one bucket to disk and continue with $t := t-1$.
 
-Memory pressure is discovered, not predicted: with plenty of memory the join finishes as a one-pass hash join, and under pressure it degrades, bucket by bucket, gracefully into Grace.
+Memory pressure is discovered, not predicted. With plenty of memory the join finishes as a one-pass hash join, and under pressure it degrades, bucket by bucket, gracefully into Grace.
 
 **Example 5. One resident partition.**
 
-*With $B = 300$ buffers and $k = 2$ partitions, half of `Sailors` stays resident ($250$ pages, treating $f$ as $1$). Partitioning `Sailors` reads $500$ pages and writes only $S_2$: $750$ I/Os. Partitioning `Reserves` reads $1000$ pages, $R_1$ probes on the fly, and only $R_2$ is written: $1500$ I/Os. The Grace pass joins $R_2$ with $S_2$: $500 + 250 = 750$ I/Os. Total $3000$ I/Os against $4500$ for plain Grace, matching $(3 - 2 \cdot \tfrac{1}{2}) \times 1500$; the $1500$ saved I/Os are exactly one write plus one read of the $750$ resident pages.*
+With $B = 300$ buffers and $k = 2$ partitions, half of `Sailors` stays resident ($250$ pages, treating $f$ as $1$). Partitioning `Sailors` reads $500$ pages and writes only $S_2$: $750$ I/Os. Partitioning `Reserves` reads $1000$ pages, $R_1$ probes on the fly, and only $R_2$ is written: $1500$ I/Os. The Grace pass joins $R_2$ with $S_2$: $500 + 250 = 750$ I/Os. Total $3000$ I/Os against $4500$ for plain Grace, matching $(3 - 2 \cdot \tfrac{1}{2}) \times 1500$; the $1500$ saved I/Os are exactly one write plus one read of the $750$ resident pages.
 
 ## Sort-Merge Join
 
@@ -177,7 +179,7 @@ The merge keeps one cursor per relation and always advances the side with the sm
 
 **Example 6. Merging in lockstep.**
 
-*Take $R = (22, \text{dustin}), (28, \text{yuppy}), (31, \text{lubber})$ and $S = (28, \text{guppy}), (31, \text{dustin}), (31, \text{lubber})$, both sorted on `sid`.*
+Take $R = (22, \text{dustin}), (28, \text{yuppy}), (31, \text{lubber})$ and $S = (28, \text{guppy}), (31, \text{dustin}), (31, \text{lubber})$, both sorted on `sid`.
 
 | Step | $R$ cursor | $S$ cursor | Action |
 |---|---|---|---|
@@ -185,7 +187,7 @@ The merge keeps one cursor per relation and always advances the side with the sm
 | 2 | 28, yuppy | 28, guppy | equal: emit ⟨28: yuppy, guppy⟩, advance both |
 | 3 | 31, lubber | 31, dustin and 31, lubber | equal group: emit ⟨31: lubber, dustin⟩ and ⟨31: lubber, lubber⟩ |
 
-Duplicate keys set the worst case: if every tuple of both relations carries the same join value, the merge emits all $M \cdot N$ combinations. The case is degenerate, but the optimizer accounts for it.
+Duplicate keys set the worst case. If every tuple of both relations carries the same join value, the merge emits every pair of tuples, at $M \cdot N$ I/Os. The case is degenerate, but the optimizer accounts for it.
 
 If both relations fit in memory, sorting costs no I/O and the join reads each input once, the one-pass $M+N$. Realistically each relation is sorted by external merge sort, at $2 \times \text{pages} \times \text{passes}$, and the merge then reads both sorted files:
 
@@ -195,20 +197,20 @@ $$
 
 **Example 7. Two-pass sort-merge.**
 
-*With $B = 100$ buffers, sorting `Reserves` takes two passes, since pass 0 leaves $\lceil 1000/100 \rceil = 10$ runs merged in one further pass: $2 \times 2 \times 1000 = 4000$ I/Os. `Sailors` likewise: $2 \times 2 \times 500 = 2000$. The merge reads both sorted files: $1500$. Total $7500$ I/Os, that is $5(M+N)$, about 75 seconds.*
+With $B = 100$ buffers, sorting `Reserves` takes two passes, since pass 0 leaves $\lceil 1000/100 \rceil = 10$ runs merged in one further pass: $2 \times 2 \times 1000 = 4000$ I/Os. `Sailors` likewise: $2 \times 2 \times 500 = 2000$. The merge reads both sorted files: $1500$. Total $7500$ I/Os, that is $5(M+N)$, about 75 seconds.
 
 The last sort pass and the join's merge both walk sorted runs in lockstep, so they can be folded into one pass:
 
 1. **Pass 0.** Create sorted runs of $R$ and sorted runs of $S$: read and write each relation once, $2(M+N)$.
 2. **Merge and join.** Merge all $R$-runs and all $S$-runs simultaneously, emitting matches instead of writing a sorted file: $M+N$.
 
-The total drops to $3(M+N)$, here $4500$ I/Os: an entire sort pass removed. The combined merge needs one buffer per run, and pass 0 leaves $\lceil M/B \rceil + \lceil N/B \rceil$ of them, which works out to roughly $B \ge \sqrt{M} + \sqrt{N}$.
+The total drops to $3(M+N)$, here $4500$ I/Os: an entire sort pass removed. The combined merge needs one buffer per run, and pass 0 leaves $\lceil M/B \rceil + \lceil N/B \rceil$ of them, which works out to roughly $B \ge \sqrt{M+N}$.
 
 ## Choosing the Join Algorithm
 
 At their memory floor, hash join and sort-merge join cost the same $3(M+N)$. The choice rests on the data and on the surrounding plan:
 
-- **Hash wins on size asymmetry.** Its bound depends only on the build side, $\sqrt{f N}$ for the smaller relation, against $\sqrt{M} + \sqrt{N}$ for sort-merge; and hybrid turns every spare buffer into proportional savings.
+- **Hash wins on size asymmetry.** Its bound depends only on the build side, $\sqrt{f N}$ for the smaller relation, against $\sqrt{M+N}$ for sort-merge. Hybrid hash join also turns every spare buffer into proportional savings.
 - **Hash parallelizes naturally.** Each partition pair is an independent join, easy to spread across cores or machines.
 - **Sort-merge wins on skew.** Sorting is insensitive to value distribution, while one popular join value can overflow a hash partition.
 - **Sort-merge wins when order matters.** A sorted output feeds `ORDER BY` or a downstream merge for free, and inputs already sorted (a clustered $B^+$-tree scan) skip pass 0 entirely.
@@ -225,7 +227,11 @@ At their memory floor, hash join and sort-merge join cost the same $3(M+N)$. The
 
 With enough memory, both one-pass joins remain the floor at $M+N = 1500$ I/Os.
 
-The formulas assume $B$ dedicated buffers, but the pool is shared, so how many frames a query really gets changes with the workload: the planner's $B$ is a guess. The replacement policy interferes too. A repeatedly scanned inner relation is a cyclic access pattern, the same shape behind sequential flooding: the page just read is the one needed farthest in the future, so evicting the most recently used page (MRU) matches the optimal policy while LRU evicts pages moments before their reuse. Access order helps as well: sorting the outer relation of an index nested loops join makes consecutive probes hit the same leaf and data pages, turning random probes into buffer hits.
+The formulas assume $B$ dedicated buffers, but the pool is shared, so how many frames a query really gets changes with the workload. The planner's $B$ is a guess.
+
+The replacement policy interferes too. A repeatedly scanned inner relation is a cyclic access pattern, the same shape behind sequential flooding. The page just read is the one needed farthest in the future, so evicting the most recently used page (MRU) matches the optimal policy. LRU instead evicts pages moments before their reuse.
+
+Access order helps as well. Sorting the outer relation of an index nested loops join makes consecutive probes hit the same leaf and data pages, turning random probes into buffer hits.
 
 ---
 
@@ -237,7 +243,9 @@ Equality on several attributes, as in `R.sid = S.sid AND R.name = S.name`, chang
 - **Sort-merge.** Sort both relations lexicographically on ⟨sid, name⟩ and merge as before. Same cost as the single-attribute join.
 - **Hash join.** $h_1$ and $h_2$ simply hash all join columns. Same cost.
 
-Inequality conditions, as in `R.rname < S.sname`, break the hash family: hashing co-locates equal values, but a tuple's inequality matches can live in any partition. *Partitioning destroys exactly the ordering an inequality needs.*
+Inequality conditions, as in `R.rname < S.sname`, break the hash family: hashing co-locates equal values, but a tuple's inequality matches can live in any partition.
+
+*Partitioning destroys exactly the ordering an inequality needs.*
 
 - **Index nested loops.** Needs a $B^+$-tree on the inner relation, probed with one range per outer tuple. Each probe returns a long run of matches, so clustering decides whether that run is one sequential read or scattered fetches.
 - **Block nested loops.** Often the winner: every outer tuple matches many inner tuples anyway, so reading all page pairs does little wasted work.
@@ -247,7 +255,7 @@ Inequality conditions, as in `R.rname < S.sname`, break the hash family: hashing
 Set operations reuse the join machinery. Intersection is an equality join on all attributes; `EXCEPT` is the same plumbing with the match inverted, emitting the $R$ tuples that find no partner. `UNION` with duplicate elimination is concatenation plus exactly the duplicate problem of `SELECT DISTINCT` projection, applied to whole tuples:
 
 - **Sort-based.** Sort both relations on all attributes and merge, emitting each tuple once. The sort-merge refinement applies unchanged: merge the pass-0 runs of $R$ and $S$ directly, dropping duplicates during the merge.
-- **Hash-based.** Partition both relations with $h_1$ on all attributes. For each partition pair, build an in-memory hash table from one side, then insert the other side's tuples, skipping any already present: the table ends up holding the distinct union of the pair.
+- **Hash-based.** Partition both relations with $h_1$ on all attributes. For each partition pair, build an in-memory hash table from one side, then insert the other side's tuples, skipping any already present. The table ends up holding the distinct union of the pair.
 
 ## Aggregation
 
@@ -255,16 +263,16 @@ Without grouping, an aggregate is a one-scan fold.
 
 **Aggregate evaluation.** Scan the relation once while maintaining running state per aggregate: a count for `COUNT`, a sum for `SUM`, both for `AVG`, the current extreme for `MIN` and `MAX`. The result is emitted when the scan ends.
 
-The cost is one full scan, with no sorting, hashing, or extra memory. A covering index does better: with every attribute the query touches inside the index, index-only evaluation scans the leaf level instead of the relation, and leaf pages are several times smaller.
+The cost is one full scan, with no sorting, hashing, or extra memory. A covering index does better. With every attribute the query touches inside the index, index-only evaluation scans the leaf level instead of the relation. The leaf level has several times fewer pages.
 
-*For `SELECT AVG(age) FROM Sailors`, a $B^+$-tree on `age` holds the ages in about 50 leaf pages against 500 data pages: ten times fewer I/Os, same answer.*
+For `SELECT AVG(age) FROM Sailors`, a $B^+$-tree on `age` holds the ages in about 50 leaf pages against 500 data pages: ten times fewer I/Os, same answer.
 
 `GROUP BY` asks for one running state per group, and every strategy reduces to the same move: bring same-group tuples together.
 
 - **Sort-based grouping.** Sort on the grouping attributes and scan: each group is contiguous, so one running state suffices, flushed at every group boundary. The aggregation can be fused into the final merge pass of the sort.
-- **Hash-based grouping.** Partition on the grouping attributes, so same-group tuples land in the same partition; then, per partition, an in-memory hash table keyed by the grouping value accumulates each group's state.
-- **Index shortcut.** If a covering index exists and the grouping attributes are a prefix of its key, leaf order is group order: tuples arrive pre-grouped, with no sort and no hash.
+- **Hash-based grouping.** Partition on the grouping attributes, so same-group tuples land in the same partition. Then, per partition, an in-memory hash table keyed by the grouping value accumulates each group's state.
+- **Index shortcut.** If a covering index exists and the grouping attributes are a prefix of its key, leaf order is group order. Tuples arrive pre-grouped, with no sort and no hash.
 
 *Sorting, hashing, or a key that is already grouped: every `GROUP BY` plan is a way of making same-group tuples adjacent.*
 
-One relational operator, many implementations, no universal winner: selections choose access paths by selectivity, joins choose among probing, partitioning, and sorting by sizes, memory, skew, and the order the rest of the plan needs. Stitching these per-operator choices into one cheapest plan is query optimization, the layer of the engine that comes next.
+One relational operator, many implementations, no universal winner: selections choose access paths by selectivity, joins choose among probing, partitioning, and sorting by sizes, memory, skew, and the order the rest of the plan needs. Stitching these per-operator choices into one cheapest plan is query optimization.

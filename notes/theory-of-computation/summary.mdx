@@ -3,7 +3,7 @@ title: "Theory of Computation: Summary"
 description: "Compact reference of the definitions, theorems, and proof recipes of Theory of Computation: regular languages and the pumping lemma, Turing machines, decidability and recognizability, reductions, and the P, NP, and NP-completeness landscape."
 tags: ["Theory of computation"]
 created: 2026-06-28
-updated: 2026-06-28
+updated: 2026-10-14
 ---
 
 ## Regular Languages
@@ -19,11 +19,11 @@ updated: 2026-06-28
 
 **Regular language.** A language recognized by some DFA, equivalently some NFA.
 - Closed under: $\overline{L}$, $L_1\cup L_2$, $L_1\cap L_2$, $L_1\circ L_2$ (concatenation), $L^*$ (Kleene star, $L^*=\{w_1\cdots w_k \mid k\ge 0,\ w_i\in L\}$, which includes $\epsilon$).
-- $\overline{L}$: keep the DFA, swap accepting and non-accepting states. $L_1\cup L_2$ and $L_1\cap L_2$: product DFA on $Q_1\times Q_2$, accepting when one side (union) or both sides (intersection) accept. $L_1\circ L_2$: link two NFAs with $\epsilon$-moves, then determinize. $L^*$: add a new accepting start state with an $\epsilon$-move to the old start, and $\epsilon$-moves from each accepting state back to it.
+- $\overline{L}$: keep the DFA, swap accepting and non-accepting states. Union $L_1\cup L_2$ and intersection $L_1\cap L_2$: product DFA on $Q_1\times Q_2$, accepting when one side (union) or both sides (intersection) accept. $L_1\circ L_2$: link two NFAs with $\epsilon$-moves, then determinize. $L^*$: add a new accepting start state with an $\epsilon$-move to the old start, and $\epsilon$-moves from each accepting state back to it.
 
 **Regular languages to know.**
-- $\varnothing$ and $\Sigma^*$: regular (a DFA with no accepting state; a DFA with all states accepting).
-- $\{\epsilon\}$ and **every finite language**: regular.
+- The empty language $\varnothing$ and $\Sigma^*$: regular (a DFA with no accepting state; a DFA with all states accepting).
+- **Every finite language**, including $\{\epsilon\}$: regular.
 - Fixed substring, prefix, suffix, or position, e.g. strings ending in $1$: regular.
 - Parity and divisibility, e.g. number of $1$s divisible by $5$: regular (counting modulo a fixed number).
 - Pattern shapes $0^*1^*$ and $0^*110^*$: regular.
@@ -32,13 +32,13 @@ updated: 2026-06-28
 **Non-regular languages to know.** Each needs unbounded exact memory, which counting modulo a fixed number cannot provide.
 - $\{0^n1^n \mid n\ge 0\}$: must match two unbounded counts exactly.
 - $\{ww \mid w\in\{0,1\}^*\}$: must store the entire first half.
-- $\{0^m1^n \mid m>n\}$.
+- The language $\{0^m1^n \mid m>n\}$.
 - Equal number of $0$s and $1$s.
 
 **Pumping lemma.** If $A$ is regular, there is a length $p$ such that every $s\in A$ with $|s|\ge p$ splits as $s=xyz$ with:
-- $|y|\ge 1$,
-- $|xy|\le p$,
-- $xy^iz\in A$ for every $i\ge 0$.
+- a nonempty middle, $|y|\ge 1$,
+- a short prefix, $|xy|\le p$,
+- pumping that stays in $A$, $xy^iz\in A$ for every $i\ge 0$.
 
 This is a necessary condition only. It proves non-regularity by contradiction, never regularity.
 
@@ -65,7 +65,7 @@ This is a necessary condition only. It proves non-regularity by contradiction, n
 **Recognizable languages.** $L$ is decidable iff both $L$ and $\overline{L}$ are recognizable (run both recognizers in alternation; one must accept).
 
 **Decidable problems about automata.**
-- $E_{\mathrm{DFA}}=\{\langle D\rangle \mid L(D)=\varnothing\}$: decidable. $L(D)=\varnothing$ iff no accepting state is reachable from $q_0$, which is reachability on the state graph.
+- $E_{\mathrm{DFA}}=\{\langle D\rangle \mid L(D)=\varnothing\}$: decidable. The language $L(D)$ is empty iff no accepting state is reachable from $q_0$, which is reachability on the state graph.
 - $EQ_{\mathrm{DFA}}=\{\langle D,D'\rangle \mid L(D)=L(D')\}$: decidable. Build the DFA for the symmetric difference $L(D)\oplus L(D')$ and test it for emptiness; the two are equal iff it is empty.
 
 **Church-Turing thesis.** Anything computable by an algorithm is computable by a Turing machine. The same class of computable functions arises from multi-tape TMs, $\lambda$-calculus, and ordinary programming languages.
@@ -85,8 +85,8 @@ This is a necessary condition only. It proves non-regularity by contradiction, n
 - Difference on the no-instances: $\mathrm{HALT}$ says no only when $M$ loops; $A_{\mathrm{TM}}$ says no when $M$ rejects or loops.
 
 **Mapping reduction $A\le_m B$.** A total computable $f$ with $w\in A \iff f(w)\in B$. It makes $B$ at least as hard as $A$.
-- $B$ decidable $\Rightarrow A$ decidable. $A$ undecidable $\Rightarrow B$ undecidable.
-- $B$ recognizable $\Rightarrow A$ recognizable. $A$ unrecognizable $\Rightarrow B$ unrecognizable.
+- If $B$ is decidable, then $A$ is decidable. If $A$ is undecidable, then $B$ is undecidable.
+- If $B$ is recognizable, then $A$ is recognizable. If $A$ is unrecognizable, then $B$ is unrecognizable.
 
 **Proving undecidability by reduction.**
 1. Take a known hard language: $A_{\mathrm{TM}}$ for undecidability, $\overline{A_{\mathrm{TM}}}$ for unrecognizability.
@@ -95,7 +95,7 @@ This is a necessary condition only. It proves non-regularity by contradiction, n
 
 **More undecidable and unrecognizable problems.**
 - $REG_{\mathrm{TM}}=\{\langle N\rangle \mid L(N) \text{ is regular}\}$: undecidable, by $A_{\mathrm{TM}}\le_m REG_{\mathrm{TM}}$.
-- $\overline{A_{\mathrm{TM}}}$ and $\overline{\mathrm{HALT}}$: not recognizable.
+- The complements $\overline{A_{\mathrm{TM}}}$ and $\overline{\mathrm{HALT}}$: not recognizable.
 - $EQ_{\mathrm{TM}}=\{\langle M_1,M_2\rangle \mid L(M_1)=L(M_2)\}$: not recognizable, by $\overline{A_{\mathrm{TM}}}\le_m EQ_{\mathrm{TM}}$, hence also undecidable.
 
 **Hierarchy.** $\text{Regular}\subsetneq\text{Decidable}\subsetneq\text{Recognizable}\subsetneq\mathcal{P}(\Sigma^*)$, every containment strict:
@@ -120,7 +120,7 @@ This is a necessary condition only. It proves non-regularity by contradiction, n
 **Certificate and verifier.** A verifier for $L$ reads a pair $\langle x,C\rangle$, where $C$ is a proposed proof that $x\in L$. It is polynomial-time if valid certificates have length $\le p(|x|)$ and the check runs in time polynomial in $|x|$.
 
 **NP.** Languages with a polynomial-time verifier.
-- $x\in L$ iff some certificate is accepted; $x\notin L$ iff every certificate is rejected.
+- An input $x$ is in $L$ iff some certificate is accepted, and outside $L$ iff every certificate is rejected.
 - Equivalent definition: languages decided by a polynomial-time nondeterministic TM, $NP=\bigcup_{k\ge 1}\mathrm{NTIME}(n^k)$. The certificate is the choices of one accepting branch.
 
 **P vs NP.** $P\subseteq NP$ (a decider is a verifier that ignores the certificate). Whether $P=NP$ is open.

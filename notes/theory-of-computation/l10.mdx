@@ -3,7 +3,7 @@ title: "Theory of Computation: Lecture 10"
 description: "The full SET COVER to SUBSET-SUM reduction: binary encoding, base-c set vectors, padding numbers, no-carry correctness, and NP-completeness of SUBSET-SUM."
 tags: ["Theory of computation"]
 created: 2026-06-28
-updated: 2026-06-28
+updated: 2026-10-14
 ---
 
 ## From SET COVER to SUBSET-SUM
@@ -18,7 +18,7 @@ $$
 
 <NpCompletenessChainSchema />
 
-The reduction must turn a family of sets into a multiset of integers so that choosing integers whose sum is a target is the same as choosing $k$ sets whose union is the whole universe.
+The reduction must turn a family of sets into a multiset of integers. Choosing integers whose sum is a target must be the same as choosing $k$ sets whose union is the whole universe.
 
 ---
 
@@ -122,6 +122,8 @@ The construction is polynomial time. There are $m+n(k-1)$ numbers, each has $n+1
 
 **Theorem.** $\mathrm{SET\ COVER}\le_P\mathrm{SUBSET\text{-}SUM}$.
 
+*With no carries, the leading digit counts chosen sets, and padding alone cannot fill an element digit.*
+
 **Forward direction.** Suppose $\langle U,\mathcal F,k\rangle\in\mathrm{SET\ COVER}$. Then there are sets
 
 $$
@@ -186,4 +188,4 @@ Therefore $\mathrm{SET\ COVER}\le_P\mathrm{SUBSET\text{-}SUM}$.
 
 **Corollary.** SUBSET-SUM is NP-complete.
 
-SUBSET-SUM is in $NP$: a certificate is the chosen sub-multiset of $X$, and the verifier adds the selected binary integers and checks whether the sum is $s$. Since SET COVER is NP-complete and reduces to SUBSET-SUM, SUBSET-SUM is NP-hard. Hence it is NP-complete.
+SUBSET-SUM is in $NP$. A certificate is the chosen sub-multiset of $X$, and the verifier adds the selected binary integers and checks whether the sum is $s$. Since SET COVER is NP-complete and reduces to SUBSET-SUM, SUBSET-SUM is NP-hard. Hence it is NP-complete.

@@ -3,7 +3,7 @@ title: "Theory of Computation: Lecture 8"
 description: "Polynomial-time mapping reductions, NP-completeness, Cook-Levin, the 3SAT reduction, and the SAT-to-INDSET construction."
 tags: ["Theory of computation"]
 created: 2026-06-27
-updated: 2026-06-27
+updated: 2026-10-14
 ---
 
 ## Polynomial-Time Reductions
@@ -27,6 +27,8 @@ $$
 *The direction $A\le_P B$ means: a fast solver for $B$ would give a fast solver for $A$. So $B$ is at least as hard as $A$.*
 
 **Theorem.** If $A\le_P B$ and $B\in P$, then $A\in P$.
+
+*Translate the input, then let the fast decider for $B$ answer.*
 
 **Proof.** Let $f$ be a polynomial-time reduction from $A$ to $B$, and let $M_B$ be a polynomial-time decider for $B$. Build a decider $N$ for $A$:
 
@@ -58,6 +60,8 @@ $$
 
 for fixed constants $p,q\ge 1$.
 
+So $N$ decides $A$ in polynomial time, and $A\in P$.
+
 **Corollary.** If $A\le_P B$ and $A\notin P$, then $B\notin P$.
 
 This is a hardness transfer. For NP problems, however, we usually do not know that a natural language is outside $P$. NP-completeness replaces that missing knowledge with reductions from all of $NP$.
@@ -73,6 +77,8 @@ f_{AB}(w)\in B
 \quad\Longleftrightarrow\quad
 f_{BC}(f_{AB}(w))\in C.
 $$
+
+So the composed map is a polynomial-time reduction from $A$ to $C$.
 
 ---
 
@@ -90,6 +96,8 @@ $$
 - **Hardness.** Every problem in $NP$ can be translated to $H$ in polynomial time.
 
 If any NP-complete language has a polynomial-time decider, then $P=NP$: for every $L\in NP$, use $L\le_P H$ and the theorem above to get $L\in P$.
+
+**Common mistake.** NP-complete does not mean proven to need exponential time. No NP-complete language is known to lie outside $P$, and finding one would prove $P\ne NP$.
 
 **Cook-Levin theorem.** $\mathrm{SAT}$ is NP-complete.
 
@@ -115,6 +123,8 @@ With this convention, $3$SAT allows clauses of size $1$, $2$, or $3$.
 
 Membership in $NP$ is inherited from $\mathrm{SAT}$: a certificate is a truth assignment, and the verifier checks every clause.
 
+*Split a long clause in two, and let a fresh variable $z$ record which half holds a true literal.*
+
 For hardness, reduce $\mathrm{SAT}$ to $3\mathrm{SAT}$. Let $K$ be a clause with more than three literals:
 
 $$
@@ -136,7 +146,7 @@ If $K$ is satisfiable and one of $\ell_1,\ell_2$ is true, set $z=\mathrm{false}$
 
 Conversely, if all original literals $\ell_1,\ldots,\ell_m$ are false, then $K_1$ forces $z=\mathrm{true}$ while $K_2$ forces $z=\mathrm{false}$, impossible. So any satisfying assignment for $K_1\wedge K_2$ makes at least one original literal true.
 
-Repeat this replacement until every clause has at most three literals. Each step shortens one long clause by one literal, introduces one fresh variable, and increases the formula size only linearly. Therefore the whole transformation is polynomial time, and the resulting formula is satisfiable exactly when the original formula is satisfiable.
+Repeat this replacement until every clause has at most three literals. Each step shortens one long clause by one literal, introduces one fresh variable, and increases the formula size only linearly. Therefore the whole transformation is polynomial time, and the resulting formula is satisfiable exactly when the original formula is satisfiable. So $\mathrm{SAT}\le_P 3\mathrm{SAT}$, and $3\mathrm{SAT}$ is NP-complete.
 
 The same idea does not give a SAT-to-2SAT reduction: binary clauses cannot carry the remaining tail of a long disjunction in the same satisfiability-preserving way.
 
@@ -152,7 +162,7 @@ $$
 \{\langle G,k\rangle\mid G\text{ has an independent set of size }k\}.
 $$
 
-Membership in $NP$ is immediate: a certificate is a set $S\subseteq V(G)$, and the verifier checks that $|S|=k$ and that no pair of vertices in $S$ is connected by an edge.
+Membership in $NP$ is immediate. A certificate is a set $S\subseteq V(G)$, and the verifier checks that $|S|=k$ and that no pair of vertices in $S$ is connected by an edge.
 
 **Theorem.** $\mathrm{INDSET}$ is NP-complete.
 
@@ -185,8 +195,10 @@ the selected vertices correspond to the satisfying assignment $x_1=x_2=x_3=x_4=\
 
 <SatToIndsetReductionSchema />
 
-**Correctness: satisfiable formula gives independent set.** Suppose $\varphi$ has a satisfying assignment. In each clause, choose one literal that is true. The chosen vertices form an independent set of size $m$: there is one chosen vertex per clause, so no same-clause edge is used, and two true literals under one assignment cannot be conflicting.
+**Correctness: satisfiable formula gives independent set.** Suppose $\varphi$ has a satisfying assignment. In each clause, choose one literal that is true. The chosen vertices form an independent set of size $m$. There is one chosen vertex per clause, so no same-clause edge is used, and two true literals under one assignment cannot be conflicting.
 
-**Correctness: independent set gives satisfying assignment.** Suppose $G$ has an independent set $S$ of size $m$. Since each clause group is a clique, $S$ contains at most one vertex from each clause. There are $m$ clauses and $|S|=m$, so it contains exactly one vertex from every clause. Since $S$ has no conflict edge, the selected literals are mutually consistent. Set each selected literal to true and assign the remaining variables arbitrarily. Every clause has a selected true literal, so $\varphi$ is satisfiable.
+**Correctness: independent set gives satisfying assignment.** Suppose $G$ has an independent set $S$ of size $m$. Since each clause group is a clique, $S$ contains at most one vertex from each clause. There are $m$ clauses and $|S|=m$, so it contains exactly one vertex from every clause.
+
+Since $S$ has no conflict edge, the selected literals are mutually consistent. Set each selected literal to true and assign the remaining variables arbitrarily. Every clause has a selected true literal, so $\varphi$ is satisfiable.
 
 The graph has one vertex per literal occurrence and at most quadratically many edges in the formula size, so the construction is polynomial time. Therefore $\mathrm{SAT}\le_P\mathrm{INDSET}$, and since $\mathrm{INDSET}\in NP$, the language is NP-complete.
