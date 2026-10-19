@@ -183,10 +183,10 @@ export function CommandMenu() {
       if (window.location.pathname === path) {
         // Same page: jump directly; router.push would re-append the hash.
         if (hash) {
-          document.getElementById(hash)?.scrollIntoView();
+          document.getElementById(hash)?.scrollIntoView({ behavior: "instant" });
           history.replaceState(null, "", row.href);
         } else {
-          window.scrollTo(0, 0);
+          window.scrollTo({ top: 0, behavior: "instant" });
         }
       } else {
         router.push(row.href);
@@ -357,7 +357,7 @@ function flashConcept(pathname: string, name: string) {
       for (const el of leads) {
         const text = (el.textContent ?? "").trim().replace(/[.:]$/, "").toLowerCase();
         if (text === target) {
-          el.scrollIntoView({ block: "center" });
+          el.scrollIntoView({ block: "center", behavior: "instant" });
           el.classList.add("concept-flash");
           el.addEventListener(
             "animationend",
