@@ -56,7 +56,7 @@ export default async function NotePage({
     <article className="flex min-w-0 flex-col">
       <NoteToc courseSlug={course?.slug} />
       <header className="mx-auto mb-6 flex w-full max-w-measure items-center justify-between gap-4">
-        <div className="flex flex-col gap-1 text-sm/5 tracking-[-0.0064em]">
+        <div className="flex flex-col gap-1 text-[1.0625rem]/[1.5] tracking-[-0.0064em]">
           <h1 className="font-medium text-balance text-[color:var(--color-text)]">{heading}</h1>
           {date && (
             <time dateTime={date.toISOString()} className="font-[460] text-gray-1200/40">
