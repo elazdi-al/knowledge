@@ -276,14 +276,17 @@ export interface Message {
   relayed?: boolean;
 }
 
-/** A message sequence chart: lanes across the top, time running down, one message per row; `slant` makes every message take a row to arrive. */
-export function SequenceChart({ id = "seq", lanes, messages, slant = false }: { id?: string; lanes: string[]; messages: Message[]; slant?: boolean }) {
+/**
+ * A message sequence chart: lanes across the top, time running down, one message per row; `slant` makes every message take a row to arrive.
+ * `pitch` is the least lane spacing and `inset` the first lane's x, so stacked charts given the same ones line up; `headless` drops the lane name boxes, for lanes the figure already names.
+ */
+export function SequenceChart({ id = "seq", lanes, messages, slant = false, pitch: minPitch = 150, inset, headless = false }: { id?: string; lanes: string[]; messages: Message[]; slant?: boolean; pitch?: number; inset?: number; headless?: boolean }) {
   const headW = headWidth(lanes);
   // a label needs clear line on both sides, also on a message that stops short of the next lane
-  const pitch = Math.max(headW + 24, 150, ...messages.map((m) => (m.label ? (labelPillW(m.label) + 40) / Math.min(1, Math.abs(m.to - m.from)) : 0)));
-  const x = (lane: number) => headW / 2 + lane * pitch;
+  const pitch = Math.max(headW + 24, minPitch, ...messages.map((m) => (m.label ? (labelPillW(m.label) + 40) / Math.min(1, Math.abs(m.to - m.from)) : 0)));
+  const x = (lane: number) => (inset ?? headW / 2) + lane * pitch;
   const ROW = 36;
-  const dep = (i: number) => NODE.h + 26 + i * ROW;
+  const dep = (i: number) => (headless ? 0 : NODE.h) + 26 + i * ROW;
   const bottom = dep(messages.length - 1) + (slant ? ROW : 0) + 18;
   const noteX = x(lanes.length - 1) + 24;
   const crossR = 4;
@@ -291,7 +294,10 @@ export function SequenceChart({ id = "seq", lanes, messages, slant = false }: { 
   const items: ReactNode[] = [];
   const edges: ReactNode[] = [];
   lanes.forEach((name, l) => {
-    items.push(<Node key={`h${l}`} id={`${id}.l${l}`} title={name} x={x(l) - headW / 2} y={0} w={headW} />, at(`${id}.end${l}`, x(l), bottom));
+    items.push(
+      headless ? at(`${id}.l${l}`, x(l), 0) : <Node key={`h${l}`} id={`${id}.l${l}`} title={name} x={x(l) - headW / 2} y={0} w={headW} />,
+      at(`${id}.end${l}`, x(l), bottom),
+    );
     edges.push(<Edge key={`life${l}`} from={`${id}.l${l}`} to={`${id}.end${l}`} route="straight" head="none" state="ghost" />);
   });
   messages.forEach((m, i) => {

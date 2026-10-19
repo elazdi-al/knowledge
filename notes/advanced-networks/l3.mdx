@@ -3,46 +3,44 @@ title: "Advanced Networks: Lecture 3"
 description: "Getting through NATs (UPnP, STUN, NAT types, hole punching, TURN and ICE), NAT64 and DNS64, configuring an interface with DHCP and SLAAC, hop limit and traceroute, and resolving IP addresses to MAC addresses with NDP and ARP, with their attacks and defences."
 tags: ["Advanced networks"]
 created: 2026-10-04
-updated: 2026-10-06
+updated: 2026-10-18
 ---
 
 ## Reaching a Host Behind a NAT
 
-A NAT creates entries only from outbound traffic, so a host behind it can start a conversation but cannot receive one first.
+A NAT creates a table entry only when an inside host sends a packet out. An outside host therefore cannot start a conversation with a host behind a NAT.
 
-Port forwarding fixes this for a server, if the server knows the NAT's public address and can advertise it.
+**Port forwarding.** With port forwarding, the NAT sends every packet that arrives on a chosen public port to a fixed internal IP:port.
 
-**UPnP (Universal Plug and Play).** A protocol a LAN host uses to make its NAT set up port forwarding and to learn the NAT's public address.
+A server behind a NAT needs port forwarding. It also needs the public address of the NAT, to give to its clients.
 
-UPnP offers three requests.
+**UPnP (Universal Plug and Play).** UPnP is a protocol that lets a LAN host set up port forwarding on its NAT. The host can also ask the NAT for its public address.
 
-- `AddPortMapping`: the host asks for a *specific* public port. The NAT sets it up or reports a conflict.
-- `AddAnyPortMapping`: the host asks for *any* public port.
-- `GetExternalIPAddress`: the host learns the NAT's public address.
+- `AddPortMapping` asks for a specific public port. The NAT opens it or reports a conflict.
+- `AddAnyPortMapping` asks for any free public port.
+- `GetExternalIPAddress` asks for the public address of the NAT.
 
-UPnP authenticates nobody: any program on any LAN device can open a port. Many NATs disable it, carrier-grade NATs rarely offer it, and browsers do not use it.
+<UpnpSchema />
 
-**STUN (Session Traversal Utilities for NAT).** A protocol in which a public server tells a host the public IP address and port its request came from: the mapping the host's NAT created on the way out.
+UPnP authenticates nobody, so any program on any LAN device can open a port. Many NATs disable UPnP. Carrier-grade NATs rarely offer it, and browsers do not use it.
 
-That mapping points toward the STUN server. Whether another peer can use it depends on how the NAT maps and filters.
+**STUN (Session Traversal Utilities for NAT).** STUN is a protocol in which a public server tells a host the public IP:port of its request. This IP:port is the mapping that the host's NAT created.
 
-A NAT does two jobs. As a **translator**, it maps an internal IP:port to a NAT IP:port, one NAT table entry per mapping. As a **filter**, it decides which outside senders may send in. The filtering router of an IPv6 home is a filter alone.
+<StunSchema />
 
-An **endpoint-independent** mapping gives an internal IP:port one NAT port toward every peer:
+A NAT does two jobs. As a **translator**, it maps an internal IP:port to a public IP:port. Each mapping is one entry in the NAT table. As a **filter**, it decides which outside hosts may send packets in.
 
-$$
-\text{internal IP:port} \rightarrow \text{NAT IP:port}
-$$
+Both jobs decide whether another peer can use the mapping that STUN reports.
 
-An **endpoint-dependent** mapping gives it a new NAT port for each destination:
+### NAT Types
 
-$$
-(\text{internal IP:port},\ \text{destination IP:port}) \rightarrow \text{NAT IP:port}
-$$
+**Endpoint-independent mapping.** The NAT assigns one public port to each internal socket. Every peer sees this port.
 
-The filter admits any outside host, only the IP addresses the internal host has contacted, or only the exact IP:port pairs it has contacted.
+**Endpoint-dependent mapping.** The NAT assigns one public port to each conversation. A new destination gets a new port.
 
-*The mapping decides which public address a peer must aim at; the filter decides whether the NAT lets that peer in.*
+The filter admits one of three groups: any outside host, only the IP addresses that the host contacted, or only the IP:port pairs that the host contacted.
+
+*The mapping decides which address a peer must aim at. The filter decides whether the NAT lets the peer in.*
 
 | NAT type | Mapping | Who can send in? |
 |---|---|---|
@@ -53,17 +51,19 @@ The filter admits any outside host, only the IP addresses the internal host has 
 
 Each row is harder to traverse than the one above.
 
-ICMP packets carry no port. Some NATs drop ICMP, and others use the **ICMP echo request identifier** of `ping` in place of the port.
+ICMP carries no port. Some NATs drop ICMP, and others use the identifier of a `ping` echo request as the port.
 
 **Example 1. How many hosts can a NAT serve?**
 
-*A NAT with one public address serves the private block `10.0.0.0/8`. How many internal hosts can it serve at most?*
+A NAT has one public address and serves the private block `10.0.0.0/8`. How many internal hosts can it serve at most?
 
-*Not the $2^{24}$ addresses of the /8. Each NAT table entry takes one TCP or UDP port, and each protocol has 16-bit ports, so the NAT holds fewer than $2 \times 2^{16}$ entries (minus reserved and blocked ports). That is also the host limit, reached when each host has a single connection.*
+Fewer than $2 \times 2^{16}$, not $2^{24}$. Each NAT table entry uses one TCP or UDP port, and each protocol has $2^{16}$ ports. Some ports are reserved or blocked. The NAT reaches this limit when each host has only one connection.
 
-The hard case is two hosts that are *both* behind NATs (e.g. a browser video call exchanging UDP media). Neither can receive an unsolicited packet.
+### Two Peers Behind NATs
 
-**Signalling channel.** An out-of-band path between the two peers, such as the call service's web server. The peers use it to exchange the addresses STUN reported.
+Two hosts behind NATs want to call each other (e.g. in a browser video call). Neither host can receive the first packet.
+
+**Signalling channel.** A signalling channel is a path between the two peers through a public server that both already reach. The peers use it to exchange their addresses before they talk directly. In a browser video call, this server is the web server of the call service.
 
 ```text
 A   192.168.1.10:5000   behind NAT A, public address 198.51.100.1
@@ -71,21 +71,21 @@ B   10.0.0.7:6000       behind NAT B, public address 198.51.100.2
 S   203.0.113.9:3478    STUN server
 ```
 
-Whatever the NAT types, the call starts the same way.
+A call starts in three steps.
 
-1. Each peer sends a STUN request to S and learns its public address and port.
-2. Each peer tells the other, over the signalling channel, the address STUN reported.
-3. Each peer sends packets to the address the other reported.
+1. Each peer asks S for its public IP:port.
+2. The peers exchange these IP:ports over the signalling channel.
+3. Each peer sends packets to the IP:port of the other peer.
 
-**Example 2. Two full cone NATs.**
+| Both NATs | Result of step 3 |
+|---|---|
+| Full cone | Works. The port is right, and the filter admits anyone. |
+| Port-restricted cone | Works after hole punching. The port is right, but the filter is closed. |
+| Symmetric | Fails. The port belongs to the conversation with S. |
 
-*NAT A maps A to `198.51.100.1:40001` and NAT B maps B to `198.51.100.2:50001`, toward every peer. A sends to `198.51.100.2:50001` and B to `198.51.100.1:40001`. Do the packets arrive?*
+**Example 2. Two symmetric NATs.**
 
-*Yes. The port STUN reported is the port the peer reaches, and the filter lets any host in.*
-
-**Example 3. Two symmetric NATs.**
-
-*Same call, but nothing arrives at either end. The NAT tables after step 3 show why.*
+After step 3, the NAT tables hold four entries.
 
 | NAT | Internal IP:port | Destination | NAT IP:port |
 |---|---|---|---|
@@ -94,146 +94,176 @@ Whatever the NAT types, the call starts the same way.
 | B | `10.0.0.7:6000` | S, `203.0.113.9:3478` | `198.51.100.2:50001` |
 | B | `10.0.0.7:6000` | A, `198.51.100.1:40001` | `198.51.100.2:50002` |
 
-*B aims at port 40001, but that entry is bound to S, so NAT A drops the packet. The entry toward B is port 40002, and nobody tells B about it. The same happens the other way. STUN reported the one mapping neither peer needs, and a second STUN server only reports another useless one. TCP fails the same way.*
+B sends to port 40001. NAT A bound this port to S, so NAT A drops the packet. NAT A uses port 40002 toward B, but nobody tells B. The same happens in the other direction, with TCP as with UDP. A second STUN server only reports another useless port.
 
-**Example 4. Two port-restricted cone NATs.**
+### Hole Punching
 
-*The mappings are endpoint-independent again: NAT A keeps port 40001 toward every destination, and NAT B keeps 50001. But each filter admits only the IP:port pairs its host has contacted, so far only S. Does the call work?*
-
-*Yes, after one more step. Each peer was told the right port, but the filter is still closed. Opening it costs one outbound packet on each side.*
-
-**Hole punching.** A technique in which both peers send to each other's STUN-learned address at roughly the same time, so that each outbound packet opens the sender's NAT filter for the other peer.
-
-After the STUN requests and the address exchange, hole punching takes four steps.
-
-1. Both peers send a packet to the other's reported address.
-2. Each far NAT drops the packet, since its host has not contacted the sender yet.
-3. Each packet still opens its sender's *own* NAT filter for the peer.
-4. The retransmissions get through in both directions.
+**Hole punching.** In hole punching, both peers send to each other's STUN address at about the same time. Each outgoing packet opens the sender's own filter for the other peer.
 
 *Neither side can receive, but both can send, and sending creates permission to receive.*
 
 <HolePunchingSchema />
 
-Hole punching needs the signalling channel to coordinate, and its first packets are lost by design. It also works for an address-restricted cone, whose filter is looser. Two full cone NATs need no punching.
+The far NAT drops the first packet of each peer, because its host has not contacted that peer yet. The packet still opens the sender's own filter. The next packets get through in both directions.
 
-Hole punching often fails behind symmetric NATs, yet they persist, mostly in carrier-grade NATs. They combine easily with a per-flow stateful firewall and simplify load balancing, since a cluster of symmetric NATs shares no state. Guessing their next port is unreliable, which leaves a relay.
+Hole punching needs the signalling channel to coordinate the peers. It works for port-restricted and address-restricted cones. Full cones need no hole punching.
 
-**TURN (Traversal Using Relays around NAT).** A public server that relays the media: each peer sends to the relay, which forwards to the other peer. TURN works behind any NAT, at the price of an indirect path.
+Hole punching cannot traverse a symmetric NAT. Its mapping is endpoint-dependent, so each new destination gets a new port. The peer still sends to the port that S reported, and the NAT drops the packet.
 
-**ICE (Interactive Connectivity Establishment).** An algorithm that gathers every candidate address of a peer, checks them all, and prefers direct paths to relayed ones. The candidates are the host address (the peer's own interface), the STUN-learned address and a TURN-relayed address.
+Symmetric NATs are still common, mostly as carrier-grade NATs. They combine easily with a per-flow stateful firewall. A cluster of symmetric NATs shares no state, so load balancing is simple.
 
-IPv6 avoids the problem. Each host knows its global address, and the only obstacle left is the filtering router of an IPv6 home, which hole punching opens.
+Guessing the next port of a symmetric NAT is unreliable, so the peers need a relay.
+
+### TURN
+
+**TURN (Traversal Using Relays around NAT).** In TURN, a public server called the **relay** lends a public IP:port to a peer. The relay forwards every packet sent to this IP:port to the peer. This IP:port is the peer's **relayed address**.
+
+Take the two symmetric NATs of Example 2 and a relay T at `203.0.113.20:3478`.
+
+1. A asks T for an address. T lends A the relayed address `203.0.113.20:49152`.
+2. A sends this address to B over the signalling channel.
+3. B sends packets to `203.0.113.20:49152`. T forwards them to A.
+4. A sends its replies to T. T forwards them to B from `203.0.113.20:49152`.
+
+<TurnRelaySchema />
+
+*A NAT always admits replies from an IP:port that its host contacted. With TURN, each peer contacts only the relay.*
+
+Nobody predicts a port. Like S, T reads the mapping of each peer from the source of its packets.
+
+S answers one request and leaves the call. T carries every packet of the call. This makes the path longer, and the operator of T pays for the bandwidth. TURN is therefore the last resort.
+
+### ICE
+
+A peer does not know in advance which method works. It does not know the NAT types on the path, and the two peers may even sit in the same LAN.
+
+**Candidate.** A candidate is an IP:port at which a peer may be reachable.
+
+| Candidate | Comes from | A's candidate |
+|---|---|---|
+| Host | the interface of the peer | `192.168.1.10:5000` |
+| Server reflexive | STUN: the mapping on the NAT of the peer | `198.51.100.1:40001` |
+| Relayed | TURN: the relayed address | `203.0.113.20:49152` |
+
+**ICE (Interactive Connectivity Establishment).** ICE is a procedure in which two peers exchange their candidates, test which pairs connect, and keep the best pair that works.
+
+*ICE does not guess the NAT types. It tries every path and keeps the most direct one that works.*
+
+1. Each peer gathers its candidates from its interface, from S and from T.
+2. The peers exchange their candidate lists over the signalling channel.
+3. Each peer pairs its candidates with the candidates of the other peer. It ranks the pairs: host pairs first, relayed pairs last.
+4. Each peer sends a STUN request on every pair, best first. An answer proves that the pair works.
+5. The peers keep the best pair that works.
+
+In step 4, the peers run STUN between themselves, without a server. Both peers send checks at the same time, so the checks also punch the holes.
+
+| Situation | Pair that ICE keeps |
+|---|---|
+| Both peers in the same LAN | host and host |
+| Two full cone NATs | server reflexive and server reflexive |
+| Two port-restricted cone NATs | server reflexive and server reflexive, once the checks punch the holes |
+| Two symmetric NATs | a pair with a relayed candidate |
+
+IPv6 avoids most of this problem. Each host knows its global address. The only obstacle is the filter of the home router, and hole punching opens it.
 
 ## NAT64 and DNS64
 
-Dual stack is one way to bridge IPv4 and IPv6. Translation is the other.
+Dual stack is one way to connect IPv4 and IPv6. Translation is the other way.
 
-**NAT64.** A box at the boundary between an IPv6 network and the IPv4 internet that translates packet headers, so that an IPv6-only client (client6) can reach an IPv4-only server (server4).
+**NAT64.** NAT64 is a box between an IPv6 network and the IPv4 internet. It translates packet headers, so an IPv6-only client (client6) can reach an IPv4-only server (server4).
 
-NAT64 translates the two addresses differently.
+**IPv4-embedded IPv6 address.** An IPv4-embedded IPv6 address is a 96-bit prefix followed by a 32-bit IPv4 address. The prefix is the well-known `64:ff9b::/96` or a /96 from the network's own block (e.g. `2001:db8:64::/96`).
 
-- **Client's address.** The IPv6 address becomes an IPv4 address from a pool, recorded in a classic NAT table (stateful).
-- **Server's address.** An IPv6 address with an IPv4 address embedded in it becomes that IPv4 address, by arithmetic alone (stateless).
+To embed an IPv4 address, write its four bytes in hex. The address `203.0.113.5` becomes `cb.00.71.05`, so server4 is `64:ff9b::cb00:7105`.
 
-**IPv4-embedded IPv6 address.** A 96-bit prefix followed by a 32-bit IPv4 address, which makes every IPv4 server addressable from IPv6. The prefix is the well-known `64:ff9b::/96` or a /96 from the network's own block (e.g. `2001:db8:64::/96`).
+NAT64 translates the two addresses of a packet in different ways.
 
-*Embedding writes the IPv4 address's four bytes in hex: `203.0.113.5` is `cb.00.71.05`, so server4 becomes `64:ff9b::cb00:7105`. NAT64 recovers `203.0.113.5` by dropping the prefix.*
+| Address | IPv6, client6 to NAT64 | IPv4, NAT64 to server4 | Translation |
+|---|---|---|---|
+| Source | `2001:db8:1234:1::d` | a pool address | stateful, recorded in a NAT table |
+| Destination | `64:ff9b::cb00:7105` | `203.0.113.5` | stateless, by dropping the prefix |
 
-The client knows only the server's name, so it still has to learn that address.
+The client knows only the name of server4. DNS must give it the embedded address.
 
-**DNS64.** A DNS resolver that, when a name has only an IPv4 (A) record, synthesizes an AAAA record by embedding that IPv4 address into the NAT64 prefix. A name with a real AAAA record gets it back unchanged.
-
-For a name with only an A record, resolution takes four steps.
+**DNS64.** DNS64 is a DNS resolver that creates AAAA records. If a name has only an A record, DNS64 returns an AAAA record with the IPv4 address embedded in the NAT64 prefix. If the name has a real AAAA record, DNS64 returns it unchanged.
 
 1. The client asks its resolver for the AAAA record of `example.net`.
-2. DNS64 finds only an A record, synthesizes `64:ff9b::cb00:7105` and returns it.
-3. The client connects to that IPv6 address like any other.
-4. Routing carries the packets to the NAT64 box, which translates them. The client never learns that IPv4 was involved.
+2. DNS64 finds only an A record. It returns `64:ff9b::cb00:7105`.
+3. The client connects to this IPv6 address like any other.
+4. Routing carries the packets to NAT64, and NAT64 translates them.
 
 <Nat64Schema />
 
-| Packet | Source | Destination |
-|---|---|---|
-| IPv6, client6 to NAT64 | `2001:db8:1234:1::d` (client6) | `64:ff9b::cb00:7105` |
-| IPv4, NAT64 to server4 | a pool address, recorded in the NAT table (stateful) | `203.0.113.5`, the prefix dropped (stateless) |
-
-DNS64 steers traffic toward the translator by choosing which address to return, as content delivery networks and load balancers do.
+The client never learns that IPv4 is involved. DNS64 steers traffic to the translator by choosing which address to return. Content delivery networks and load balancers use the same trick.
 
 ---
 
 ## Configuring an Interface
 
-Every exchange so far assumed configured hosts.
+A host's IP interface needs four items: an IP address, a subnet mask, the IP address of the default gateway, and the IP address of a DNS server.
 
-A host's IP interface needs four items.
+An administrator sets these items by hand, or a protocol sets them automatically. IPv4 uses DHCP. IPv6 uses DHCP or SLAAC.
 
-1. its IP address,
-2. its subnet mask,
-3. the IP address of its default gateway,
-4. the IP address of a DNS server.
+A router's interface toward its provider uses **PPP** (Point-to-Point Protocol) on telecom lines such as ADSL. In IPv6, it can also use DHCP with prefix delegation.
 
-They are set by hand or automatically: in IPv4 by DHCP, in IPv6 by DHCP or by SLAAC.
+**DHCP (Dynamic Host Configuration Protocol).** DHCP is a protocol in which a server gives hosts their configuration. In IPv4, it gives all four items. A **stateful** DHCP server also remembers which address it gave to which host.
 
-A router's interface toward its provider is configured by **PPP** (Point-to-Point Protocol), which configures telecom lines such as ADSL, or in IPv6 also by DHCP with prefix delegation.
+In IPv4, DHCP is a two-phase commit with four messages.
 
-**DHCP (Dynamic Host Configuration Protocol).** A protocol in which a server hands hosts their configuration, in IPv4 all four items. **Stateful** DHCP also remembers which address went to which host.
+1. **DISCOVER**: the host looks for a DHCP server.
+2. **OFFER**: a server offers a configuration.
+3. **REQUEST**: the host accepts the offer.
+4. **ACK**: the server confirms.
 
-The DHCP exchange is a two-phase commit, with four messages in IPv4.
+**Lease.** A lease is the record that binds an address to a client after the ACK. The lease expires after a limited time, and the client renews it to keep the address.
 
-1. The host discovers a DHCP server: **DISCOVER**.
-2. The server returns an offer: **OFFER**.
-3. The host commits to the offer: **REQUEST**.
-4. The server confirms the commitment: **ACK**.
+The host does not know the address of the server, so it broadcasts (IPv4) or multicasts (IPv6). An IPv4 DISCOVER travels in UDP from port 68 to port 67. It carries the MAC address of the client. Its source is `0.0.0.0`, because the host has no address yet. Its destination is `255.255.255.255`.
 
-**Lease.** The server's record binding an address to a client after the ACK. It is valid for a limited time, and the client renews it to keep the address.
+A broadcast never leaves the LAN. The server therefore sits on the same LAN, or the gateway relays the messages.
 
-The host does not know the server's address, so it broadcasts (IPv4) or multicasts (IPv6).
-
-An IPv4 DISCOVER travels in UDP from port 68 to port 67 and carries the client's MAC address. Its source is `0.0.0.0`, since the host has no address yet, and its destination `255.255.255.255`, everyone on the LAN.
-
-A broadcast never leaves the LAN, so the server sits on the same LAN or the gateway relays the messages.
-
-**DHCP relay.** A gateway that picks up its LAN's DHCP messages and forwards them to a DHCP server in another network, so that one server can serve many subnets.
+**DHCP relay.** A DHCP relay is a gateway that forwards the DHCP messages of its LAN to a server in another network. One server can then serve many subnets.
 
 <DhcpRelaySchema />
 
-Without DHCP, IPv4 has a last resort.
+**IPv4 self-autoconfiguration.** With IPv4 self-autoconfiguration, a host with no manual configuration and no DHCP server gives itself a link-local address at boot.
 
-**IPv4 self-autoconfiguration.** An IPv4 host with no manual configuration and no DHCP server gives itself a link-local address at boot.
+1. The host picks a random address in the link-local block `169.254.0.0/16`.
+2. The host runs an **address duplication test**. It broadcasts an **ARP probe**, which asks "who has this address?" from source `0.0.0.0`. If nobody answers, the host keeps the address.
 
-The host takes two steps.
-
-1. It picks an address *at random* from the link-local block `169.254.0.0/16`.
-2. It runs an **address duplication test**: it broadcasts an **ARP probe**, a "who has this address?" request sent from `0.0.0.0`, and keeps the address if nobody answers.
-
-Self-autoconfiguration lets hosts talk on unmanaged networks without a router, and is not meant for general use. Windows implements it; Linux does not always.
+Self-autoconfiguration lets hosts talk on an unmanaged network without a router. It is not for general use. Windows implements it, and Linux does not always.
 
 ## Autoconfiguration in IPv6
 
-IPv6 can configure a host without a DHCP server.
-
-**SLAAC (Stateless Address AutoConfiguration).** An IPv6 host builds its own addresses, first a link-local one and then a global one from a prefix announced by a router, with no server keeping state.
+**SLAAC (Stateless Address AutoConfiguration).** With SLAAC, an IPv6 host builds its own addresses. No server keeps state.
 
 1. **Link-local address.** The host appends a 64-bit host part to `fe80::/64`.
-2. **Address duplication test.** The host sends a query for the address to its **solicited-node multicast address**: the prefix `ff02::1:ff00:0/104` followed by the last 24 bits of the host part.
-3. **Global address.** The host sends a **router solicitation (RS)** to all routers, `ff02::2`. A router answers with a **router advertisement (RA)** carrying a /64 prefix, and the host appends its host part to it. SLAAC ignores a prefix that is not 64 bits long.
+2. **Duplication test.** The host queries the address at its **solicited-node multicast address**. This address is the prefix `ff02::1:ff00:0/104` followed by the last 24 bits of the host part.
+3. **Global address.** The host sends a **router solicitation (RS)** to all routers at `ff02::2`. A router answers with a **router advertisement (RA)** that carries a /64 prefix. The host appends its host part to this prefix.
 
-*SLAAC always gives a link-local address, and a global one only once an RA arrives.*
+SLAAC ignores a prefix that is not 64 bits long.
+
+*SLAAC always gives a link-local address. It gives a global address only once an RA arrives.*
+
+Routers also send RAs periodically, without a request, to all nodes at `ff02::1`. The router that sends an RA becomes the default gateway of the host.
+
+SLAAC gives no DNS server address. The host gets it in one of two ways.
+
+- **Stateless DHCP.** A DHCP server without lease state gives the DNS server address to every host that asks.
+- **RA option** (RFC 8106). The router puts the DNS server address in its RA. One RA then covers all four items.
 
 The host part comes in five kinds.
 
-- **Manual.** Set by hand (e.g. `::1`).
-- **Modified EUI-64.** Derived from the MAC address.
-- **Temporary.** Random and short-lived.
-- **RFC 7217.** Random-looking but fixed for each subnet.
-- **CGA.** Derived from a hash of the host's public key.
+- **Manual**: an administrator sets it (e.g. `::1`).
+- **Modified EUI-64**: the host derives it from its MAC address.
+- **Temporary**: the host picks it at random, for a short time.
+- **RFC 7217**: it looks random but stays fixed on each subnet.
+- **CGA** (cryptographically generated address): the host derives it from a hash of its public key.
 
-**Modified EUI-64.** The 64-bit host part derived from a 48-bit MAC address. Split the MAC address into its two 3-byte halves, insert `ff:fe` between them, and flip the second-lowest bit of the first byte.
+**Modified EUI-64.** Modified EUI-64 builds a 64-bit host part from a 48-bit MAC address. Insert `ff:fe` between the two halves of the MAC address. Then flip the second-lowest bit of the first byte.
 
-**Example 5. A MAC-derived address.**
+**Example 3. A MAC-derived address.**
 
-*The EPFL host lrcmac4 has MAC address `08:00:20:78:30:f9`. Which addresses does SLAAC give it?*
+The EPFL host lrcmac4 has MAC address `08:00:20:78:30:f9`. Which addresses does SLAAC give it?
 
 ```text
 MAC address          08:00:20:78:30:f9
@@ -244,43 +274,34 @@ solicited node       ff02::1:ff78:30f9
 global address       2001:620:618:1ad:a00:20ff:fe78:30f9
 ```
 
-*Flipping the bit turns `08` = 0000 1000 into 0000 1010 = `0a`. The global address uses the prefix `2001:620:618:1ad::/64` from an RA. The MAC address stays visible in every address of lrcmac4.*
+Flipping the bit turns `08` (0000 1000) into `0a` (0000 1010). The global prefix `2001:620:618:1ad::/64` comes from an RA.
 
-SLAAC gives no DNS server address, which a host gets in one of two ways.
+A MAC-derived host part is the same on every network. Anyone who collects addresses can therefore track the host as it moves. Two kinds of host part prevent this tracking.
 
-- **Stateless DHCP.** A DHCP server that keeps no lease state and gives the DNS server's address to every host that asks.
-- **RA option** (RFC 8106). The router adds the DNS server's address to its RA.
+**Temporary address.** A temporary address has a random host part and a limited lifetime. It goes through four states.
 
-Routers also send RAs unasked, periodically, to all nodes at `ff02::1`. The router that sends an RA becomes the host's default gateway, so one RA covers all four items.
+1. **Tentative**: until the duplication test succeeds.
+2. **Preferred**: in normal use, until the preferred timer expires.
+3. **Deprecated**: the host stops using it for new TCP connections, until the validity timer expires.
+4. **Invalid**.
 
-A MAC-derived host part is the same on every network the host joins, so anyone who collects addresses can track the host as it moves. Two kinds of host part prevent this tracking.
-
-**Temporary address.** An address with a random host part and a limited lifetime.
-
-A temporary address passes through four states:
-
-1. **tentative**, until the duplication test succeeds;
-2. **preferred**, in normal use, until the preferred timer expires;
-3. **deprecated**, no longer used to start new TCP connections, until the validity timer expires;
-4. **invalid**.
-
-**RFC 7217 address ("secure autoconf").** An address whose host part is a hash of the interface, the subnet prefix and a secret key chosen when the operating system is installed:
+**RFC 7217 address ("secure autoconf").** The host part of an RFC 7217 address is a hash of the interface, the subnet prefix and a secret key. The operating system picks the key at installation.
 
 $$
 \text{host part} = \text{hash}(\text{interface id},\ \text{subnet prefix},\ \text{secret key})
 $$
 
-An RFC 7217 address stays the same on one subnet and changes unpredictably between subnets. A temporary address instead changes over time on the same subnet.
+*An RFC 7217 address changes between subnets but not over time. A temporary address changes over time.*
 
-An interface typically holds both: the RFC 7217 address is the stable one, the temporary address the private one, and source address selection picks between them.
+An interface usually holds both. The RFC 7217 address is the stable one, and the temporary address is the private one. Source address selection picks between them.
 
-An IPv6 home's devices configure themselves by SLAAC, so the home router needs a prefix to advertise. The provider hands it one by DHCP.
+The devices of a home configure themselves by SLAAC, so the home router needs a prefix to advertise. The provider gives it one by DHCP.
 
-**DHCP with prefix delegation.** DHCP in which the provider's server, the **delegating router**, gives the home router a whole prefix instead of one address. If the link between them uses a prefix inside the delegated block, that prefix is excluded (RFC 6603).
+**DHCP with prefix delegation.** In DHCP with prefix delegation, the provider's server gives the home router a whole prefix instead of one address. This server is the **delegating router**. If the link between the two routers uses a prefix inside the delegated block, the delegation excludes that prefix (RFC 6603).
 
-**Example 6. A delegated /60.**
+**Example 4. A delegated /60.**
 
-*Swisscom delegates `2004:aaaa:bbbb:cc00::/60` to home router R0. The /60 holds $2^{64-60} = 16$ /64 prefixes, `cc00` to `cc0f` in the fourth hextet. The ISP link uses `cc01`, which is excluded, and R0 advertises `cc02` on the home LAN, leaving 14 free.*
+Swisscom delegates `2004:aaaa:bbbb:cc00::/60` to home router R0. The /60 holds $2^{64-60} = 16$ /64 prefixes, from `cc00` to `cc0f` in the fourth hextet. The ISP link uses `cc01`, so the delegation excludes it. R0 advertises `cc02` on the home LAN, and 14 prefixes stay free.
 
 <PrefixDelegationSchema />
 
@@ -288,43 +309,39 @@ An IPv6 home's devices configure themselves by SLAAC, so the home router needs a
 
 ## Hop Limit and Traceroute
 
-Forwarding tables change when a link fails or routes are recomputed, and the change reaches routers at different times.
+Forwarding tables change when a link fails or when routes are recomputed. The change reaches different routers at different times.
 
-**Transient loop.** Two routers forwarding a destination's packets to each other while their tables disagree. A packet caught in it bounces back and forth. When propagation is short compared to transmission, a few such packets keep the link busy and congest it.
+**Transient loop.** A transient loop forms when two routers forward a destination's packets to each other because their tables disagree. If propagation is short compared to transmission, a few looping packets keep the link busy and congest it.
 
-**Hop Limit (IPv6) / Time to Live (IPv4).** An 8-bit field (0 to 255) in every IP packet, decremented at every IP hop. It exists to kill packets caught in transient loops.
+**Hop Limit (IPv6) / Time to Live (IPv4).** The hop limit is an 8-bit field (0 to 255) in every IP packet. Every IP hop decrements it. It kills packets caught in transient loops.
 
-- **Who decrements.** Every router and every NAT decrements HL/TTL. Switches do *not*.
-- **Initial value.** Usually 64 at the source.
-- **Expiry.** When HL/TTL reaches 0, the packet is discarded.
+- **Who decrements.** Every router and every NAT. Switches do *not*.
+- **Initial value.** The source usually sets 64.
+- **Expiry.** When the field reaches 0, the router discards the packet.
 
-*Hop limit counts routers, not links: a device that only switches frames inside a LAN never looks at it.*
+*Hop limit counts routers, not links. A device that only switches frames inside a LAN never reads it.*
 
-**Example 7. A packet with hop limit 1.**
+**Example 5. A packet with hop limit 1.**
 
-*A host sends a packet with Hop Limit = 1. Is the packet invalid?*
+A host sends a packet with Hop Limit = 1. Is the packet invalid?
 
-*No. A router cannot forward it, since decrementing gives 0, but a switch can, since it never reads the IP header. Sources set HL = 1 to keep a packet inside the LAN.*
+No. A router cannot forward it, because decrementing gives 0. A switch can forward it, because a switch never reads the IP header. Sources set HL = 1 to keep a packet inside the LAN.
 
-The same counter can map a path.
+**Traceroute.** Traceroute is a tool that finds the routers on the path to a destination. It makes each router, in turn, report an expired packet.
 
-**Traceroute.** A tool that discovers the routers on the path to a destination by making each of them, in turn, report an expired packet.
-
-1. The source sends a series of UDP probes to the destination, with TTL = 1, then 2, then 3, and so on.
-2. The router where a probe's TTL expires discards it and sends an **ICMP error message** (time exceeded) back to the source.
-3. The source learns that router's IP address from the source address of the error message, so the probe with TTL $n$ reveals the $n$-th router.
+1. The source sends UDP probes to the destination with TTL = 1, then 2, then 3, and so on.
+2. The router where the TTL of a probe expires discards the probe. It sends an ICMP time-exceeded error back to the source.
+3. The source address of the error reveals the router. The probe with TTL $n$ reveals the $n$-th router.
 
 <TracerouteSchema />
 
-The last probe reaches the destination. For a UDP probe, it answers with an ICMP error saying that no application listens on that port, and the trace ends.
+The last probe reaches the destination. The destination answers with an ICMP error: no application listens on that port. The trace ends there.
 
-Linux and macOS send UDP probes by default. `traceroute -I` and Windows' `tracert` send ICMP echo requests instead.
+Linux and macOS send UDP probes by default. The command `traceroute -I` and Windows `tracert` send ICMP echo requests. Traceroute finds router names by reverse DNS (address to name). A `*` means that no reply arrived for that probe.
 
-The tool looks up router names by reverse DNS (address to name). A `*` means that no reply arrived for that probe.
+**Example 6. Reading a traceroute.**
 
-**Example 8. Reading a traceroute.**
-
-*`tracert` from an EPFL host to Google over IPv6. Each line is one TTL value: the round-trip times of three probes, then the router that answered.*
+The command `tracert` runs from an EPFL host to Google over IPv6. Each line is one TTL value. It shows the round-trip times of three probes, then the router that answered.
 
 ```text
 Tracing route to www.google.com [2a00:1450:4008:800::1012]
@@ -356,19 +373,19 @@ over a maximum of 30 hops:
 | 10 to 15 | Google | no reverse DNS names |
 | 16 | destination | `www.google.com` |
 
-*The address hierarchy shows hop by hop. Times grow along the path, but not strictly: hop 10's 38 ms against hop 11's 14 ms means that router 10 was slow to produce its error, since probes to hop 11 cross it too. Each probe is routed independently, so the output approximates the path well but does not guarantee it.*
+Times grow along the path, but not strictly. Hop 10 shows 38 ms and hop 11 only 14 ms, yet probes to hop 11 cross router 10. Router 10 was therefore slow to produce its error. Each probe is routed independently, so the output approximates the path but does not guarantee it.
 
-Besides hop limit and the addresses, the IP header carries these fields.
+### Other Header Fields
+
+**MTU (Maximum Transmission Unit).** The MTU is the largest packet that a data link layer carries in one frame. Ethernet has an MTU of 1500 bytes.
 
 | Field (IPv4 / IPv6) | Content |
 |---|---|
 | Type of Service / Traffic Class | 6 bits of **Differentiated Services**, roughly a priority (e.g. for voice over IP), honoured only inside one administration; 2 bits of **Explicit Congestion Notification** |
-| Total Length / Payload Length | size in bytes, *with* the header in IPv4, *without* it in IPv6; at most 65 535, in practice limited by the link's MTU |
+| Total Length / Payload Length | size in bytes, *with* the header in IPv4, *without* it in IPv6; at most 65 535, in practice limited by the MTU of the link |
 | Header Checksum (IPv4 only) | detects bit errors in the header; IPv6 drops it and relies on the data link and network hardware to detect errors |
 
-**MTU (Maximum Transmission Unit).** The largest packet a data link layer carries in one frame: 1500 bytes for Ethernet.
-
-Besides 6 (TCP), 17 (UDP), 1 (ICMP) and 58 (ICMPv6), the Protocol / Next Header field can name tunnels and security protocols.
+The Protocol / Next Header field names the upper layer: 6 for TCP, 17 for UDP, 1 for ICMP and 58 for ICMPv6. It can also name tunnels and security protocols.
 
 | Protocol / Next Header | Upper layer |
 |---|---|
@@ -381,24 +398,32 @@ Besides 6 (TCP), 17 (UDP), 1 (ICMP) and 58 (ICMPv6), the Protocol / Next Header 
 
 ## From IP Address to MAC Address
 
-Within a subnet, the MAC layer moves the data, so every frame needs the MAC address of the neighbour it is sent to.
+Inside a subnet, the MAC layer moves the data. Every frame therefore needs the MAC address of the neighbour that receives it.
 
-**MAC address resolution.** Finding the MAC address of an IP address in the same subnet.
+**MAC address resolution.** MAC address resolution finds the MAC address of an IP address in the same subnet.
 
-Host A has a packet for neighbour B, the destination or the next hop toward it (e.g. the default gateway), and knows only B's IP address. A broadcasts (IPv4) or multicasts (IPv6) "who has B's IP address?" on the LAN, and B answers with its MAC address.
+Host A has a packet for neighbour B. B is the destination or the next hop toward it (e.g. the default gateway). A knows only the IP address of B. A asks the LAN "who has this IP address?", and B answers with its MAC address.
 
-*Resolve the neighbour the frame goes to, never the far destination: MAC addresses are local, so only a neighbour's is needed.*
+*Resolve the neighbour that receives the frame, never the far destination. MAC addresses are local.*
 
-**NDP (Neighbor Discovery Protocol).** IPv6's address-resolution protocol. Its messages are ICMPv6 packets, carried inside IPv6 packets with next header 58 (`0x3a`).
+**Example 7. M1 just boots.**
 
-- **Neighbor Solicitation (NS).** The question "who has IP address B?".
-- **Neighbor Advertisement (NA).** The answer, giving B's MAC address.
+M1 to M9 are MAC addresses. M1 has just booted and sends a packet to M3 at `q.h1`. Does M1 resolve `q.h1` or `p.1`?
 
-SLAAC's router solicitations and advertisements are NDP messages too, and its duplication test is an NS for the host's own tentative address.
+<GatewayResolutionSchema />
 
-**Neighbor cache.** A host's table of the IP address to MAC address mappings learned by address resolution. Entries expire after a configurable idle time, which feedback from higher-layer protocols can extend.
+M1 resolves `p.1`. M3 is outside the subnet of M1, so the frame goes to the default gateway. M1 knows the IP address of the gateway from its configuration. The frame reaches M9 with destination IP `q.h1`. The router then resolves `q.h1` on subnet q.
 
-A resolves B on one LAN.
+Resolution only asks the sender's own link. A link-local address on another link is therefore unreachable.
+
+**NDP (Neighbor Discovery Protocol).** NDP is the address-resolution protocol of IPv6. Its messages are ICMPv6 packets, inside IPv6 packets with next header 58 (`0x3a`).
+
+- **Neighbor Solicitation (NS).** The NS asks "who has IP address B?".
+- **Neighbor Advertisement (NA).** The NA answers with the MAC address of B.
+
+The RS and RA of SLAAC are NDP messages too. The duplication test of SLAAC is an NS for the host's own tentative address.
+
+**Neighbor cache.** The neighbor cache is a host's table of the IP-to-MAC mappings that resolution learned. An entry expires after a configurable idle time. Feedback from higher-layer protocols can extend it.
 
 ```text
 A   2001:620:618:1a6:1:80b2:f01:1   MAC 08:00:20:71:0d:d4
@@ -411,17 +436,13 @@ B   2001:620:618:1a6:1:80b2:f66:1   MAC 00:00:d0:b3:d2:8d
 | 2 | B's NA: B's MAC address | A's address | `08:00:20:71:0d:d4` |
 | 3 | A's data, once B is in its neighbor cache | B's address | `00:00:d0:b3:d2:8d` |
 
-The solicited-node address keeps the NS from bothering the whole LAN.
-
-Every host joins the solicited-node group of each of its addresses. A packet to the group reaches the hosts whose addresses share its last 24 bits, normally only the target.
-
-The frame's destination MAC is `33:33` followed by the last 32 bits of the destination IP, so every other host drops the frame on its MAC address alone. IPv4 has no solicited-node addresses and broadcasts instead.
+The NS goes to the solicited-node address of B, not to the whole LAN. Every host joins the solicited-node group of each of its addresses. A group holds the hosts whose addresses share its last 24 bits, normally only the target. The destination MAC of the frame is `33:33` followed by the last 32 bits of the destination IP. Every other host drops the frame on this MAC address alone.
 
 <SolicitedNodeSchema />
 
-**Ethertype.** The field of the MAC frame header that names the protocol the frame carries: `0x86dd` for IPv6, `0x0800` for IPv4.
+**Ethertype.** The Ethertype is the field of the MAC header that names the protocol inside the frame. IPv6 has Ethertype `0x86dd`, and IPv4 has `0x0800`.
 
-**Example 9. A captured NS.**
+**Example 8. A captured NS.**
 
 ```text
 ETHER:  Packet size = 86 bytes
@@ -443,17 +464,15 @@ ICMPv6: Reserved = 0
 ICMPv6: Target Address = 2001:620:618:197:1:80b2:9701:1
 ```
 
-*ICMPv6 type 135 is an NS. The target ends in `9701:1`, so the destination IP is `ff02::1:ff01:1` and the destination MAC `33:33:ff:01:00:01`. The frame is $14 + 40 + 32 = 86$ bytes: Ethernet header, IPv6 header, ICMPv6 payload. The target is hop 1 of Example 8, the router of `2001:620:618:197::/64`, and the source sits in the same /64: a host resolving its router.*
+ICMPv6 type 135 is an NS. The target ends in `9701:1`, so the destination IP is `ff02::1:ff01:1` and the destination MAC is `33:33:ff:01:00:01`. The frame has $14 + 40 + 32 = 86$ bytes: Ethernet header, IPv6 header and ICMPv6 payload. The target is hop 1 of Example 6, so this capture shows a host resolving its router.
 
-**ARP (Address Resolution Protocol).** IPv4's address-resolution protocol.
+**ARP (Address Resolution Protocol).** ARP is the address-resolution protocol of IPv4. It differs from NDP in three ways.
 
-ARP differs from NDP in three ways.
+- **Names.** ARP calls the NS an **ARP request** and the NA an **ARP reply**. The neighbor cache is the **ARP table**.
+- **Encapsulation.** ARP packets are not ICMP or IP packets. They sit directly in the MAC frame, with Ethertype `0x0806`.
+- **Reach.** The host broadcasts the ARP request to the whole LAN. IPv4 has no solicited-node addresses.
 
-- **Terminology.** The NS and NA are called **ARP request** and **ARP reply**, and the neighbor cache is called the **ARP table**.
-- **Protocol type.** ARP packets are not ICMP packets and are not even carried in IP packets. They sit directly in the MAC frame, with Ethertype `0x0806`.
-- **Reachability.** The ARP request is broadcast to all nodes of the LAN, not multicast.
-
-**Example 10. A captured ARP request.**
+**Example 9. A captured ARP request.**
 
 ```text
 Ethernet II
@@ -473,68 +492,58 @@ Address Resolution Protocol (request)
     Target IP address: 129.88.38.254 (129.88.38.254)
 ```
 
-*The frame goes to the broadcast MAC address `ff:ff:ff:ff:ff:ff`, with type ARP, not IP. Inside, protocol type `IP (0x0800)` names the protocol being resolved, IPv4. The target MAC address is all zeros: it is what the request asks for.*
+The frame goes to the broadcast MAC address `ff:ff:ff:ff:ff:ff`. Its type is ARP, not IP. The protocol type `IP (0x0800)` names the protocol to resolve. The target MAC address is all zeros, because the request asks for it.
 
-The ARP probe of IPv4 self-autoconfiguration is such a request, sent from `0.0.0.0`.
+The ARP probe of IPv4 self-autoconfiguration is an ARP request from `0.0.0.0`.
 
-On Linux, `ip route show` gives the gateway's IP address, and `arp -a` lists the ARP table.
-
-**Example 11. M1 just boots.**
-
-*M1 to M9 are MAC addresses. M1 has just booted and sends a packet to M3 at `q.h1`. Does M1 resolve `q.h1` or `p.1`?*
-
-<GatewayResolutionSchema />
-
-*`p.1`. M3 is outside M1's subnet, so the frame goes to the default gateway, whose IP address M1 knows from its configuration but whose MAC address it does not. The frame reaches M9 still carrying destination IP `q.h1`, and the router then resolves `q.h1` on subnet q.*
-
-Resolution asks only the sender's own link, so a link-local address on another link is unreachable: its NS reaches nobody who holds it.
+On Linux, `ip route show` gives the IP address of the gateway, and `arp -a` lists the ARP table.
 
 ## Securing Address Resolution
 
-ARP and NDP trust whoever answers, and nothing authenticates the answer.
+ARP and NDP trust whoever answers. Nothing authenticates the answer.
 
-**ARP spoofing.** An attack in which a forged ARP reply or NA makes a victim map another host's IP address to the attacker's MAC address.
+**ARP spoofing.** In ARP spoofing, an attacker forges an ARP reply or NA. The victim then maps the IP address of another host to the MAC address of the attacker.
 
-1. The attacker sees A's request for B's MAC address (easier in IPv4, where ARP requests are broadcast to everyone).
-2. The attacker sends a bogus ARP reply or NA carrying its own MAC address.
-3. If the bogus answer arrives before B's, A maps B's IP address to the attacker's MAC address and sends B's traffic to the attacker.
+1. The attacker sees the request of A for the MAC address of B. This step is easiest in IPv4, where ARP requests are broadcast.
+2. The attacker answers with its own MAC address.
+3. If this answer arrives before the answer of B, A sends the traffic for B to the attacker.
 
-**Rogue RA.** A router advertisement from a host that is not a legitimate router. A single rogue RA makes its sender everyone's default gateway on the link. Most rogue RAs are accidental, from misconfigured virtual machine hosts or Windows internet connection sharing.
+**Rogue RA.** A rogue RA is a router advertisement from a host that is not a legitimate router. One rogue RA makes its sender the default gateway of every host on the link. Most rogue RAs are accidents, from misconfigured virtual machine hosts or Windows internet connection sharing.
 
-ARP spoofing and rogue RAs both open the way to a **man-in-the-middle attack**: the attacker receives the victims' traffic, can read or alter it, and passes it on so that nobody notices.
+Both attacks enable a **man-in-the-middle attack**. The attacker receives the traffic of the victims, can read or change it, and passes it on unnoticed.
 
-Mitigations sit in the LAN switch or the WiFi base station, which sees every frame.
+The defences sit in the LAN switch or the WiFi base station, because these devices see every frame.
 
-- **DHCP snooping.** The switch or WiFi base station observes all DHCP traffic and remembers the IP address ↔ MAC address mappings the DHCP server hands out. Two defences build on these mappings:
-  - **Dynamic ARP inspection.** The switch filters all ARP (or NDP) traffic and allows only valid answers.
+- **DHCP snooping.** The switch or base station records the IP-to-MAC mappings that the DHCP server hands out. Two defences use these mappings.
+  - **Dynamic ARP inspection.** The switch filters ARP (or NDP) traffic and lets only valid answers through.
   - **ARP proxy.** The WiFi base station answers ARP requests itself.
-- **RA guard** (RFC 6105). The switch drops RAs arriving on ports where no router exists.
+- **RA guard** (RFC 6105). The switch drops RAs that arrive on ports with no router.
 
-These defences are deployed in enterprise networks, rarely at home or on WiFi base stations.
+Enterprise networks deploy these defences. Homes rarely do.
 
-The cryptographic alternative makes the answer itself verifiable.
+Cryptography makes the answer itself verifiable.
 
-**Public-key cryptography.** Each party holds two keys: a public key $P$, shared with everyone, and a private key $p$, kept secret. What one key encrypts, only the other decrypts.
+**Public-key cryptography.** In public-key cryptography, each party holds a public key $P$ and a private key $p$. Everyone knows $P$, and only the owner knows $p$. What one key encrypts, only the other key decrypts.
 
-**Digital signature.** $p(m)$, the message $m$ encrypted with the sender's private key and sent along with $m$. The receiver decrypts it with $P$ and compares the result with $m$: a match proves that the owner of $p$ signed $m$, and a mismatch marks $m$ as forged.
+**Digital signature.** A digital signature is the message $m$ encrypted with the private key of the sender, written $p(m)$. The sender sends it along with $m$. The receiver decrypts it with $P$. If the result matches $m$, the owner of $p$ signed $m$.
 
-**SEND (Secure Neighbor Discovery).** NDP in which each address is bound to its owner's public key and each NA is signed, which makes NDP spoofing impossible.
+**SEND (Secure Neighbor Discovery).** SEND is NDP with signatures. It binds each address to the public key of its owner, and the owner signs each NA. Attackers can no longer spoof NDP.
 
-**Cryptographically generated address (CGA).** An address whose host part is a hash of the owner's public key, the fifth kind of SLAAC host part:
+**CGA (Cryptographically Generated Address).** A CGA is an address whose host part is a hash of the public key of its owner:
 
 $$
-\text{host part} \approx \text{hash}(P,\ \text{IPv6 prefix},\ \text{CGA parameters})
+\text{host part} \approx \text{hash}(P,\ \text{IPv6 prefix},\ \text{CGA parameters}).
 $$
 
-SEND takes four steps.
+B secures its NA in four steps.
 
-1. B creates an RSA key pair, private key $p$ and public key $P$.
-2. B computes its CGA from $P$, the IPv6 prefix and other parameters such as counters. The hash binds B's IP address to $P$.
-3. B puts $P$ and the CGA parameters in its NA and signs the NA with $p$.
-4. A recomputes the hash to check that the CGA matches $P$, and checks the signature with $P$.
+1. B creates an RSA key pair: private key $p$ and public key $P$.
+2. B computes its CGA from $P$, the prefix and parameters such as counters. The hash binds the IP address of B to $P$.
+3. B puts $P$ and the CGA parameters in its NA. B signs the NA with $p$.
+4. A recomputes the hash and checks that the CGA matches $P$. Then A checks the signature with $P$.
 
-NAs can also carry **nonces**, values used only once, so that an attacker cannot replay an old valid NA.
+*Anyone can compute a CGA for a public key $P$. Only the owner of $p$ can sign for it.*
 
-Anyone can compute a CGA for a public key $P$. Only the owner of $p$ can sign for it.
+An NA can also carry a **nonce**. A nonce is a value used only once. It stops an attacker from replaying an old valid NA.
 
-SEND needs a strong hash function (SHA-1 is currently used) and possibly a trusted certification authority (e.g. RPKI), so it is not widespread yet.
+SEND needs a strong hash function (SHA-1 today). It may also need a trusted certification authority (e.g. RPKI). SEND is therefore not widespread yet.

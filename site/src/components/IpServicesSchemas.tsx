@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, Free, Group, Node, NODE, Row, Space, Table, Text } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Text } from "@/components/figure";
+import { labelPillW } from "@/components/figure/route";
 import { GROUP } from "@/components/figure/theme";
 import { DEVICE_NAME, Host, Link, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
@@ -8,6 +9,79 @@ interface FigureProps {
   title?: string;
   caption?: string;
   className?: string;
+}
+
+/** One lane spacing for the setup row and both charts, so each device sits on its lifelines: the widest label, GetExternalIPAddress, plus SequenceChart's clearance. */
+const NAT_PITCH = labelPillW("GetExternalIPAddress") + 40;
+/** A and S share one width, set by the wider of their second lines; the first lane runs through its centre. */
+const NAT_HOST_W = Math.max(...["192.168.1.10", "STUN server"].map((s) => measure(s, FONT.note))) + 2 * NODE.padX;
+const natLane = (l: number) => NAT_HOST_W / 2 + l * NAT_PITCH;
+
+/** A, its NAT, and optionally the STUN server, each on its chart lane. */
+function NatRow({ stun }: { stun?: boolean }) {
+  const host = (id: string, l: number, name: string, sub: string) => <Node id={id} title={name} sub={sub} x={natLane(l) - NAT_HOST_W / 2} y={0} w={NAT_HOST_W} />;
+  const natTop = (NODE.hSub - ROUTER_SIZE) / 2;
+  const natAddr = "198.51.100.1";
+  return (
+    <Free>
+      {host("a", 0, "A", "192.168.1.10")}
+      <Router id="nat" label="NAT A" x={natLane(1) - ROUTER_SIZE / 2} y={natTop} />
+      <Text text={natAddr} size="note" mono x={natLane(1) - measure(natAddr, FONT.note - 0.5, { mono: true }) / 2} y={natTop + ROUTER_SIZE + DEVICE_NAME} />
+      {stun && host("s", 2, "S", "STUN server")}
+    </Free>
+  );
+}
+
+/** UPnP: A asks its own NAT to open a port and to name its public address. */
+export function UpnpSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram title={title} caption={caption ?? "A asks its own NAT to open a port and to name its public address."} className={className}>
+      <Col gap={10} align="start">
+        <NatRow />
+        <Space h={14} />
+        <SequenceChart
+          id="upnp"
+          lanes={["A", "NAT A"]}
+          pitch={NAT_PITCH}
+          inset={natLane(0)}
+          headless
+          messages={[
+            { from: 0, to: 1, label: "AddPortMapping", note: "asks for public port 5000" },
+            { from: 1, to: 0, label: "OK", note: "NAT A now forwards :5000 to A" },
+            { from: 0, to: 1, label: "GetExternalIPAddress", note: "asks for the public address" },
+            { from: 1, to: 0, label: "198.51.100.1", note: "A can advertise 198.51.100.1:5000" },
+          ]}
+        />
+      </Col>
+      <Link from="a" to="nat" label="LAN" route="straight" />
+    </Diagram>
+  );
+}
+
+/** STUN: a server outside reports the IP:port that the NAT rewrote the request to. */
+export function StunSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram title={title} caption={caption ?? "S reports the IP:port that NAT A rewrote the request to."} className={className}>
+      <Col gap={10} align="start">
+        <NatRow stun />
+        <Space h={14} />
+        <SequenceChart
+          id="stun"
+          lanes={["A", "NAT A", "S"]}
+          pitch={NAT_PITCH}
+          inset={natLane(0)}
+          headless
+          messages={[
+            { from: 0, to: 1, label: "request", note: "from 192.168.1.10:5000" },
+            { from: 1, to: 2, label: "request", note: "rewritten to 198.51.100.1:40001" },
+            { from: 2, to: 0, label: "198.51.100.1:40001", relayed: true, note: "S reports the source it saw" },
+          ]}
+        />
+      </Col>
+      <Link from="a" to="nat" label="LAN" route="straight" />
+      <Link from="nat" to="s" label="internet" route="straight" />
+    </Diagram>
+  );
 }
 
 /** Two peers behind port-restricted cone NATs: the first packets die at the far NAT but open the near one. */
@@ -40,6 +114,29 @@ export function HolePunchingSchema({ title, caption, className }: FigureProps) {
           {filter("B", "198.51.100.1:40001 (A)")}
         </Row>
       </Col>
+    </Diagram>
+  );
+}
+
+/** Two peers behind symmetric NATs talk through a TURN relay: each NAT only ever sees traffic with T. */
+export function TurnRelaySchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "TURN: A borrows a public address on the relay T. Every packet of the call crosses T, so each NAT only sees replies from the address its own host contacted."}
+      className={className}
+    >
+      <SequenceChart
+        id="turn"
+        lanes={["A", "T", "B"]}
+        messages={[
+          { from: 0, to: 1, label: "allocate", note: "A asks T for an address" },
+          { from: 1, to: 0, label: ":49152", note: "T lends 203.0.113.20:49152" },
+          { from: 0, to: 2, label: "relayed address", dashed: true, note: "via the signalling server" },
+          { from: 2, to: 0, label: "media", relayed: true, note: "B sends to :49152" },
+          { from: 0, to: 2, label: "media", relayed: true, note: "T sends from :49152" },
+        ]}
+      />
     </Diagram>
   );
 }
