@@ -7,13 +7,13 @@ import { ML_TONE } from "@/components/tones";
 export function LossShapesSchema() {
   const a = plotArea({ x: [-3.3, 3.4], y: [0, 4.5], w: 268, h: 180, at: [12, 22] });
   return (
-    <Diagram caption="Squared and absolute error of one residual r. Past |r| = 2 the squared error is larger.">
+    <Diagram caption="Squared and absolute error of one residual e. Past |e| = 2 the squared error is larger.">
       <Free>
-        {[-2, 2].map((r) => (
-          <Path key={r} points={[a.p([r, 0]), a.p([r, 2])]} dashed state="ghost" />
+        {[-2, 2].map((e) => (
+          <Path key={e} points={[a.p([e, 0]), a.p([e, 2])]} dashed state="ghost" />
         ))}
-        <Axes area={a} x={[-3.3, 3.4]} y={[0, 4.5]} labels={["r", "ℓ(r)"]} />
-        <Path points={curve(a, (r) => (r * r) / 2, [-2.9, 2.9])} tone={ML_TONE.mse} />
+        <Axes area={a} x={[-3.3, 3.4]} y={[0, 4.5]} labels={["e", "ℓ(e)"]} />
+        <Path points={curve(a, (e) => (e * e) / 2, [-2.9, 2.9])} tone={ML_TONE.mse} />
         <Path points={curve(a, Math.abs, [-3.1, 3.1], 62)} tone={ML_TONE.mae} />
         <At text="-2" at={a.p([-2, 0])} anchor="n" gap={6} muted />
         <At text="2" at={a.p([2, 0])} anchor="n" gap={6} muted />
@@ -24,119 +24,7 @@ export function LossShapesSchema() {
   );
 }
 
-/** Least-squares polynomial of degree `deg` through the points (normal equations, Gaussian elimination). */
-function polyfit(xs: number[], ys: number[], deg: number): (x: number) => number {
-  const n = deg + 1;
-  const A = Array.from({ length: n }, (_, i) => Array.from({ length: n + 1 }, (_, j) => xs.reduce((s, x, k) => s + x ** i * (j < n ? x ** j : ys[k]), 0)));
-  for (let c = 0; c < n; c++) {
-    const p = A.slice(c).reduce((best, row, k) => (Math.abs(row[c]) > Math.abs(A[best][c]) ? c + k : best), c);
-    [A[c], A[p]] = [A[p], A[c]];
-    for (let r = 0; r < n; r++) {
-      if (r === c) continue;
-      const f = A[r][c] / A[c][c];
-      for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k];
-    }
-  }
-  const coef = A.map((row, i) => row[n] / row[i]);
-  return (x) => coef.reduce((s, c, i) => s + c * x ** i, 0);
-}
-
-/** One data set fitted by a line, a cubic, and a polynomial through every point. */
-export function FitRegimesSchema() {
-  const xs = [0.04, 0.17, 0.3, 0.42, 0.55, 0.67, 0.8, 0.94];
-  const noise = [0.07, -0.08, 0.05, -0.07, 0.09, -0.05, 0.08, -0.06];
-  const ys = xs.map((x, i) => 0.5 + 0.32 * Math.sin(2 * Math.PI * (x - 0.08)) + noise[i]);
-  const panels: [title: string, note: string, deg: number][] = [
-    ["underfit", "high training loss", 1],
-    ["good fit", "low training loss", 3],
-    ["overfit", "zero training loss", xs.length - 1],
-  ];
-  const X: Pt = [-0.08, 1.08], Y: Pt = [-0.12, 1.12];
-  return (
-    <Diagram caption="A line, a cubic and a degree 7 polynomial. The last swings between the examples.">
-      <Row gap={28} wrap>
-        {panels.map(([title, note, deg]) => {
-          const a = plotArea({ x: X, y: Y, w: 150, h: 112, at: [4, 18] });
-          const f = polyfit(xs, ys, deg);
-          return (
-            <Col key={title} gap={10}>
-              <Free>
-                <Axes area={a} x={X} y={Y} origin={[X[0], Y[0]]} labels={["x", "y"]} />
-                <Path points={curve(a, f, [xs[0], xs[xs.length - 1]])} tone="blue" />
-                {xs.map((x, i) => <Dot key={x} at={a.p([x, ys[i]])} />)}
-              </Free>
-              <Col gap={2}>
-                <Text text={title} weight={500} />
-                <Text text={note} size="note" muted />
-              </Col>
-            </Col>
-          );
-        })}
-      </Row>
-    </Diagram>
-  );
-}
-
-/** k-fold cross-validation with k = 5: round i validates on fold i. */
-export function CrossValidationSchema() {
-  const k = 5, S = 40, x0 = 64, y0 = 24;
-  const items: CellInput[] = Array.from({ length: k * k }, (_, i) => (i % (k + 1) === 0 ? { label: "val", tone: "blue" } : null));
-  const rows = Array.from({ length: k }, (_, i) => i);
-  return (
-    <Diagram caption="5-fold cross-validation. Each round validates on one fold and trains on four.">
-      <Free>
-        {rows.map((i) => (
-          <At key={`f${i}`} text={`fold ${i + 1}`} at={[x0 + S * i + S / 2, y0 - 6]} anchor="s" gap={0} muted />
-        ))}
-        {rows.map((i) => (
-          <At key={`r${i}`} text={`round ${i + 1}`} at={[x0 - 10, y0 + S * i + S / 2]} anchor="e" gap={0} muted />
-        ))}
-        <Cells items={items} cols={k} cell={S} mono={false} x={x0} y={y0} />
-        {rows.map((i) => (
-          <At key={`s${i}`} text={`s_${i + 1}`} at={[x0 + k * S + 10, y0 + S * i + S / 2]} anchor="w" gap={0} />
-        ))}
-        <At text="score = (s_1 + s_2 + s_3 + s_4 + s_5) / 5" at={[x0 + (k * S) / 2, y0 + k * S + 12]} anchor="n" gap={0} />
-      </Free>
-    </Diagram>
-  );
-}
-
-/** Grid search over the degree and λ of a ridge regression, scored by validation MSE. */
-export function GridSearchSchema() {
-  const lambdas = ["10^{-3}", "10^{-2}", "10^{-1}", "1", "10"];
-  // validation MSE; rows = degree 1..5, columns = λ
-  const err = [
-    [0.92, 0.92, 0.91, 0.93, 1.05],
-    [0.55, 0.54, 0.52, 0.58, 0.84],
-    [0.47, 0.41, 0.33, 0.44, 0.79],
-    [0.71, 0.52, 0.36, 0.45, 0.8],
-    [1.3, 0.88, 0.45, 0.49, 0.82],
-  ];
-  const best = Math.min(...err.flat());
-  const S = 44, x0 = 56, y0 = 22;
-  const items: CellInput[] = err.flat().map((e) => ({
-    label: e.toFixed(2),
-    tone: e <= 0.45 ? "blue" : undefined,
-    state: e === best ? "strong" : undefined,
-  }));
-  return (
-    <Diagram caption="Validation MSE of ridge regression. The best, outlined, is degree 3 with λ = 0.1.">
-      <Free>
-        <At text="degree" at={[x0 - 10, y0 - 8]} anchor="se" gap={0} muted />
-        {err.map((_, r) => (
-          <At key={`d${r}`} text={String(r + 1)} at={[x0 - 10, y0 + S * r + S / 2]} anchor="e" gap={0} muted />
-        ))}
-        <Cells items={items} cols={5} cell={S} mono={false} x={x0} y={y0} />
-        {lambdas.map((l, c) => (
-          <At key={l} text={l} at={[x0 + S * c + S / 2, y0 + 5 * S + 10]} anchor="n" gap={0} muted />
-        ))}
-        <At text="λ" at={[x0 + 2.5 * S, y0 + 5 * S + 32]} anchor="n" gap={0} muted />
-      </Free>
-    </Diagram>
-  );
-}
-
-/** Cells of side 1/4 needed to cover [0, 1]^d for d = 1, 2, 3; one cell is highlighted in each. */
+/** A grid search with 4 candidate values per parameter, for d = 1, 2, 3 parameters: one cell per grid point. */
 export function CurseOfDimensionalitySchema() {
   const s = 22, n = 4;
   const strip: CellInput[] = Array.from({ length: n }, (_, i) => (i === n - 1 ? { tone: "blue" } : null));
@@ -163,13 +51,13 @@ export function CurseOfDimensionalitySchema() {
     </Col>
   );
   return (
-    <Diagram caption="One cell of side 1/4 holds 1/4 of a segment, 1/16 of a square, 1/64 of a cube.">
+    <Diagram caption="Four candidate values per parameter give a grid of 4, 16 and 64 points for d = 1, 2, 3.">
       <Row gap={48} align="end" wrap>
-        {panel(1, "4 cells", <Cells items={strip} cell={s} />)}
-        {panel(2, "4^2 = 16 cells", <Cells items={square} cols={n} cell={s} />)}
+        {panel(1, "4 points", <Cells items={strip} cell={s} />)}
+        {panel(2, "4^2 = 16 points", <Cells items={square} cols={n} cell={s} />)}
         {panel(
           3,
-          "4^3 = 64 cells",
+          "4^3 = 64 points",
           <Free>
             <Poly points={quad([[0, n, 0], [n, n, 0], [n, n, n], [0, n, n]])} />
             <Poly points={quad([[n, 0, 0], [n, n, 0], [n, n, n], [n, 0, n]])} />

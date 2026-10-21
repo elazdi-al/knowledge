@@ -1,51 +1,204 @@
 ---
-title: "Machine Learning: Foundations"
+title: "Machine Learning: Lecture 1"
 tags: ["Machine learning"]
 created: 2026-09-26
-updated: 2026-10-15
+updated: 2026-10-21
 ---
 
-## Learning from Examples
+## Learning from Data
 
-**Machine learning.** Learning a function from examples of its inputs and desired outputs, instead of programming its rules by hand.
+**Machine learning.** Machine learning learns a function from examples of its inputs and desired outputs, instead of programming its rules by hand (e.g. from a photo to the animal it shows).
 
-A model learns from **examples** $(\mathbf{x}, y)$: an input $\mathbf{x} \in \mathbb{R}^n$ and its **target** $y$.
+*Traditional programming turns data and rules into outputs; machine learning turns data and outputs into rules.*
 
-The entries $x_1, \dots, x_n$ of $\mathbf{x}$ are its **features**.
+An **example** $(\mathbf{x}, y)$ pairs an input $\mathbf{x} \in \mathbb{R}^n$ with its desired output $y$, the **target**.
 
-**Classification.** Predicting a target from a finite set of classes, called a **label**.
+The entries $x_1, \dots, x_n$ of $\mathbf{x}$ are its **features**. Features are also called covariates, predictors or input variables.
+
+**Model.** A model is a function $f_\theta$ that predicts the output $\hat{y} = f_\theta(\mathbf{x})$ of an input.
+
+Its **parameters** $\theta \in \mathbb{R}^d$ are the $d$ numbers that the model learns, also called weights.
+
+**Training set.** The training set holds the $m$ examples $(\mathbf{x}_i, y_i)$ that the model learns from.
+
+**Training.** Training, also called learning or fitting, sets the parameters so that the model fits the training set.
+
+Testing then runs the trained model on new inputs to predict their outputs.
+
+**Classification.** Classification predicts a target from a finite set of classes, called a **label**.
 
 Binary classification has two classes, written $-1$ and $+1$.
 
-**Regression.** Predicting a real-valued target.
+**Regression.** Regression predicts a real-valued target.
 
-The goal of regression is **prediction**, the output for a new input (the weight of a person 170 cm tall). It can also be **interpretation**, the effect of an input on the output (are taller people heavier?).
+## Linear Classification
 
-Regression finds correlations, not causes, so an interpretation needs caution.
+**Linear classifier.** A linear classifier predicts the sign of a weighted sum of the features, the **score**:
 
-**Model.** A function $f_\theta$ that predicts $\hat{y} = f_\theta(\mathbf{x})$ from an input.
+$$
+z = \mathbf{w}^T \mathbf{x} + b, \qquad \hat{y} = \begin{cases} +1 & \text{if } z \ge 0, \\ -1 & \text{otherwise.} \end{cases}
+$$
 
-Its **parameters** $\theta$ are the values that training learns.
+Its parameters are the **weight vector** $\mathbf{w} \in \mathbb{R}^n$ and the **bias** $b \in \mathbb{R}$.
 
-**Training set.** The $m$ examples $(\mathbf{x}_i, y_i)$ that training fits $\theta$ on.
+**Decision boundary.** The decision boundary is the hyperplane $\mathbf{w}^T \mathbf{x} + b = 0$, a line when $n = 2$.
 
-**Loss function.** A function $\ell(\hat{y}, y)$ that scores the error of one prediction.
+Its normal vector $\mathbf{w}$ points to the side classified $+1$.
 
-**Training**, also called learning or fitting, minimizes the **training loss**, the average loss over the training set:
+<PerceptronBoundarySchema />
+
+**Perceptron.** The perceptron is a linear classifier that corrects its parameters after each mistake. On a misclassified example $(\mathbf{x}, y)$, it updates
+
+$$
+\mathbf{w} \leftarrow \mathbf{w} + y \mathbf{x}, \qquad b \leftarrow b + y.
+$$
+
+*An update shifts that input's score by $y (\|\mathbf{x}\|^2 + 1)$, toward its label.*
+
+One update reads each of the $n$ features once, so it is cheap.
+
+## Regression
+
+The goal of regression is **prediction**, the output for a new input (e.g. the weight of a person 170 cm tall).
+
+The goal can also be **interpretation**, the effect of an input on the output (e.g. whether taller people are heavier).
+
+Regression finds correlations, not causes, so an interpretation needs caution (e.g. global temperature rose as the number of pirates fell).
+
+**Linear regression.** Linear regression is a regression model that predicts a weighted sum of the features:
+
+$$
+\hat{y} = \mathbf{w}^T \mathbf{x} + b.
+$$
+
+*It is the score of a linear classifier, without the sign.*
+
+With one feature, the model is a line, and the regression is **univariate**.
+
+With $n > 1$ features, the model is a hyperplane, and the regression is **multivariate**.
+
+**Bias folding.** Bias folding appends a constant feature $1$ to every input, so the bias becomes one more weight:
+
+$$
+\hat{y} = \tilde{\mathbf{w}}^T \tilde{\mathbf{x}}, \qquad \tilde{\mathbf{w}} = (\mathbf{w}, b), \quad \tilde{\mathbf{x}} = (\mathbf{x}, 1).
+$$
+
+Linear regression therefore has $d = n + 1$ parameters.
+
+For high-dimensional data, models often drop the bias, so $d = n$.
+
+In other models, such as neural networks, $d$ differs from $n$ entirely.
+
+**Residual.** The residual $e_i = y_i - \hat{y}_i$ is the error on example $i$, its vertical distance to the hyperplane.
+
+<RegressionPlaneSchema />
+
+## Matrix Form
+
+**Target vector.** The target vector $\mathbf{y} = (y_1, \dots, y_m) \in \mathbb{R}^m$ stacks the $m$ training targets.
+
+**Design matrix.** The design matrix $X \in \mathbb{R}^{m \times (n+1)}$ stacks the folded inputs, one per row:
+
+$$
+X = \begin{pmatrix} \tilde{\mathbf{x}}_1^T \\ \vdots \\ \tilde{\mathbf{x}}_m^T \end{pmatrix} = \begin{pmatrix} x_{11} & \cdots & x_{1n} & 1 \\ \vdots & \ddots & \vdots & \vdots \\ x_{m1} & \cdots & x_{mn} & 1 \end{pmatrix}.
+$$
+
+The entry $X_{ij} = x_{ij}$ is feature $j$ of example $i$, and the last column holds the folded $1$s.
+
+**Prediction vector.** The prediction vector $\hat{\mathbf{y}} = X \tilde{\mathbf{w}} \in \mathbb{R}^m$ holds all $m$ predictions. Row $i$ of the product is $\tilde{\mathbf{x}}_i^T \tilde{\mathbf{w}} = \hat{y}_i$.
+
+**Residual vector.** The residual vector $\mathbf{e} = \mathbf{y} - X \tilde{\mathbf{w}} \in \mathbb{R}^m$ holds all $m$ residuals $e_i$.
+
+**Example 1. Three points in matrix form.**
+
+The points $(x, y) = (1, 2), (2, 3), (3, 5)$ have one feature, so $n = 1$ and $\tilde{\mathbf{w}} = (w, b)$:
+
+$$
+X = \begin{pmatrix} 1 & 1 \\ 2 & 1 \\ 3 & 1 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 2 \\ 3 \\ 5 \end{pmatrix}.
+$$
+
+With $w = 1$ and $b = 0.5$, the prediction and residual vectors are
+
+$$
+\hat{\mathbf{y}} = \begin{pmatrix} 1 & 1 \\ 2 & 1 \\ 3 & 1 \end{pmatrix} \begin{pmatrix} 1 \\ 0.5 \end{pmatrix} = \begin{pmatrix} 1.5 \\ 2.5 \\ 3.5 \end{pmatrix}, \qquad \mathbf{e} = \mathbf{y} - \hat{\mathbf{y}} = \begin{pmatrix} 0.5 \\ 0.5 \\ 1.5 \end{pmatrix}.
+$$
+
+**Underdetermined problem.** A problem is underdetermined when many parameter vectors fit the data equally well (e.g. a line $\hat{y} = w x + b$ through a single point: every line through the point fits).
+
+**Overparametrization.** A model is overparametrized when it has more parameters than examples, $d > m$.
+
+An overparametrized linear regression is underdetermined: $X$ has more columns than rows, so many $\tilde{\mathbf{w}}$ give the same predictions.
+
+Overparametrization is not only a problem: it can also make training easier.
+
+## Loss Functions
+
+**Loss function.** A loss function $\ell(\hat{y}, y)$ scores the cost of one prediction, from $0$ when $\hat{y} = y$ upward.
+
+**Training loss.** The training loss averages the loss over the training set:
 
 $$
 L(\theta) = \frac{1}{m} \sum_{i=1}^{m} \ell(f_\theta(\mathbf{x}_i), y_i).
 $$
 
+The training loss is also called the cost, energy or training objective. Training minimizes it.
+
+For regression, the loss is usually a function of the residual $e = y - \hat{y}$.
+
+It should be **symmetric** around $0$, so an error costs the same above and below the target.
+
+**Squared error.** The squared error is the loss $\ell(\hat{y}, y) = \frac{1}{2} (y - \hat{y})^2$.
+
+The $\frac{1}{2}$ cancels the 2 that differentiating the square brings down, and does not move the minimum.
+
+**Mean squared error (MSE).** The MSE is the training loss of the squared error, half the mean of the squared residuals:
+
+$$
+L(\tilde{\mathbf{w}}) = \frac{1}{2m} \sum_{i=1}^{m} e_i^2 = \frac{1}{2m} \|\mathbf{e}\|^2 = \frac{1}{2m} \|\mathbf{y} - X \tilde{\mathbf{w}}\|^2.
+$$
+
+In Example 1, $L = (0.5^2 + 0.5^2 + 1.5^2)/6 = 11/24$.
+
+**Outlier.** An outlier is an example far from the pattern of the others (e.g. a speed-of-light measurement of $-44$ among values near $25$).
+
+Squaring the large residuals of a few outliers lets them drag the whole fit.
+
+**Robust loss.** A robust loss penalizes large and very large residuals similarly, so a few outliers cannot drag the fit.
+
+**Mean absolute error (MAE).** The MAE is the training loss of the absolute error $|y - \hat{y}|$:
+
+$$
+L(\tilde{\mathbf{w}}) = \frac{1}{m} \sum_{i=1}^{m} |e_i|.
+$$
+
+<LossShapesSchema />
+
+The absolute error grows linearly, so the MAE is more robust than the MSE.
+
+**Example 2. A constant model with an outlier.**
+
+The constant model $\hat{y} = w$ fits the targets $1, 2, 3, 4$, then the same targets plus the outlier $20$. The sums of squared and absolute residuals for integer $w$ are:
+
+| $w$ | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|
+| $\sum e_i^2$, targets $1$ to $4$ | 14 | **6** | **6** | 14 | 30 | 54 | 86 |
+| $\sum e_i^2$, with $20$ | 375 | 330 | 295 | 270 | 255 | **250** | 255 |
+| $\sum \lvert e_i \rvert$, targets $1$ to $4$ | 6 | **4** | **4** | 6 | 10 | 14 | 18 |
+| $\sum \lvert e_i \rvert$, with $20$ | 25 | 22 | **21** | 22 | 25 | 28 | 31 |
+
+The outlier moves the MSE fit from $2.5$ to $6$, but the MAE fit only from $[2, 3]$ to $3$.
+
+The best constant is the mean under the MSE and the median under the MAE.
+
 ## Minima and Convexity
 
-**Minimum.** A point $\theta^*$ where $L$ is lowest, over all $\theta$ (**global**) or a ball (**local**):
+**Minimum.** A minimum is a point $\theta^*$ where $L$ is lowest, over all $\theta$ (**global**) or over a ball around it (**local**):
 
 $$
 B_\epsilon = \{\theta : \|\theta - \theta^*\| < \epsilon\}, \quad \epsilon > 0.
 $$
 
-It is **strict** when every other $\theta$ in that region has a strictly higher loss.
+A minimum is **strict** when every other $\theta$ in that region has a strictly higher loss.
 
 | | **minimum** | **strict minimum** |
 |---|---|---|
@@ -56,49 +209,60 @@ It is **strict** when every other $\theta$ in that region has a strictly higher 
 
 Every global minimum is local, and a strict global minimum is the only minimizer.
 
-**Underdetermined problem.** A problem whose lowest loss is reached by many $\theta$ (e.g. a line $\hat{y} = w x + b$ fitted to a single point: every line through the point fits).
-
-**Convex function.** A function whose graph never rises above its chords (e.g. $\theta^2$; not $\theta^3$, which rises above its chord on $[-1, 0]$):
+**Convex function.** A convex function is a function whose graph never rises above its chords (e.g. $\theta^2$; not $\theta^3$, which rises above its chord on $[-1, 0]$):
 
 $$
-L(t\theta + (1 - t)\theta') \le t L(\theta) + (1 - t) L(\theta'), \quad t \in [0, 1].
+L(\alpha \theta + (1 - \alpha) \theta') \le \alpha L(\theta) + (1 - \alpha) L(\theta'), \quad \alpha \in [0, 1].
 $$
 
-It is **strictly convex** when the inequality is strict for $\theta \ne \theta'$ and $0 < t < 1$.
+*A convex loss has no false bottom.*
 
-*A convex loss has no false bottom: where descent stops, the loss is lowest.*
+It is **strictly convex** when the inequality is strict for $\theta \ne \theta'$ and $0 < \alpha < 1$.
 
 Every local minimum of a convex function is global.
 
-A sum of convex functions is convex. A training loss whose per-example losses are convex in $\theta$ is therefore convex.
-
 A strictly convex function has at most one minimizer.
+
+A sum of convex functions is convex. A training loss whose per-example losses are convex in $\theta$ is therefore convex.
 
 **Common mistake.** A convex loss does not always have a unique minimizer. It can reach its lowest value at many $\theta$, making the problem underdetermined. Strict convexity rules this out.
 
-## Gradient Descent
+If $h$ is convex and $q(\theta) = \mathbf{a}^T \theta + c$ is affine, then $h(q(\theta))$ is convex.
 
-**Gradient.** The vector $\nabla L(\theta)$ of the partial derivatives $\partial L / \partial \theta_j$, one per parameter. It points in the direction in which $L$ increases fastest.
-
-**Gradient descent.** Minimizing $L$ by repeated steps against its gradient:
+**Proof.** The idea is that $q$ keeps chords straight. An affine map sends a convex combination to the same combination:
 
 $$
-\theta \leftarrow \theta - \eta \nabla L(\theta).
+q(\alpha \theta + (1 - \alpha) \theta') = \alpha q(\theta) + (1 - \alpha) q(\theta').
 $$
 
-**Learning rate.** The step size $\eta > 0$.
+Applying $h$ to both sides and using the convexity of $h$ gives
 
-*The gradient points uphill, so a small step against it goes downhill.*
+$$
+h(q(\alpha \theta + (1 - \alpha) \theta')) \le \alpha h(q(\theta)) + (1 - \alpha) h(q(\theta')),
+$$
 
-It starts from some $\theta$, often $\mathbf{0}$, and stops when $L$ stops decreasing.
+which is the convexity inequality of $h(q(\theta))$.
 
-On a convex loss with a small enough $\eta$, it reaches the global minimum.
+Each residual $e_i = y_i - \tilde{\mathbf{x}}_i^T \tilde{\mathbf{w}}$ is affine in $\tilde{\mathbf{w}}$. The square is convex, and so is $|e|$ by the triangle inequality. The MSE and the MAE of linear regression are therefore convex in $\tilde{\mathbf{w}}$.
 
-Otherwise it can stop in a non-global local minimum (e.g. on neural networks).
+## Robustness and Convexity
 
-A good loss is therefore:
+Robustness is a statistical property: the fit ignores a few odd examples.
 
-- non-negative, and zero when $\hat{y} = y$;
-- symmetric for regression, so an error costs the same above and below the target;
-- differentiable in $\theta$, so gradient descent can use it;
-- convex in $\theta$ when possible, so every local minimum is global.
+Convexity is a computational property: an algorithm can find the minimum.
+
+Better statistical properties cost computational ones.
+
+The MSE is convex but not robust. The MAE is convex and robust, but has a kink at $e = 0$.
+
+**Huber loss.** The Huber loss is squared for small residuals and linear beyond a threshold $\delta > 0$:
+
+$$
+\ell_\delta(e) = \begin{cases} \frac{1}{2} e^2 & \text{if } |e| \le \delta, \\ \delta |e| - \frac{1}{2} \delta^2 & \text{if } |e| > \delta. \end{cases}
+$$
+
+The Huber loss is convex, differentiable and robust, but a good $\delta$ is hard to choose.
+
+**Tukey's bisquare loss.** Tukey's bisquare loss has the derivative $e (1 - e^2 / \delta^2)^2$ for $|e| \le \delta$ and $0$ beyond.
+
+A distant outlier stops pulling at all, so Tukey's loss is very robust, but it is not convex.

@@ -67,13 +67,10 @@ import {
   StunSchema,
 } from "@/components/IpServicesSchemas";
 import { LanguageClasses } from "@/components/LanguageClasses";
-import { PerceptronBoundarySchema, RegressionPlaneSchema, XorSchema } from "@/components/LinearModelSchemas";
+import { PerceptronBoundarySchema, RegressionPlaneSchema } from "@/components/LinearModelSchemas";
 import {
-  CrossValidationSchema,
   CurseOfDimensionalitySchema,
   FeatureScalingSchema,
-  FitRegimesSchema,
-  GridSearchSchema,
   LossShapesSchema,
   MinimaSchema,
 } from "@/components/MlFoundationsSchemas";
@@ -126,7 +123,6 @@ export function useMDXComponents(
     ClockPolicy,
     CausalConsistencySchema,
     ConflictSerializabilitySchema,
-    CrossValidationSchema,
     CbcModeSchema,
     CtrModeSchema,
     CurseOfDimensionalitySchema,
@@ -142,13 +138,11 @@ export function useMDXComponents(
     EndiannessSchema,
     EpflForwardingSchema,
     FeatureScalingSchema,
-    FitRegimesSchema,
     ERDiagram,
     ERInstanceMapping,
     GatewayPathSchema,
     GatewayResolutionSchema,
     GraphCertificateSchema,
-    GridSearchSchema,
     HashDiagram,
     HolePunchingSchema,
     IceSchema,
@@ -219,6 +213,5 @@ export function useMDXComponents(
     VerifierSchema,
     WaitForGraphSchema,
     WalRulesSchema,
-    XorSchema,
   };
 }
