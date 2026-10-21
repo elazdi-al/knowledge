@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Text } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Tag, Text } from "@/components/figure";
 import { labelPillW } from "@/components/figure/route";
-import { GROUP } from "@/components/figure/theme";
-import { DEVICE_NAME, Host, Link, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
+import { GROUP, TAG } from "@/components/figure/theme";
+import { DEVICE_NAME, Host, Link, NET_TONE, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
 
 interface FigureProps {
@@ -137,6 +137,48 @@ export function TurnRelaySchema({ title, caption, className }: FigureProps) {
           { from: 0, to: 2, label: "media", relayed: true, note: "T sends from :49152" },
         ]}
       />
+    </Diagram>
+  );
+}
+
+/** ICE on two port-restricted cone NATs: one pair of each kind, its path drawn through the boxes it crosses, checked from the most direct down. */
+export function IceSchema({ title, caption, className }: FigureProps) {
+  const pairs = [
+    { name: "host", via: [] as number[], result: "no answer", tone: NET_TONE.drop },
+    { name: "server reflexive", via: [1, 3], result: "answers, kept", state: "active" as const },
+    { name: "relayed", via: [1, 2, 3], result: "answers, longer path", muted: true },
+  ];
+  const textH = Math.round(FONT.label * 1.4);
+  const labelW = Math.max(...pairs.map((p) => measure(p.name, FONT.label))) + 28;
+  const pitch = 72;
+  const col = (k: number) => labelW + 28 + NODE.minW / 2 + k * pitch;
+  const rowY = (i: number) => 40 + i * 60;
+  const top = (h: number, i: number) => rowY(i) - h / 2;
+  const items: ReactNode[] = [];
+  const edges: ReactNode[] = [];
+  ["NAT A", "", "NAT B"].forEach((name, k) => name && items.push(<Text key={name} text={name} size="note" weight={600} x={col(k + 1) - measure(name, FONT.note, { weight: 600 }) / 2} y={0} />));
+  pairs.forEach((p, i) => {
+    const stops = [0, ...p.via, 4];
+    items.push(
+      <Tag key={`n${i}`} text={String(i + 1)} x={0} y={top(TAG.h, i)} />,
+      <Text key={`l${i}`} text={p.name} x={28} y={top(textH, i)} />,
+      <Text key={`r${i}`} text={p.result} tone={p.tone} state={p.state} muted={p.muted} x={col(4) + NODE.minW / 2 + 24} y={top(textH, i)} />,
+    );
+    stops.forEach((k) => {
+      const id = `ice${i}.${k}`, x = col(k);
+      if (k === 1 || k === 3) items.push(<Router key={id} id={id} x={x - ROUTER_SIZE / 2} y={top(ROUTER_SIZE, i)} />);
+      else items.push(<Node key={id} id={id} title={["A", "", "T", "", "B"][k]} x={x - NODE.minW / 2} y={top(NODE.h, i)} w={NODE.minW} />);
+    });
+    stops.slice(1).forEach((k, j) => edges.push(<Link key={`e${i}.${j}`} from={`ice${i}.${stops[j]}`} to={`ice${i}.${k}`} route="straight" tone={p.tone} state={p.state} />));
+  });
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "ICE between two port-restricted cone NATs. The host pair gets no answer, because A and B sit in different LANs. Both other pairs answer, and ICE keeps the more direct one."}
+      className={className}
+    >
+      <Free>{items}</Free>
+      {edges}
     </Diagram>
   );
 }

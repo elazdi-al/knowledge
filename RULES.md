@@ -115,6 +115,6 @@ CTF notes (`notes/ctf/`) are working references: one-line definitions, the formu
 
 ## Frontmatter
 
-- Every note has title, description, tags, created and updated.
+- Every note has title, tags, created and updated.
 - Frontmatter titles may keep the source name (`Data Intensive Systems: Lecture 1`).
 - Tag theory notes with `Theory of computation`.

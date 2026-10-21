@@ -136,7 +136,7 @@ export function createSearchEngine(index: SearchIndex): SearchEngine {
       note,
       note.title,
       note.label,
-      `${note.description ?? ""} ${plainText(note.preview)}`,
+      plainText(note.preview),
       i,
       0,
     ),

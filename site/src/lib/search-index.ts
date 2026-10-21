@@ -30,7 +30,6 @@ export interface PreviewLine {
 export interface SearchNote {
   slug: string;
   title: string;
-  description?: string;
   /** Compact source label, e.g. "DIS L6". */
   label: string;
   /** First lines of the note. */
@@ -355,7 +354,6 @@ export function buildSearchIndex(notes: Note[]): SearchIndex {
     outNotes.push({
       slug: note.slug,
       title: note.frontmatter.title,
-      description: note.frontmatter.description,
       label: noteLabel(note.slugSegments),
       preview: collectPreview(blocks, 0, NOTE_PREVIEW),
     });

@@ -30,7 +30,6 @@ export async function generateMetadata({
     // `absolute` bypasses the "%s · knowledge" template so note tabs show just
     // the note title.
     title: { absolute: note.frontmatter.title },
-    description: note.frontmatter.description,
   };
 }
 

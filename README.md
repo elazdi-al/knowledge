@@ -62,7 +62,6 @@ Every note starts with YAML frontmatter:
 ```md
 ---
 title: "Data Intensive Systems: Lecture 9"
-description: "Query optimization as cost-based search."
 tags: ["Data intensive systems"]
 created: 2026-06-21
 updated: 2026-06-22
@@ -74,7 +73,6 @@ The zod schema in `site/src/lib/notes.ts` accepts these fields:
 | Field         | Type     | Required | Effect                                           |
 | ------------- | -------- | -------- | ------------------------------------------------ |
 | `title`       | string   | yes      | Page title and homepage entry.                   |
-| `description` | string   | no       | Page meta description and search text.           |
 | `tags`        | string[] | no       | Parsed. The site does not show them.             |
 | `created`     | date     | no       | Shown as the date under the title.               |
 | `updated`     | date     | no       | Parsed. The site does not show it.               |
