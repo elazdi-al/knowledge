@@ -1,18 +1,16 @@
 ---
 title: "Advanced Networks: Lecture 3"
-description: "Getting through NATs (UPnP, STUN, NAT types, hole punching, TURN and ICE), NAT64 and DNS64, configuring an interface with DHCP and SLAAC, hop limit and traceroute, and resolving IP addresses to MAC addresses with NDP and ARP, with their attacks and defences."
 tags: ["Advanced networks"]
 created: 2026-10-04
 updated: 2026-10-18
 ---
 
 ## Reaching a Host Behind a NAT
+A **NAT** creates a mapping only when an internal host initiates a connection, so an external host cannot directly start a connection to a device behind the NAT.
 
-A NAT creates a table entry only when an inside host sends a packet out. An outside host therefore cannot start a conversation with a host behind a NAT.
+**Port forwarding.** a NAT rule that redirects incoming traffic from a specific port on a router's **public IP** to a **specific private IP and port** inside the local network.
 
-**Port forwarding.** With port forwarding, the NAT sends every packet that arrives on a chosen public port to a fixed internal IP:port.
-
-A server behind a NAT needs port forwarding. It also needs the public address of the NAT, to give to its clients.
+A server behind a NAT needs port forwarding and the public address of the NAT, to give to its clients.
 
 **UPnP (Universal Plug and Play).** UPnP is a protocol that lets a LAN host set up port forwarding on its NAT. The host can also ask the NAT for its public address.
 
@@ -156,6 +154,8 @@ A peer does not know in advance which method works. It does not know the NAT typ
 5. The peers keep the best pair that works.
 
 In step 4, the peers run STUN between themselves, without a server. Both peers send checks at the same time, so the checks also punch the holes.
+
+<IceSchema />
 
 | Situation | Pair that ICE keeps |
 |---|---|
