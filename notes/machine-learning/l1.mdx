@@ -44,47 +44,108 @@ Its normal vector $\mathbf{w}$ points to the side classified $+1$.
 
 <PerceptronBoundarySchema />
 
-**Perceptron.** The perceptron is a linear classifier that corrects its parameters after each mistake. On a misclassified example $(\mathbf{x}, y)$, it updates
+
+**Perceptron.** A **linear binary classifier** that predicts the label of an input $\mathbf{x}\in\mathbb{R}^d$ using
 
 $$
-\mathbf{w} \leftarrow \mathbf{w} + y \mathbf{x}, \qquad b \leftarrow b + y.
+\hat y=\operatorname{sign}(\mathbf{w}^\top\mathbf{x}+b),
 $$
 
-*An update shifts that input's score by $y (\|\mathbf{x}\|^2 + 1)$, toward its label.*
+with $\mathbf{w}\in\mathbb{R}^d$ the weight vector, $b\in\mathbb{R}$ the bias, and $\hat y\in\{-1,+1\}$.
 
-One update reads each of the $n$ features once, so it is cheap.
+Given training examples $(\mathbf{x}_i,y_i)$ with $y_i\in\{-1,+1\}$, it starts with initial parameters $\mathbf w_0\in\mathbb{R}^d,\; b_0\in\mathbb{R}$.
+Then, for each misclassified example :
 
+$$
+y_i(\mathbf{w}^\top\mathbf{x}_i+b)\le 0,
+$$
+
+it updates
+
+$$
+\mathbf{w}\leftarrow\mathbf{w}+\eta y_i\mathbf{x}_i,
+$$
+
+$$
+b\leftarrow b+\eta y_i,
+$$
+
+where $\eta>0$ is the learning rate.
+
+**Perceptron Convergence Theorem.** If the training set is **linearly separable**, then the perceptron makes a finite number of mistakes and eventually finds parameters $\mathbf w,b$ that correctly classify every training example.
+
+Assume there exists some separating vector $\mathbf w^*$ such that, for every training example $(\mathbf x_i,y_i)$,
+
+$$
+y_i\,\mathbf w^{*\top}\mathbf x_i \ge \gamma > 0,
+$$
+
+where $\gamma$ is the **margin**, and assume
+
+$$
+\|\mathbf x_i\|\le R
+$$
+
+for all $i$, where $R$ is the maximum norm of any training input.
+
+Then the number of perceptron mistakes is at most
+
+$$
+\left(\frac{R\|\mathbf w^*\|}{\gamma}\right)^2.
+$$
+
+If $\|\mathbf w^*\|=1$, this becomes
+
+$$
+\left(\frac{R}{\gamma}\right)^2.
+$$
+
+So, for linearly separable data, the perceptron is guaranteed to converge after finitely many updates.
 ## Regression
 
-The goal of regression is **prediction**, the output for a new input (e.g. the weight of a person 170 cm tall).
-
-The goal can also be **interpretation**, the effect of an input on the output (e.g. whether taller people are heavier).
-
-Regression finds correlations, not causes, so an interpretation needs caution (e.g. global temperature rose as the number of pirates fell).
-
-**Linear regression.** Linear regression is a regression model that predicts a weighted sum of the features:
+**Regression.** A supervised learning task where, given an example $\mathbf{x}\in\mathbb{R}^n$, the goal is to predict a real-valued output:
 
 $$
-\hat{y} = \mathbf{w}^T \mathbf{x} + b.
+f:\mathbb{R}^n\to\mathbb{R}.
 $$
 
-*It is the score of a linear classifier, without the sign.*
-
-With one feature, the model is a line, and the regression is **univariate**.
-
-With $n > 1$ features, the model is a hyperplane, and the regression is **multivariate**.
-
-**Bias folding.** Bias folding appends a constant feature $1$ to every input, so the bias becomes one more weight:
+**Linear regression.** A regression model that predicts the output as a linear function of the example $\mathbf{x}\in\mathbb{R}^n$:
 
 $$
-\hat{y} = \tilde{\mathbf{w}}^T \tilde{\mathbf{x}}, \qquad \tilde{\mathbf{w}} = (\mathbf{w}, b), \quad \tilde{\mathbf{x}} = (\mathbf{x}, 1).
+f:\mathbb{R}^n\to\mathbb{R},\qquad
+f(\mathbf{x})=\mathbf{w}^\top\mathbf{x}+b,
 $$
 
-Linear regression therefore has $d = n + 1$ parameters.
+where $\mathbf{w}\in\mathbb{R}^n$ is the weight vector, $b\in\mathbb{R}$ is the bias, and $f(\mathbf{x})\in\mathbb{R}$ is the predicted value.
 
-For high-dimensional data, models often drop the bias, so $d = n$.
+Equivalently, the bias can be folded into augmented vectors:
 
-In other models, such as neural networks, $d$ differs from $n$ entirely.
+$$
+\tilde{\mathbf{x}}
+=
+\begin{bmatrix}
+\mathbf{x}\\
+1
+\end{bmatrix}
+\in\mathbb{R}^{n+1},
+\qquad
+\tilde{\mathbf{w}}
+=
+\begin{bmatrix}
+\mathbf{w}\\
+b
+\end{bmatrix}
+\in\mathbb{R}^{n+1},
+$$
+
+so that
+
+$$
+f(\mathbf{x})
+=
+\tilde{\mathbf{w}}^\top\tilde{\mathbf{x}}.
+$$
+
 
 **Residual.** The residual $e_i = y_i - \hat{y}_i$ is the error on example $i$, its vertical distance to the hyperplane.
 
