@@ -64,13 +64,13 @@ The loop halts because $Q$ is finite and each successful iteration adds a new st
 <Pane>
 
 <Automaton
-  caption="Nonempty: q2 is reachable from q0, so the DFA is rejected by E_DFA."
+  caption="Nonempty: $q_2$ is reachable from $q_0$, so the DFA is rejected by $E_{\mathrm{DFA}}$."
   start="q0"
   accepting={["q2"]}
   states={[
-    { id: "q0", label: "q_0", x: 92, y: 158 },
-    { id: "q1", label: "q_1", x: 252, y: 158 },
-    { id: "q2", label: "q_2", x: 412, y: 158 },
+    { id: "q0", label: "$q_0$", x: 92, y: 158 },
+    { id: "q1", label: "$q_1$", x: 252, y: 158 },
+    { id: "q2", label: "$q_2$", x: 412, y: 158 },
   ]}
   transitions={[
     { from: "q0", to: "q1", label: "0" },
@@ -85,13 +85,13 @@ The loop halts because $Q$ is finite and each successful iteration adds a new st
 <Pane>
 
 <Automaton
-  caption="Empty: the only accepting state is unreachable, so the DFA is accepted by E_DFA."
+  caption="Empty: the only accepting state is unreachable, so the DFA is accepted by $E_{\mathrm{DFA}}$."
   start="q0"
   accepting={["q2"]}
   states={[
-    { id: "q0", label: "q_0", x: 92, y: 158 },
-    { id: "q1", label: "q_1", x: 252, y: 158 },
-    { id: "q2", label: "q_2", x: 412, y: 158 },
+    { id: "q0", label: "$q_0$", x: 92, y: 158 },
+    { id: "q1", label: "$q_1$", x: 252, y: 158 },
+    { id: "q2", label: "$q_2$", x: 412, y: 158 },
   ]}
   transitions={[
     { from: "q0", to: "q1", label: "0", bend: "up" },
@@ -302,7 +302,7 @@ For every $w$, either $w\in L$ or $w\in\overline{L}$. Therefore one of the two r
 The language $\mathrm{HALT}$ is recognizable but undecidable. If $\overline{\mathrm{HALT}}$ were recognizable too, the complement recognizability theorem would imply that $\mathrm{HALT}$ is decidable, contradiction.
 
 <LanguageClasses
-  caption="Known containment after HALT: regular languages are decidable, HALT is recognizable but not decidable, and complement HALT is not recognizable."
+  caption="Known containment after $\mathrm{HALT}$: regular languages are decidable, $\mathrm{HALT}$ is recognizable but not decidable, and $\overline{\mathrm{HALT}}$ is not recognizable."
 />
 
 The strict containments now known are, writing $\mathcal{P}(\Sigma^*)$ for the set of all languages:

@@ -67,8 +67,8 @@ Operators such as `ORDER BY`, `GROUP BY`, `HAVING`, and aggregation give less fr
 <QueryTree
   caption="Selection after the join: the join sees both full inputs."
   nodes={[
-    { id: "sigma", op: "select", sub: "Seattle AND WA", state: "highlight" },
-    { id: "join", op: "join", sub: "sno = sno" },
+    { id: "sigma", op: "select", sub: "\\text{Seattle} \\wedge \\text{WA}", state: "highlight" },
+    { id: "join", op: "join", sub: "\\textit{sno} = \\textit{sno}" },
     { id: "supplier", relation: "Supplier" },
     { id: "supply", relation: "Supply" },
   ]}
@@ -85,8 +85,8 @@ Operators such as `ORDER BY`, `GROUP BY`, `HAVING`, and aggregation give less fr
 <QueryTree
   caption="Selection before the join: the join sees only filtered Supplier rows."
   nodes={[
-    { id: "join", op: "join", sub: "sno = sno" },
-    { id: "sigma", op: "select", sub: "Seattle AND WA", state: "highlight" },
+    { id: "join", op: "join", sub: "\\textit{sno} = \\textit{sno}" },
+    { id: "sigma", op: "select", sub: "\\text{Seattle} \\wedge \\text{WA}", state: "highlight" },
     { id: "supplier", relation: "Supplier" },
     { id: "supply", relation: "Supply" },
   ]}

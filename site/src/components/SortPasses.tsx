@@ -1,4 +1,4 @@
-import { Col, Diagram, Dots, Edge, Grid, Node, Row, Space, Text } from "@/components/figure";
+import { Col, Diagram, Dots, Edge, FONT, Grid, measure, Node, Row, Space, Text } from "@/components/figure";
 
 export interface SortRun {
   /** Stable id, referenced by the next pass's `from` lists. */
@@ -47,9 +47,12 @@ const STATE = { normal: undefined, final: "strong", emphasis: "strong", new: "pl
 const ROW_W = 380;
 const RUN_GAP = 8;
 
-/** Long gutter notes break at the space nearest their middle, so the gutter stays narrow. */
+/** Long gutter notes break at the space outside `$...$` that best balances the two lines, so the gutter stays narrow. */
 const lines = (s: string) => {
-  const cut = s.length > 24 ? [...s.matchAll(/ /g)].map((m) => m.index).sort((a, b) => Math.abs(a - s.length / 2) - Math.abs(b - s.length / 2))[0] : undefined;
+  if (s.length <= 24) return [s];
+  const wider = (i: number) => Math.max(measure(s.slice(0, i), FONT.note), measure(s.slice(i + 1), FONT.note));
+  const cuts = [...s.matchAll(/ /g)].map((m) => m.index).filter((i) => s.slice(0, i).split("$").length % 2 === 1);
+  const cut = cuts.sort((a, b) => wider(a) - wider(b))[0];
   return cut === undefined ? [s] : [s.slice(0, cut), s.slice(cut + 1)];
 };
 

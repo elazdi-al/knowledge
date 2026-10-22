@@ -14,7 +14,7 @@ export function StepSizeSchema() {
   ];
   const X: Pt = [-2.3, 2.3], Y: Pt = [0, 2.75];
   return (
-    <Diagram caption="Example 1 with ȳ = 0: each step multiplies w by 1 − η.">
+    <Diagram caption="Example 1 with $\bar{y} = 0$: each step multiplies $w$ by $1 - \eta$.">
       <Row gap={28} wrap>
         {panels.map(([eta, note]) => {
           const a = plotArea({ x: X, y: Y, w: 150, h: 104, at: [4, 18] });
@@ -23,13 +23,13 @@ export function StepSizeSchema() {
           return (
             <Col key={eta} gap={10}>
               <Free>
-                <Axes area={a} x={X} y={Y} origin={[0, 0]} labels={["w", "L"]} />
+                <Axes area={a} x={X} y={Y} origin={[0, 0]} labels={["$w$", "$L$"]} />
                 <Path points={curve(a, (w) => (w * w) / 2, X)} state="strong" />
                 <Path points={pts.map(a.p)} tone="blue" />
                 {pts.map((p, t) => <Dot key={t} at={a.p(p)} tone="blue" r={t === 0 ? 3.5 : 2.5} />)}
               </Free>
               <Col gap={2}>
-                <Text text={`η = ${eta}`} weight={500} />
+                <Text text={`$\\eta = ${eta}$`} />
                 <Text text={note} size="note" muted />
               </Col>
             </Col>
@@ -68,9 +68,9 @@ export function SgdNoiseSchema() {
   const a = plotArea({ x: [0, T + 4], y: Y, w: 340, h: 160, at: [12, 22] });
   const p = (t: number, v: number) => a.p([t, Math.log10(v)]);
   return (
-    <Diagram caption="Loss on a log scale. SGD is noisy and, with a constant η, keeps jittering above the minimum.">
+    <Diagram caption="Loss on a log scale. SGD is noisy and, with a constant $\eta$, keeps jittering above the minimum.">
       <Free>
-        <Axes area={a} x={[0, T + 4]} y={Y} origin={[0, Y[0]]} labels={["step t", "log L"]} />
+        <Axes area={a} x={[0, T + 4]} y={Y} origin={[0, Y[0]]} labels={["step $t$", "$\\log L$"]} />
         <Path points={sgd.map((v, t) => p(t, v))} tone="purple" />
         <Path points={gd.map((v, t) => p(t, v))} tone="blue" thick />
         <At text="SGD" at={p(30, Math.max(...sgd.slice(26, 34)))} anchor="s" gap={8} tone="purple" weight={500} />
@@ -106,7 +106,7 @@ export function MomentumSchema() {
           return (
             <Col key={title} gap={8}>
               <Free>
-                <Axes area={a} x={[-4.8, 4.8]} y={[-1.6, 1.7]} labels={["θ_1", "θ_2"]} />
+                <Axes area={a} x={[-4.8, 4.8]} y={[-1.6, 1.7]} labels={["$\\theta_1$", "$\\theta_2$"]} />
                 {[1, 2, 3].map((k) => <Path key={k} points={ellipse([0, 0], 1.45 * k, 0.25 * k).map(a.p)} closed thin state="ghost" />)}
                 <Path points={path.map(a.p)} tone="blue" />
                 {path.map((p, t) => <Dot key={t} at={a.p(p)} tone="blue" r={2.5} />)}
@@ -125,17 +125,17 @@ export function SubgradientSchema() {
   const a = plotArea({ x: [-2.2, 2.4], y: [-0.9, 2.2], w: 260, h: 150, at: [12, 22] });
   const slopes = [-0.55, 0, 0.55];
   return (
-    <Diagram caption="Any line through the kink with slope in [−1, 1] stays below |e|.">
+    <Diagram caption="Any line through the kink with slope in $[-1, 1]$ stays below $|e|$.">
       <Free>
-        <Axes area={a} x={[-2.2, 2.4]} y={[-0.9, 2.2]} labels={["e", "|e|"]} />
+        <Axes area={a} x={[-2.2, 2.4]} y={[-0.9, 2.2]} labels={["$e$", "$|e|$"]} />
         {slopes.map((g) => (
           <Path key={g} points={[a.p([-1.6, -1.6 * g]), a.p([1.6, 1.6 * g])]} tone="blue" dashed />
         ))}
         <Path points={[a.p([-2.05, 2.05]), a.p([0, 0]), a.p([2.05, 2.05])]} state="strong" />
         <Dot at={a.p([0, 0])} tone="blue" r={3.5} />
-        <At text="slope −1" at={a.p([-1.7, 1.7])} anchor="ne" gap={6} muted />
-        <At text="slope 1" at={a.p([1.7, 1.7])} anchor="nw" gap={6} muted />
-        <At text="g ∈ [−1, 1]" at={a.p([1.6, 1.6 * slopes[2]])} anchor="w" gap={6} tone="blue" weight={500} />
+        <At text="slope $-1$" at={a.p([-1.7, 1.7])} anchor="ne" gap={6} muted />
+        <At text="slope $1$" at={a.p([1.7, 1.7])} anchor="nw" gap={6} muted />
+        <At text="$g \in [-1, 1]$" at={a.p([1.6, 1.6 * slopes[2]])} anchor="w" gap={6} tone="blue" />
       </Free>
     </Diagram>
   );
@@ -163,7 +163,7 @@ export function ProjectionSchema() {
   // equal units on both axes, so the projection meets the edge at a right angle
   const a = plotArea({ x: [0, 7.5], y: [0, 4.6], w: 345, h: 212, at: [12, 12] });
   return (
-    <Diagram caption="The gradient step leaves C at θ', and the projection returns to the nearest point of C.">
+    <Diagram caption="The gradient step leaves $C$ at $\theta'$, and the projection returns to the nearest point of $C$.">
       <Free>
         {[0.4, 0.8, 1.2].map((r) => <Path key={r} points={ellipse(center, r * Math.SQRT2, r).map(a.p)} closed thin state="ghost" />)}
         <Poly points={C.map(a.p)} tone="blue" outline />
@@ -172,10 +172,10 @@ export function ProjectionSchema() {
         <Dot at={a.p(theta)} />
         <Dot at={a.p(stepped)} />
         <Dot at={a.p(projected)} tone="blue" r={3.5} />
-        <At text="C" at={a.p([0.95, 2.15])} tone="blue" weight={500} />
-        <At text="θ^{(t)}" at={a.p(theta)} anchor="n" gap={7} />
-        <At text="θ'" at={a.p(stepped)} anchor="w" gap={7} />
-        <At text="P_C(θ')" at={a.p(projected)} anchor="sw" gap={5} tone="blue" weight={500} />
+        <At text="$C$" at={a.p([0.95, 2.15])} tone="blue" />
+        <At text="$\theta^{(t)}$" at={a.p(theta)} anchor="n" gap={7} />
+        <At text="$\theta'$" at={a.p(stepped)} anchor="w" gap={7} />
+        <At text="$P_C(\theta')$" at={a.p(projected)} anchor="sw" gap={8} tone="blue" />
       </Free>
     </Diagram>
   );

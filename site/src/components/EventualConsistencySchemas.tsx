@@ -21,7 +21,7 @@ const PHANTOM: { title: string; ops: ScheduleOp[]; rows: { title: string; tone?:
       { tx: 1, text: "result 6", state: "strong" },
     ],
     rows: [{ title: "row 30" }, { title: "row 30" }, { title: "new 30", tone: TX_TONE[2] }],
-    note: ["The second SELECT sees a row", "that T_1 never protected."],
+    note: ["The second SELECT sees a row", "that $T_1$ never protected."],
   },
   {
     title: "Range or predicate lock",
@@ -69,9 +69,9 @@ const KEYS = [10, 12, 14, 16];
 /** Strip positions: key i at 2i, the gap after it at 2i + 1. */
 const KEY_MODES: { title: string; locked: number[]; span?: string; note: string }[] = [
   { title: "Key-value lock", locked: [4], note: "protects key 14, but not its neighboring gaps" },
-  { title: "Gap lock", locked: [5], span: "(14,16)", note: "blocks inserts into the protected open interval" },
-  { title: "Next-key lock", locked: [4, 5], span: "[14,16)", note: "locks key 14 plus the gap to the next key" },
-  { title: "Prev-key lock", locked: [3, 4], span: "(12,14]", note: "locks the previous gap plus key 14" },
+  { title: "Gap lock", locked: [5], span: "$(14,16)$", note: "blocks inserts into the protected open interval" },
+  { title: "Next-key lock", locked: [4, 5], span: "$[14,16)$", note: "locks key 14 plus the gap to the next key" },
+  { title: "Prev-key lock", locked: [3, 4], span: "$(12,14]$", note: "locks the previous gap plus key 14" },
 ];
 const KEY_CELL = 32;
 const SPAN_TEXT = { size: "note", weight: 600 } as const;
@@ -120,14 +120,14 @@ export function KeyRangeLockingSchema({ title, caption, className }: FigureProps
 const REPLICAS = ["R1", "R2", "R3", "R4"];
 const WRITE_QUORUM = [0, 1];
 const QUORUMS = [
-  { title: "N=4, W=2, R=1", read: [3], verdict: "no forced overlap" },
-  { title: "N=4, W=2, R=3", read: [1, 2, 3], verdict: "overlap exists" },
+  { title: "$N=4, W=2, R=1$", read: [3], verdict: "no forced overlap" },
+  { title: "$N=4, W=2, R=3$", read: [1, 2, 3], verdict: "overlap exists" },
 ];
 const QUORUM_CELL = 40;
 
 export function QuorumOverlapSchema({ title, caption, className }: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "When R + W > N, every read quorum intersects every completed write quorum."} className={className}>
+    <Diagram title={title} caption={caption ?? "When $R + W > N$, every read quorum intersects every completed write quorum."} className={className}>
       <Col gap={12}>
         <Row wrap gap={12} align="stretch">
           {QUORUMS.map((q) => (
@@ -135,9 +135,9 @@ export function QuorumOverlapSchema({ title, caption, className }: FigureProps) 
               <Grid cols={2} colGap={10} rowGap={4}>
                 <Space />
                 <Cells cell={QUORUM_CELL} items={REPLICAS} />
-                <Text text="W" size="note" weight={600} />
+                <Text text="$W$" size="note" />
                 <Cells cell={QUORUM_CELL} items={REPLICAS.map((_, i) => (WRITE_QUORUM.includes(i) ? { label: "ack", tone: TONE.write } : null))} />
-                <Text text="R" size="note" weight={600} />
+                <Text text="$R$" size="note" />
                 <Cells
                   cell={QUORUM_CELL}
                   items={REPLICAS.map((_, i) =>
@@ -149,7 +149,7 @@ export function QuorumOverlapSchema({ title, caption, className }: FigureProps) 
             </Group>
           ))}
         </Row>
-        <Text text="R + W > N is the overlap test." size="note" muted />
+        <Text text="$R + W > N$ is the overlap test." size="note" muted />
       </Col>
     </Diagram>
   );
@@ -157,7 +157,7 @@ export function QuorumOverlapSchema({ title, caption, className }: FigureProps) 
 
 /** One stage, so each replica keeps its place: writers on the left, the reader on the right, numbered edges in the order the versions travel. */
 export function DynamoSiblingsSchema({ title, caption, className }: FigureProps) {
-  const replica = (id: string, name: string) => <Node id={id} shape="cylinder" title={name} sub="x0=5" />;
+  const replica = (id: string, name: string) => <Node id={id} shape="cylinder" title={name} sub="$x_0=5$" />;
   return (
     <Diagram
       title={title}
@@ -171,23 +171,23 @@ export function DynamoSiblingsSchema({ title, caption, className }: FigureProps)
           <Space />
           <Node id="A" title="A writes" />
           {replica("r2", "R2")}
-          <Node id="C" title="C reads" sub="{xA, xB}" />
+          <Node id="C" title="C reads" sub="$\{x_A, x_B\}$" />
           <Node id="B" title="B writes" />
           {replica("r3", "R3")}
           <Space />
         </Grid>
         <Col gap={2}>
-          <Text text="W=1 accepts both writes" size="note" muted />
+          <Text text="$W=1$ accepts both writes" size="note" muted />
           <Text text="background propagation converges later" size="note" muted />
         </Col>
       </Col>
-      <Edge from="A" to="r2" label="1 xA=7" />
-      <Edge from="B" to="r3" label="1 xB=9" />
-      <Edge from="r2" to="C" label="2 xA" route="arc" bend={-28} />
-      <Edge from="r3" to="C" label="2 xB" fromSide="right" toSide="bottom" />
-      <Edge from="C" to="r2" label="3 xC=11" route="arc" bend={-28} />
-      <Edge from="r2" to="r1" label="4 xC" />
-      <Edge from="r2" to="r3" label="4 xC" />
+      <Edge from="A" to="r2" label="1 $x_A=7$" />
+      <Edge from="B" to="r3" label="1 $x_B=9$" />
+      <Edge from="r2" to="C" label="2 $x_A$" route="arc" bend={-28} />
+      <Edge from="r3" to="C" label="2 $x_B$" fromSide="right" toSide="bottom" />
+      <Edge from="C" to="r2" label="3 $x_C=11$" route="arc" bend={-28} />
+      <Edge from="r2" to="r1" label="4 $x_C$" />
+      <Edge from="r2" to="r3" label="4 $x_C$" />
     </Diagram>
   );
 }
@@ -198,25 +198,25 @@ const CAUSAL: { title: string; slots: number; lanes: Timeline[]; causal: [string
     title: "Dependent writes",
     slots: 5,
     lanes: [
-      { process: "P1", events: [[0, "W(a)"]] },
-      { process: "P2", events: [[1, "R(a)"], [2, "W(b)"]] },
-      { process: "P3", events: [[3, "R(b)"], [4, "R(a)"]] },
+      { process: "P1", events: [[0, "$W(a)$"]] },
+      { process: "P2", events: [[1, "$R(a)$"], [2, "$W(b)$"]] },
+      { process: "P3", events: [[3, "$R(b)$"], [4, "$R(a)$"]] },
     ],
     causal: [
       ["P1.0", "P2.1"],
       ["P2.2", "P3.3"],
     ],
-    verdict: "R(b) before R(a) violates order",
+    verdict: "$R(b)$ before $R(a)$ violates order",
     violation: true,
   },
   {
     title: "Concurrent writes",
     slots: 3,
     lanes: [
-      { process: "P1", events: [[0, "W(a)"]] },
-      { process: "P2", events: [[0, "W(b)"]] },
-      { process: "P3", events: [[1, "R(b)"], [2, "R(a)"]] },
-      { process: "P4", events: [[1, "R(a)"], [2, "R(b)"]] },
+      { process: "P1", events: [[0, "$W(a)$"]] },
+      { process: "P2", events: [[0, "$W(b)$"]] },
+      { process: "P3", events: [[1, "$R(b)$"], [2, "$R(a)$"]] },
+      { process: "P4", events: [[1, "$R(a)$"], [2, "$R(b)$"]] },
     ],
     causal: [],
     verdict: "both read orders are allowed",

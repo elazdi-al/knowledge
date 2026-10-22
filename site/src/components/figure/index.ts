@@ -40,7 +40,7 @@ export { layoutScene } from "./layout";
 export { routeEdges } from "./route";
 export { FrameSvg } from "./render";
 export { measure } from "./measure";
-export { Label, parseLabel, plainLabel, normalizeLabel } from "./text";
+export { Label, normalizeLabel } from "./text";
 export * from "./model";
 export { DOT_R, FONT, MAX_CONTENT_W, NODE, STROKE } from "./theme";
 

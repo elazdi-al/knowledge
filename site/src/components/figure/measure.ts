@@ -4,8 +4,9 @@
  * the kerning the tables ignore.
  */
 import { INTER_400, INTER_700 } from "./font-metrics";
+import { typeset } from "./math";
 import { FONT, type TextStyle } from "./theme";
-import { normalizeLabel, parseLabel, unescapeLabel } from "./text";
+import { normalizeLabel, splitMath, unescapeLabel } from "./text";
 
 const SAFETY = 1.02;
 
@@ -27,19 +28,19 @@ export interface TextOpts {
   mono?: boolean;
 }
 
-/** Width in px of `text` (with `_`/`^` runs) at `size` px. */
+/** Width in px of `text` (with `$...$` TeX) at `size` px. */
 export function measure(text: string, size: number, opts: TextOpts = {}): number {
   const { weight = 400, mono = false } = opts;
   const s = normalizeLabel(text);
   if (mono) return Array.from(unescapeLabel(s)).length * FONT.monoAdvance * size;
-  let w = 0;
-  for (const run of parseLabel(s)) {
-    const px = run.shift === 0 ? size : size * FONT.subScale;
-    let em = 0;
-    for (const ch of run.text) em += advance(ch, weight);
-    w += em * px;
-  }
-  return w * SAFETY;
+  return splitMath(s).reduce((w, part, i) => w + (i % 2 ? typeset(part).w * size * FONT.mathScale : textWidth(part, size, weight) * SAFETY), 0);
+}
+
+/** Width of plain text from the tables alone, without the kerning allowance. */
+export function textWidth(s: string, size: number, weight: number): number {
+  let em = 0;
+  for (const ch of unescapeLabel(s)) em += advance(ch, weight);
+  return em * size;
 }
 
 /** Width of `text` drawn in a text role. */

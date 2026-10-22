@@ -13,7 +13,7 @@ import { TONE } from "@/components/tones";
 export interface AutoState {
   /** Stable id used by transitions and the `start`/`accepting` props. */
   id: string;
-  /** Display label. `_` marks a subscript: `q_1` → q₁, `(r_1,r_2)` works too. */
+  /** Display label; math in `$...$` TeX: `$q_1$`, `$(r_1,r_2)$`. */
   label?: string;
   /** Optional manual position for diagrams that should not be laid out in a row. */
   x?: number;
@@ -76,8 +76,6 @@ function ctrlOf(a: Pt, b: Pt, bend: number): Pt {
   const dx = b.x - a.x, dy = b.y - a.y, k = bend / (Math.hypot(dx, dy) || 1);
   return { x: (a.x + b.x) / 2 - dy * k, y: (a.y + b.y) / 2 + dx * k };
 }
-/** Edge labels are mono and print literally, so digit subscripts (`N_1`) become subscript glyphs. */
-const edgeLabel = (s?: string) => s?.replace(/_(\d)/g, (_, d: string) => String.fromCharCode(0x2080 + Number(d)));
 
 export function Automaton({ states, transitions, start, startDir = "left", accepting, gap = 150, title, caption, className }: Props) {
   const startId = start ?? states[0]?.id;
@@ -172,9 +170,9 @@ export function Automaton({ states, transitions, start, startDir = "left", accep
       {startId && <Edge from={START} to={startId} route="straight" />}
       {known.map((t, i) =>
         t.from === t.to ? (
-          <Edge key={i} from={t.from} to={t.to} loop={loopSide(t)} label={edgeLabel(t.label)} />
+          <Edge key={i} from={t.from} to={t.to} loop={loopSide(t)} label={t.label} />
         ) : (
-          <Edge key={i} from={t.from} to={t.to} route="arc" bend={bend.get(t)} label={edgeLabel(t.label)} />
+          <Edge key={i} from={t.from} to={t.to} route="arc" bend={bend.get(t)} label={t.label} />
         ),
       )}
     </Diagram>

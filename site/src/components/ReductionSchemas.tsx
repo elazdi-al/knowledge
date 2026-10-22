@@ -51,21 +51,21 @@ export function NpCompletenessChainSchema({
 }
 
 const CLAUSES: Array<Array<{ id: string; label: string; chosen?: boolean }>> = [
-  [{ id: "k1n1", label: "¬x_1", chosen: true }],
+  [{ id: "k1n1", label: "$\\neg x_1$", chosen: true }],
   [
-    { id: "k2p1", label: "x_1" },
-    { id: "k2n2", label: "¬x_2", chosen: true },
+    { id: "k2p1", label: "$x_1$" },
+    { id: "k2n2", label: "$\\neg x_2$", chosen: true },
   ],
   [
-    { id: "k3p1", label: "x_1" },
-    { id: "k3p2", label: "x_2" },
-    { id: "k3n3", label: "¬x_3", chosen: true },
+    { id: "k3p1", label: "$x_1$" },
+    { id: "k3p2", label: "$x_2$" },
+    { id: "k3n3", label: "$\\neg x_3$", chosen: true },
   ],
   [
-    { id: "k4p1", label: "x_1" },
-    { id: "k4p2", label: "x_2" },
-    { id: "k4p3", label: "x_3" },
-    { id: "k4n4", label: "¬x_4", chosen: true },
+    { id: "k4p1", label: "$x_1$" },
+    { id: "k4p2", label: "$x_2$" },
+    { id: "k4p3", label: "$x_3$" },
+    { id: "k4n4", label: "$\\neg x_4$", chosen: true },
   ],
 ];
 const CONFLICTS: Array<[string, string]> = [
@@ -118,7 +118,7 @@ export function SatToIndsetReductionSchema({
         <Group title="example construction">
           <Grid cols={2} gap={48} align="center">
             {CLAUSES.map((ls, i) => (
-              <Group key={i} id={`K${i + 1}`} title={`K_${i + 1}`}>
+              <Group key={i} id={`K${i + 1}`} title={`$K_${i + 1}$`}>
                 {polygon(ls)}
               </Group>
             ))}
@@ -160,34 +160,34 @@ export function DfaToPathReductionSchema({
     >
       <Col gap={14}>
         <Row wrap gap={24} align="start">
-          <Group id="dfa" title="DFA D" gap={14}>
+          <Group id="dfa" title="DFA $D$" gap={14}>
             <Grid cols={3} colGap={48} rowGap={16}>
               {hole}
-              {state("d-q1", "q_1")}
+              {state("d-q1", "$q_1$")}
               {hole}
-              {state("d-q0", "q_0")}
+              {state("d-q0", "$q_0$")}
               {hole}
-              {state("d-qf", "q_f", true, TONE.accept)}
+              {state("d-qf", "$q_f$", true, TONE.accept)}
             </Grid>
             <Text text="accepting state reachable" size="note" muted />
           </Group>
           <Group id="graph" title="Graph instance" gap={14}>
             <Grid cols={4} colGap={36} rowGap={16}>
               {hole}
-              {state("g-q1", "q_1")}
+              {state("g-q1", "$q_1$")}
               {hole}
               {hole}
-              {state("g-q0", "q_0")}
+              {state("g-q0", "$q_0$")}
               {hole}
-              {state("g-qf", "q_f")}
-              <Node id="g-t" shape="circle" w={DFA_D} title="t" state="placeholder" />
+              {state("g-qf", "$q_f$")}
+              <Node id="g-t" shape="circle" w={DFA_D} title="$t$" state="placeholder" />
             </Grid>
-            <Text text="path from q_0 to t" size="note" muted />
+            <Text text="path from $q_0$ to $t$" size="note" muted />
           </Group>
         </Row>
-        <Text text="<D> maps to <G,q_0,t>; transition labels are dropped" size="note" muted />
+        <Text text="$\langle D\rangle$ maps to $\langle G,q_0,t\rangle$; transition labels are dropped" size="note" muted />
       </Col>
-      <Edge from="dfa" to="graph" label="f" tone={TONE.reduction} />
+      <Edge from="dfa" to="graph" label="$f$" tone={TONE.reduction} />
       <Edge from="d-q0" to="d-q1" route="arc" label="0" />
       <Edge from="d-q1" to="d-qf" route="arc" label="1" />
       <Edge from="d-q0" to="d-qf" route="arc" bend={40} label="1" />
@@ -202,9 +202,9 @@ export function DfaToPathReductionSchema({
 export function ReductionPipelineSchema({
   title,
   caption,
-  solver = "M_B",
-  solverNote = "decider for B",
-  result = "machine for A",
+  solver = "$M_B$",
+  solverNote = "decider for $B$",
+  result = "machine for $A$",
   className,
 }: {
   title?: string;
@@ -215,17 +215,17 @@ export function ReductionPipelineSchema({
   className?: string;
 }) {
   return (
-    <Diagram title={title} caption={caption ?? "Use the reduction first, then run the machine for B."} className={className}>
+    <Diagram title={title} caption={caption ?? "Use the reduction first, then run the machine for $B$."} className={className}>
       <Col gap={10}>
         <Group title={result}>
           <Row wrap gap={36}>
             <Node id="w" title="w" mono />
-            <Node id="f" title="f" sub="computable, total" tone={TONE.reduction} />
+            <Node id="f" title="$f$" sub="computable, total" tone={TONE.reduction} />
             <Node id="fw" title="f(w)" mono />
             <Node id="m" title={solver} sub={solverNote} />
           </Row>
         </Group>
-        {notes(["correctness condition: w ∈ A iff f(w) ∈ B"])}
+        {notes(["correctness condition: $w \\in A$ iff $f(w) \\in B$"])}
       </Col>
       <Edge from="w" to="f" />
       <Edge from="f" to="fw" />
@@ -248,23 +248,23 @@ export function RegTmReductionSchema({
       title={title}
       caption={
         caption ??
-        "The reduction builds M' so its language is either all strings or the known non-regular language B."
+        "The reduction builds $M'$ so its language is either all strings or the known non-regular language $B$."
       }
       className={className}
     >
       <Col gap={20}>
         <Row wrap gap={36}>
           <Node id="mw" title="<M,w>" mono />
-          <Node id="f" title="f" tone={TONE.reduction} />
+          <Node id="f" title="$f$" tone={TONE.reduction} />
           <Node id="m2" title="<M'>" mono />
-          <Node id="reg" title="R_{REG}" />
+          <Node id="reg" title="$R_{\mathrm{REG}}$" />
         </Row>
-        <Group title="M' on input y" dir="row" gap={40}>
-          <Node id="yb" title="y in B?" />
+        <Group title="$M'$ on input $y$" dir="row" gap={40}>
+          <Node id="yb" title="$y \in B$?" />
           <Col gap={20} align="start">
             <Node id="acc1" title="accept" tone={TONE.accept} />
             <Row gap={40}>
-              <Node id="run" title="run M on w" />
+              <Node id="run" title="run $M$ on $w$" />
               <Col gap={12} align="start">
                 <Node id="acc2" title="accept" tone={TONE.accept} />
                 <Node id="rej" title="no accept" state="placeholder" />
@@ -272,7 +272,7 @@ export function RegTmReductionSchema({
             </Row>
           </Col>
         </Group>
-        <Col gap={2}>{notes(["if M accepts w: L(M') = Σ^*", "otherwise: L(M') = B = {0^n1^n | n ≥ 0}"])}</Col>
+        <Col gap={2}>{notes(["if $M$ accepts $w$: $L(M') = \\Sigma^*$", "otherwise: $L(M') = B = \\{0^n1^n \\mid n \\ge 0\\}$"])}</Col>
       </Col>
       <Edge from="mw" to="f" />
       <Edge from="f" to="m2" />

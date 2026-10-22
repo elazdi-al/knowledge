@@ -92,18 +92,18 @@ $$
 the strings made only of `0`s. One working state suffices: stay in $q_0$, walking right over each `0` without changing it, until the head meets the first blank (accept, the input was all `0`s) or the first `1` (reject). The blank in this and every later figure is the tape blank $\sqcup$.
 
 <Automaton
-  caption="A complete TM for 0*: loop right over 0s, accept at the first blank, reject at the first 1."
+  caption="A complete TM for $0^*$: loop right over 0s, accept at the first blank, reject at the first 1."
   start="q0"
   accepting={["qa"]}
   states={[
-    { id: "q0", label: "q_0", x: 108, y: 150 },
-    { id: "qa", label: "q_{accept}", x: 372, y: 70 },
-    { id: "qr", label: "q_{reject}", x: 372, y: 230 },
+    { id: "q0", label: "$q_0$", x: 108, y: 150 },
+    { id: "qa", label: "$q_{\\text{accept}}$", x: 372, y: 70 },
+    { id: "qr", label: "$q_{\\text{reject}}$", x: 372, y: 230 },
   ]}
   transitions={[
-    { from: "q0", to: "q0", label: "0->0,R" },
-    { from: "q0", to: "qa", label: "⊔->⊔,R", bend: "up" },
-    { from: "q0", to: "qr", label: "1->1,R", bend: "down" },
+    { from: "q0", to: "q0", label: "$0\\to 0,R$" },
+    { from: "q0", to: "qa", label: "$\\sqcup\\to\\sqcup,R$", bend: "up" },
+    { from: "q0", to: "qr", label: "$1\\to 1,R$", bend: "down" },
   ]}
 />
 
@@ -128,11 +128,11 @@ The notation $uqv$, with $u,v\in\Gamma^*$ and $q\in Q$, means the state is $q$, 
 If $u=\epsilon$, the head is on the leftmost tape cell. If $v=\epsilon$, the head scans the blank cell immediately after $u$.
 
 <TuringTape
-  state="q_7"
+  state="$q_7$"
   head={4}
   cells={["1", "0", "1", "1", "0", "1", "1", "1", "1"]}
   rightEllipsis
-  caption="The configuration u q7 v with u = 1011 and v = 01111: the head scans the first cell of v."
+  caption="The configuration $uq_7v$ with $u=1011$ and $v=01111$: the head scans the first cell of $v$."
 />
 
 **Transition between configurations.** Suppose the current configuration is $uaq_i bv$, so the head scans $b$ and $a$ is the symbol immediately to its left.
@@ -162,13 +162,13 @@ $$
 Each `0` is rewritten as the head steps right; reading the trailing blank in $q_0$ sends $M$ to $q_{\text{accept}}$. The same run reads as one tape per configuration, the scanned cell shown inverted:
 
 <TuringTrace
-  caption="Run of M on 00: the head walks right over the 0s and halts in q_accept at the first blank."
+  caption="Run of $M$ on 00: the head walks right over the 0s and halts in $q_{\text{accept}}$ at the first blank."
   rightEllipsis
   rows={[
-    { state: "q_0", cells: ["0", "0"], head: 0, note: "read 0, write 0, step right" },
-    { state: "q_0", cells: ["0", "0"], head: 1, note: "read 0, write 0, step right" },
-    { state: "q_0", cells: ["0", "0", "⊔"], head: 2, note: "blank reached in q_0" },
-    { state: "q_{accept}", cells: ["0", "0", "⊔", "⊔"], head: 3, note: "no 1 was seen: accept" },
+    { state: "$q_0$", cells: ["0", "0"], head: 0, note: "read 0, write 0, step right" },
+    { state: "$q_0$", cells: ["0", "0"], head: 1, note: "read 0, write 0, step right" },
+    { state: "$q_0$", cells: ["0", "0", "⊔"], head: 2, note: "blank reached in $q_0$" },
+    { state: "$q_{\\text{accept}}$", cells: ["0", "0", "⊔", "⊔"], head: 3, note: "no 1 was seen: accept" },
   ]}
 />
 
@@ -231,31 +231,31 @@ $$
 where $q_A=q_{\text{accept}}$ and $q_R=q_{\text{reject}}$ are the halts, $X$ temporarily marks a matched symbol, and $\sqcup$ is the blank. Each edge still reads as $a\to b,D$, with two shorthands. A comma-separated read set fires on any of the listed symbols, and an omitted write leaves the cell unchanged. So $X,0\to R$ means "on $X$ or $0$, leave the cell and move right".
 
 <Automaton
-  caption="The decider for C. Each loop through q0 erases the leftmost symbol, finds and marks its opposite, then walks back; q0 accepts when only blanks remain."
+  caption="The decider for $C$. Each loop through $q_0$ erases the leftmost symbol, finds and marks its opposite, then walks back; $q_0$ accepts when only blanks remain."
   start="q0"
   startDir="down"
   accepting={["qA"]}
   states={[
-    { id: "q0", label: "q_0", x: 175, y: 250 },
-    { id: "q1", label: "q_1", x: 300, y: 115 },
-    { id: "q2", label: "q_2", x: 300, y: 385 },
-    { id: "q3", label: "q_3", x: 425, y: 250 },
-    { id: "qA", label: "q_A", x: 95, y: 115 },
-    { id: "qR", label: "q_R", x: 520, y: 115 },
+    { id: "q0", label: "$q_0$", x: 175, y: 250 },
+    { id: "q1", label: "$q_1$", x: 300, y: 115 },
+    { id: "q2", label: "$q_2$", x: 300, y: 385 },
+    { id: "q3", label: "$q_3$", x: 455, y: 250 },
+    { id: "qA", label: "$q_A$", x: 95, y: 115 },
+    { id: "qR", label: "$q_R$", x: 520, y: 115 },
   ]}
   transitions={[
-    { from: "q0", to: "qA", label: "⊔->R", curve: 0, bend: "up" },
-    { from: "q0", to: "q1", label: "0->⊔,R", curve: 0, bend: "up" },
-    { from: "q0", to: "q2", label: "1->⊔,R", curve: 0, bend: "down" },
-    { from: "q0", to: "q0", label: "X->⊔,R", loop: "left" },
-    { from: "q1", to: "q1", label: "X,0->R", loop: "up" },
-    { from: "q1", to: "qR", label: "⊔->R", curve: 0, bend: "up" },
-    { from: "q1", to: "q3", label: "1->X,L", curve: 0, bend: "up" },
-    { from: "q2", to: "q2", label: "1,X->R", loop: "down" },
-    { from: "q2", to: "q3", label: "0->X,L", curve: 0, bend: "down" },
-    { from: "q2", to: "qR", label: "⊔->R", curve: 120, bend: "down" },
-    { from: "q3", to: "q3", label: "0,1,X->L", loop: "right" },
-    { from: "q3", to: "q0", label: "⊔->R", curve: 0, bend: "down" },
+    { from: "q0", to: "qA", label: "$\\sqcup\\to R$", curve: 0, bend: "up" },
+    { from: "q0", to: "q1", label: "$0\\to\\sqcup,R$", curve: 0, bend: "up" },
+    { from: "q0", to: "q2", label: "$1\\to\\sqcup,R$", curve: 0, bend: "down" },
+    { from: "q0", to: "q0", label: "$X\\to\\sqcup,R$", loop: "left" },
+    { from: "q1", to: "q1", label: "$X,0\\to R$", loop: "up" },
+    { from: "q1", to: "qR", label: "$\\sqcup\\to R$", curve: 0, bend: "up" },
+    { from: "q1", to: "q3", label: "$1\\to X,L$", curve: 0, bend: "up" },
+    { from: "q2", to: "q2", label: "$1,X\\to R$", loop: "down" },
+    { from: "q2", to: "q3", label: "$0\\to X,L$", curve: 0, bend: "down" },
+    { from: "q2", to: "qR", label: "$\\sqcup\\to R$", curve: 120, bend: "down" },
+    { from: "q3", to: "q3", label: "$0,1,X\\to L$", loop: "up" },
+    { from: "q3", to: "q0", label: "$\\sqcup\\to R$", curve: 0, bend: "down" },
   ]}
 />
 
@@ -274,16 +274,16 @@ The run on `0110` is traced configuration by configuration, the scanned cell inv
   caption="The machine erases 0 with its matching 1, then the remaining 1 with its matching 0, and accepts once only blanks remain."
   rightEllipsis
   rows={[
-    { state: "q_0", cells: ["0", "1", "1", "0", "⊔"], head: 0, note: "leftmost is 0" },
-    { state: "q_1", cells: ["⊔", "1", "1", "0", "⊔"], head: 1, note: "erased it, hunt for a 1" },
-    { state: "q_3", cells: ["⊔", "X", "1", "0", "⊔"], head: 0, note: "marked the 1, rewind" },
-    { state: "q_0", cells: ["⊔", "X", "1", "0", "⊔"], head: 1, note: "back at the left" },
-    { state: "q_0", cells: ["⊔", "⊔", "1", "0", "⊔"], head: 2, note: "clear the X, scan on" },
-    { state: "q_2", cells: ["⊔", "⊔", "⊔", "0", "⊔"], head: 3, note: "erased a 1, hunt for a 0" },
-    { state: "q_3", cells: ["⊔", "⊔", "⊔", "X", "⊔"], head: 2, note: "marked the 0, rewind" },
-    { state: "q_0", cells: ["⊔", "⊔", "⊔", "X", "⊔"], head: 3, note: "back at the left" },
-    { state: "q_0", cells: ["⊔", "⊔", "⊔", "⊔", "⊔"], head: 4, note: "clear the X, scan on" },
-    { state: "q_A", cells: ["⊔", "⊔", "⊔", "⊔", "⊔", "⊔"], head: 5, note: "only blanks remain: accept" },
+    { state: "$q_0$", cells: ["0", "1", "1", "0", "⊔"], head: 0, note: "leftmost is 0" },
+    { state: "$q_1$", cells: ["⊔", "1", "1", "0", "⊔"], head: 1, note: "erased it, hunt for a 1" },
+    { state: "$q_3$", cells: ["⊔", "X", "1", "0", "⊔"], head: 0, note: "marked the 1, rewind" },
+    { state: "$q_0$", cells: ["⊔", "X", "1", "0", "⊔"], head: 1, note: "back at the left" },
+    { state: "$q_0$", cells: ["⊔", "⊔", "1", "0", "⊔"], head: 2, note: "clear the $X$, scan on" },
+    { state: "$q_2$", cells: ["⊔", "⊔", "⊔", "0", "⊔"], head: 3, note: "erased a 1, hunt for a 0" },
+    { state: "$q_3$", cells: ["⊔", "⊔", "⊔", "X", "⊔"], head: 2, note: "marked the 0, rewind" },
+    { state: "$q_0$", cells: ["⊔", "⊔", "⊔", "X", "⊔"], head: 3, note: "back at the left" },
+    { state: "$q_0$", cells: ["⊔", "⊔", "⊔", "⊔", "⊔"], head: 4, note: "clear the $X$, scan on" },
+    { state: "$q_A$", cells: ["⊔", "⊔", "⊔", "⊔", "⊔", "⊔"], head: 5, note: "only blanks remain: accept" },
   ]}
 />
 

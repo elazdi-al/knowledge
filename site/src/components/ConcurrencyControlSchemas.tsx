@@ -9,21 +9,21 @@ interface FigureProps {
   className?: string;
 }
 
-const txCircle = (id: string, tx: TxId) => <Node id={id} shape="circle" title={`T_${tx}`} tone={TX_TONE[tx]} />;
+const txCircle = (id: string, tx: TxId) => <Node id={id} shape="circle" title={`$T_${tx}$`} tone={TX_TONE[tx]} />;
 
 const PRECEDENCE: { title: string; ops: [TxId, string][]; edges: [TxId, TxId, string][]; verdict: string; cyclic?: boolean }[] = [
   {
     title: "Acyclic graph",
-    ops: [[1, "R_1(A)"], [1, "W_1(A)"], [2, "R_2(A)"], [2, "W_2(A)"], [1, "R_1(B)"], [1, "W_1(B)"], [2, "R_2(B)"]],
-    edges: [[1, 2, "A, B"]],
-    verdict: "acyclic: serial order T_1, T_2",
+    ops: [[1, "$R_1(A)$"], [1, "$W_1(A)$"], [2, "$R_2(A)$"], [2, "$W_2(A)$"], [1, "$R_1(B)$"], [1, "$W_1(B)$"], [2, "$R_2(B)$"]],
+    edges: [[1, 2, "$A, B$"]],
+    verdict: "acyclic: serial order $T_1, T_2$",
   },
   {
     title: "Cyclic graph",
-    ops: [[1, "R_1(A)"], [1, "W_1(A)"], [2, "R_2(A)"], [2, "W_2(A)"], [2, "R_2(B)"], [2, "W_2(B)"], [1, "R_1(B)"]],
+    ops: [[1, "$R_1(A)$"], [1, "$W_1(A)$"], [2, "$R_2(A)$"], [2, "$W_2(A)$"], [2, "$R_2(B)$"], [2, "$W_2(B)$"], [1, "$R_1(B)$"]],
     edges: [
-      [1, 2, "A"],
-      [2, 1, "B"],
+      [1, 2, "$A$"],
+      [2, 1, "$B$"],
     ],
     verdict: "cycle: no equivalent serial order",
     cyclic: true,
@@ -198,9 +198,9 @@ export function LockPhaseSchema({ title, caption, className }: FigureProps) {
 /** Each blocked request adds one wait-for edge, numbered in request order; the third closes the cycle. */
 export function WaitForGraphSchema({ title, caption, className }: FigureProps) {
   const waits: { from: TxId; to: TxId; text: string; lock: string }[] = [
-    { from: 1, to: 2, text: "S(B) waits", lock: "S(B)" },
-    { from: 2, to: 3, text: "X(C) waits", lock: "X(C)" },
-    { from: 3, to: 1, text: "X(A) waits", lock: "X(A)" },
+    { from: 1, to: 2, text: "S($B$) waits", lock: "S($B$)" },
+    { from: 2, to: 3, text: "X($C$) waits", lock: "X($C$)" },
+    { from: 3, to: 1, text: "X($A$) waits", lock: "X($A$)" },
   ];
   return (
     <Diagram title={title} caption={caption ?? "A deadlock appears as a cycle in the wait-for graph."} className={className}>
@@ -209,15 +209,15 @@ export function WaitForGraphSchema({ title, caption, className }: FigureProps) {
           <ScheduleGrid
             txs={[1, 2, 3]}
             ops={[
-              { tx: 1, text: "S(A)" },
-              { tx: 2, text: "X(B)" },
-              { tx: 3, text: "S(C)" },
+              { tx: 1, text: "S($A$)" },
+              { tx: 2, text: "X($B$)" },
+              { tx: 3, text: "S($C$)" },
               ...waits.map((w) => ({ tx: w.from, text: w.text, state: "placeholder" as const })),
             ]}
           />
           <Space h={6} />
-          <Text text="T_1 waits for T_2, T_2 waits for T_3," size="note" muted />
-          <Text text="and T_3 waits for T_1." size="note" muted />
+          <Text text="$T_1$ waits for $T_2$, $T_2$ waits for $T_3$," size="note" muted />
+          <Text text="and $T_3$ waits for $T_1$." size="note" muted />
         </Group>
         <Group title="Wait-for graph" gap={24}>
           <Col gap={40}>
@@ -254,8 +254,8 @@ export function DeadlockPreventionSchema({ title, caption, className }: FigurePr
           <Group key={s.title} title={s.title} gap={14}>
             <Text text={s.rule} size="note" muted />
             <Row gap={40}>
-              <Node id={`dp${k}.old`} title="T_{old}" />
-              <Node id={`dp${k}.young`} title="T_{young}" />
+              <Node id={`dp${k}.old`} title="$T_{\text{old}}$" />
+              <Node id={`dp${k}.young`} title="$T_{\text{young}}$" />
             </Row>
             <Text text={s.note} size="note" muted />
             <Edge from={`dp${k}.${s.oldWaits ? "old" : "young"}`} to={`dp${k}.${s.oldWaits ? "young" : "old"}`} label="waits" />
@@ -274,7 +274,7 @@ const HIERARCHY: LockLevel = {
   kids: [
     {
       id: "tR",
-      title: "Table R",
+      title: "Table $R$",
       kids: [
         { id: "p1", title: "Page 1" },
         {
@@ -282,16 +282,16 @@ const HIERARCHY: LockLevel = {
           title: "Page 2",
           kids: [
             { id: "u1", title: "Tuple 1" },
-            { id: "u2", title: "Tuple 2", kids: [{ id: "a1", title: "Attr 1" }, null, { id: "an", title: "Attr n" }] },
+            { id: "u2", title: "Tuple 2", kids: [{ id: "a1", title: "Attr 1" }, null, { id: "an", title: "Attr $n$" }] },
             null,
-            { id: "un", title: "Tuple n" },
+            { id: "un", title: "Tuple $n$" },
           ],
         },
         null,
-        { id: "pn", title: "Page n" },
+        { id: "pn", title: "Page $n$" },
       ],
     },
-    { id: "tS", title: "Table S" },
+    { id: "tS", title: "Table $S$" },
   ],
 };
 
@@ -339,22 +339,22 @@ export function MultiGranularityLockingSchema({ title, caption, className }: Fig
         <Row wrap gap={16} align="stretch">
           <Group title="Two-level hierarchy">
             <Grid cols={3} colGap={24} rowGap={56}>
-              <Node id="t1" title="T_1" tone={TX_TONE[1]} />
+              <Node id="t1" title="$T_1$" tone={TX_TONE[1]} />
               <Space />
-              <Node id="t2" title="T_2" tone={TX_TONE[2]} />
+              <Node id="t2" title="$T_2$" tone={TX_TONE[2]} />
               <Space />
-              <Node id="R" title="Table R" />
+              <Node id="R" title="Table $R$" />
               <Space />
-              <Node id="A" title="Tuple A" />
+              <Node id="A" title="Tuple $A$" />
               <Dots />
-              <Node id="B" title="Tuple B" />
+              <Node id="B" title="Tuple $B$" />
             </Grid>
           </Group>
           <Group title="Compatibility">
             <Table id="compat" columns={["", "IS", "IX"]} rows={[{ cells: ["IS", "yes", "yes"], state: "active" }, ["IX", "yes", "yes"]]} />
           </Group>
         </Row>
-        <Text text="IS and IX can coexist on Table R, because the real conflict is checked at the tuple level." size="note" muted />
+        <Text text="IS and IX can coexist on Table $R$, because the real conflict is checked at the tuple level." size="note" muted />
       </Col>
       <Edge from="R" to="A" fromSide="bottom" toSide="top" route="straight" head="none" />
       <Edge from="R" to="B" fromSide="bottom" toSide="top" route="straight" head="none" />

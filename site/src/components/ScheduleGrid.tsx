@@ -15,7 +15,7 @@ export function ScheduleGrid({ txs, ops }: { txs: TxId[]; ops: ScheduleOp[] }) {
   return (
     <Grid cols={txs.length} colGap={8} rowGap={6} align="stretch">
       {txs.map((t) => (
-        <Tag key={t} text={`T_${t}`} tone={TX_TONE[t]} />
+        <Tag key={t} text={`$T_${t}$`} tone={TX_TONE[t]} />
       ))}
       {ops.flatMap((op, i) =>
         txs.map((t) =>

@@ -22,11 +22,11 @@ export function VerifierSchema({
           <Row wrap gap={36}>
             <Node id="x" title="x" mono />
             <Node id="c" title="C" mono />
-            <Node id="v" title="verifier V" state="strong" />
+            <Node id="v" title="verifier $V$" state="strong" />
             <Node id="acc" title="accept?" />
           </Row>
         </Group>
-        <Col gap={2}>{notes(["x in L iff some short C makes V accept", "x not in L iff every C is rejected"])}</Col>
+        <Col gap={2}>{notes(["$x \\in L$ iff some short $C$ makes $V$ accept", "$x \\notin L$ iff every $C$ is rejected"])}</Col>
       </Col>
       <Edge from="x" to="c" label="paired" />
       <Edge from="c" to="v" />
@@ -119,7 +119,7 @@ export function GraphCertificateSchema({
           <Row wrap gap={32}>
             <Hexagon p="g." />
             <Col gap={2}>
-              <Text text="bijection C" size="note" muted />
+              <Text text="bijection $C$" size="note" muted />
               {["a->1", "b->2", "c->3", "d->4", "e->5", "f->6"].map((t) => (
                 <Text key={t} text={t} size="note" mono muted />
               ))}
@@ -152,31 +152,31 @@ export function PnpContainmentSchema({
   return (
     <Diagram
       title={title}
-      caption={caption ?? "P is contained in NP. Whether the containment is strict is the P versus NP problem."}
+      caption={caption ?? "$P$ is contained in $NP$. Whether the containment is strict is the P versus NP problem."}
       className={className}
     >
       <Col gap={12}>
         <Row wrap gap={16} align="stretch">
-          <Group title="possible: P=NP">
-            <Group title="P=NP" dir="row" gap={8}>
+          <Group title="possible: $P=NP$">
+            <Group title="$P=NP$" dir="row" gap={8}>
               <Node title="SAT" />
               <Node title="INDSET" />
               <Node title="GI" />
             </Group>
           </Group>
-          <Group title="possible: P proper subset NP">
-            <Group title="NP" gap={10}>
+          <Group title="possible: $P \subsetneq NP$">
+            <Group title="$NP$" gap={10}>
               <Row gap={8}>
                 <Node title="SAT" />
                 <Node title="INDSET" />
               </Row>
-              <Group title="P">
+              <Group title="$P$">
                 <Node title="GI?" state="placeholder" />
               </Group>
             </Group>
           </Group>
         </Row>
-        {notes(["SAT and INDSET are NP-complete: putting either in P would force P=NP."])}
+        {notes(["SAT and INDSET are NP-complete: putting either in $P$ would force $P=NP$."])}
       </Col>
     </Diagram>
   );

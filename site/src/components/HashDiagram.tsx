@@ -110,8 +110,8 @@ export interface HashProps {
 
 
 const STATE = { normal: undefined, full: "strong", new: "active", highlight: "strong" } as const;
-/** Rows are data (mono), except keys written with the subscript syntax (`k_1`). */
-const rowCell = (s: string) => (/[_^]/.test(s) ? { text: s, mono: false } : s);
+/** Rows are data (mono), except keys written as math (`$k_1$`). */
+const rowCell = (s: string) => (s.includes("$") ? { text: s, mono: false } : s);
 
 /** A bucket: a titled panel over its rows, or a single value box when it has no rows. */
 function Page({ p, badge, tone }: { p: HashPage; badge?: string; tone?: Tone }) {

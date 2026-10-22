@@ -37,20 +37,20 @@ $$
 
 <HashDiagram
   mode="static"
-  source="h(k)"
-  sourceNote="h(k) mod N"
+  source="$h(k)$"
+  sourceNote="$h(k) \bmod N$"
   pages={[
-    { id: "b0", title: "Bucket 0", subtitle: "primary page", rows: ["k_1, k_4", "k_7"] },
-    { id: "b1", title: "Bucket 1", subtitle: "primary page", rows: ["k_2, k_5", "k_8"], state: "full" },
-    { id: "bn", title: "Bucket N-1", subtitle: "primary page", rows: ["k_3, k_6", "k_9"] },
+    { id: "b0", title: "Bucket 0", subtitle: "primary page", rows: ["$k_1, k_4$", "$k_7$"] },
+    { id: "b1", title: "Bucket 1", subtitle: "primary page", rows: ["$k_2, k_5$", "$k_8$"], state: "full" },
+    { id: "bn", title: "Bucket $N-1$", subtitle: "primary page", rows: ["$k_3, k_6$", "$k_9$"] },
   ]}
   overflow={[
-    { id: "ov", title: "Overflow", subtitle: "extra page", rows: ["k_{10}", "k_{11}"] },
+    { id: "ov", title: "Overflow", subtitle: "extra page", rows: ["$k_{10}$", "$k_{11}$"] },
   ]}
   fanout={[
     { to: "b0", label: "0" },
     { to: "b1", label: "1" },
-    { to: "bn", label: "N-1" },
+    { to: "bn", label: "$N-1$" },
   ]}
   spills={[{ from: "b1", to: "ov", label: "overflow" }]}
   caption="Static hashing: a fixed set of primary buckets, plus overflow pages when a bucket fills up."
@@ -363,7 +363,7 @@ Linear hashing keeps a pointer called **next**. When any bucket overflows, the D
   ]}
   overflow={[{ id: "ov", title: "17" }]}
   spills={[{ from: "b1", to: "ov", label: "overflow" }]}
-  split={{ from: "b0", to: "b4", label: "split via h_1" }}
+  split={{ from: "b0", to: "b4", label: "split via $h_1$" }}
   caption="Linear hashing: next marks the bucket to split; the new bucket receives entries that hash differently under the next-level function."
 />
 
@@ -454,11 +454,11 @@ Sorting is needed for:
 **External sorting.** Sorting a file that is too large to fit in memory by creating sorted runs on disk and repeatedly merging them.
 
 <SortPasses
-  caption="External merge sort: pass 0 creates sorted runs; later passes merge B-1 runs at a time until one fully sorted file remains. Each pass costs 2N I/Os."
+  caption="External merge sort: pass 0 creates sorted runs; later passes merge $B-1$ runs at a time until one fully sorted file remains. Each pass costs $2N$ I/Os."
   passes={[
     {
       label: "Pass 0",
-      note: "ceil(N/B) sorted runs of B pages each",
+      note: "$\\lceil N/B \\rceil$ sorted runs of $B$ pages each",
       runs: [
         { id: "r0" }, { id: "r1" }, { id: "r2" }, { id: "r3" },
         { id: "r4" }, { id: "r5" }, { id: "r6" }, { id: "r7" },
@@ -466,7 +466,7 @@ Sorting is needed for:
     },
     {
       label: "Pass 1",
-      note: "each pass merges B-1 runs into fewer, larger runs",
+      note: "each pass merges $B-1$ runs into fewer, larger runs",
       ellipsis: true,
       runs: [
         { id: "m0", from: ["r0", "r1", "r2", "r3"] },
