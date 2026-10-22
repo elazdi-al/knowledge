@@ -559,7 +559,7 @@ A sparse index pushes this further by keeping one *anchor* entry per data page.
     { from: "i1", to: "p1", toSide: "left" },
     { from: "i2", to: "p2", toSide: "left" },
   ]}
-  caption="Sparse index: to find K, jump to the page with the largest anchor key ≤ K and scan forward."
+  caption="Sparse index: to find $K$, jump to the page with the largest anchor key $\leq K$ and scan forward."
 />
 
 To locate a value $K$, find the index entry with the largest key $\leq K$ and follow its pointer to that data page. Then scan forward until $K$ is found or passed. Because the method relies on the file's sequential order, a sparse index is normally clustered.
@@ -719,7 +719,7 @@ The B+-tree is one of two index families, each tuned to a different predicate. A
 
 <HashDiagram
   mode="static"
-  source="h(age)"
+  source="$h(\texttt{age})$"
   pages={[
     { id: "b00", title: "Bucket 00", rows: ["(22, r1)", "(44, r6)", "(44, r9)"] },
     { id: "b01", title: "Bucket 01", rows: ["(33, r2)", "(65, r7)", "(81, r8)"], state: "full" },

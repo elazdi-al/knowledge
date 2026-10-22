@@ -68,10 +68,10 @@ $$
 The function need not be surjective. Some instances of $B$ may never appear as $f(w)$.
 
 <ReductionPipelineSchema
-  result="decider for A"
-  solver="M_B"
-  solverNote="decider for B"
-  caption="If a decider for B exists, compose it with the reduction to decide A."
+  result="decider for $A$"
+  solver="$M_B$"
+  solverNote="decider for $B$"
+  caption="If a decider for $B$ exists, compose it with the reduction to decide $A$."
 />
 
 **Theorem.** If $A\le_m B$ and $B$ is decidable, then $A$ is decidable.
@@ -211,10 +211,10 @@ So $A_{\mathrm{TM}}\le_m REG_{\mathrm{TM}}$, and $REG_{\mathrm{TM}}$ is undecida
 The same pipeline works for recognizers, but the conclusion is weaker because recognizers may loop on no-instances.
 
 <ReductionPipelineSchema
-  result="recognizer for A"
-  solver="R_B"
-  solverNote="recognizer for B"
-  caption="If a recognizer for B exists, compose it with the reduction to recognize A."
+  result="recognizer for $A$"
+  solver="$R_B$"
+  solverNote="recognizer for $B$"
+  caption="If a recognizer for $B$ exists, compose it with the reduction to recognize $A$."
 />
 
 **Theorem.** If $A\le_m B$ and $B$ is recognizable, then $A$ is recognizable.

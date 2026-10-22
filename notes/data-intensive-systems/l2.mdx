@@ -495,15 +495,15 @@ The first joins all three relations and only then filters; the second pushes the
 
 <QueryTree
   title="Initial"
-  caption="(a) Initial: σ applied after joining all three relations, so every joined tuple is processed."
+  caption="(a) Initial: $\sigma$ applied after joining all three relations, so every joined tuple is processed."
   nodes={[
-    { id: "pi", op: "project", sub: "name, title" },
-    { id: "sigma", op: "select", sub: 'dept_name = "Music"', state: "highlight" },
+    { id: "pi", op: "project", sub: "\\textit{name, title}" },
+    { id: "sigma", op: "select", sub: '\\textit{dept_name} = \\text{"Music"}', state: "highlight" },
     { id: "join1", op: "join" },
     { id: "instructor", relation: "instructor" },
     { id: "join2", op: "join" },
     { id: "teaches", relation: "teaches" },
-    { id: "picourse", op: "project", sub: "course_id, title" },
+    { id: "picourse", op: "project", sub: "\\textit{course_id, title}" },
     { id: "course", relation: "course" },
   ]}
   links={[
@@ -522,15 +522,15 @@ The first joins all three relations and only then filters; the second pushes the
 
 <QueryTree
   title="Optimized"
-  caption="(b) Optimized: σ pushed down to filter instructor before the join, so far fewer tuples flow upward."
+  caption="(b) Optimized: $\sigma$ pushed down to filter instructor before the join, so far fewer tuples flow upward."
   nodes={[
-    { id: "pi", op: "project", sub: "name, title" },
+    { id: "pi", op: "project", sub: "\\textit{name, title}" },
     { id: "join1", op: "join" },
-    { id: "sigma", op: "select", sub: 'dept_name = "Music"', state: "highlight" },
+    { id: "sigma", op: "select", sub: '\\textit{dept_name} = \\text{"Music"}', state: "highlight" },
     { id: "join2", op: "join" },
     { id: "instructor", relation: "instructor" },
     { id: "teaches", relation: "teaches" },
-    { id: "picourse", op: "project", sub: "course_id, title" },
+    { id: "picourse", op: "project", sub: "\\textit{course_id, title}" },
     { id: "course", relation: "course" },
   ]}
   links={[

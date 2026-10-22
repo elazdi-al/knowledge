@@ -75,7 +75,7 @@ export function HashProjectionSchema({ title, caption, className }: FigureProps)
   const outs = [
     { id: "o1", part: "p1", label: "1" },
     { id: "o2", part: "p2", label: "2" },
-    { id: "ob", part: "pb", label: "B-1" },
+    { id: "ob", part: "pb", label: "$B-1$" },
   ];
   const stack = (kind: "out" | "part") => (
     <Col gap={8} align="stretch">
@@ -90,25 +90,25 @@ export function HashProjectionSchema({ title, caption, className }: FigureProps)
     </Col>
   );
   return (
-    <Diagram title={title} caption={caption ?? "Hash projection partitions by h1."} className={className}>
+    <Diagram title={title} caption={caption ?? "Hash projection partitions by $h_1$."} className={className}>
       <Row gap={36}>
         <Node id="R" shape="cylinder" title="Original relation" />
         <Row gap={36} align="end">
-          <Group id="mem" title="B main-memory buffers" dir="row" gap={28}>
+          <Group id="mem" title="$B$ main-memory buffers" dir="row" gap={28} pad={12}>
             <Col gap={4}>
               <Text text="Input" size="note" weight={600} />
-              <Node id="in" w={60} />
+              <Node id="in" w={44} />
             </Col>
             <Col gap={4}>
               <Text text="hash" size="note" muted />
-              <Node id="h1" shape="circle" title="h_1" />
+              <Node id="h1" shape="circle" title="$h_1$" />
             </Col>
             <Col gap={4}>
               <Text text="Output" size="note" weight={600} />
               {stack("out")}
             </Col>
           </Group>
-          <Group title="Partitions">{stack("part")}</Group>
+          <Group title="Partitions" pad={12}>{stack("part")}</Group>
         </Row>
       </Row>
       <Edge from="R" to="in" label="1 page" />
@@ -125,21 +125,21 @@ export function GraceProbeSchema({ title, caption, className }: FigureProps) {
       <Row gap={36}>
         <Group title="Partitions">
           <Col gap={8} align="stretch">
-            <Node id="Ri" shape="cylinder" title="R_i" tone={TONE.build} />
-            <Node id="Si" shape="cylinder" title="S_i" tone={TONE.probe} />
+            <Node id="Ri" shape="cylinder" title="$R_i$" tone={TONE.build} />
+            <Node id="Si" shape="cylinder" title="$S_i$" tone={TONE.probe} />
             <Dots dir="col" />
           </Col>
         </Group>
-        <Group title="B main-memory buffers">
+        <Group title="$B$ main-memory buffers">
           <Grid cols={1} rowGap={44} align="stretch">
-            <Node id="ht" title="hash table on R_i (h_2)" sub="at most B-2 pages" tone={TONE.build} />
+            <Node id="ht" title="hash table on $R_i$ ($h_2$)" sub="at most $B-2$ pages" tone={TONE.build} />
             <Row gap={56}>
-              <Node id="sin" title="S_i input" tone={TONE.probe} />
+              <Node id="sin" title="$S_i$ input" tone={TONE.probe} />
               <Node id="out" title="output" />
             </Row>
           </Grid>
         </Group>
-        <Node id="res" shape="cylinder" title="Join result" sub="⟨r, s⟩ pairs" />
+        <Node id="res" shape="cylinder" title="Join result" sub="$\langle r, s \rangle$ pairs" />
       </Row>
       <Edge from="Ri" to="ht" label="1 load" />
       <Edge from="Si" to="sin" label="2 stream" />
@@ -232,7 +232,7 @@ const MAX_LEVELS = Math.max(...PLANS.map((p) => levels(p.tree)));
 /** A join tree by nesting: each join is centred over its two inputs. */
 function Plan({ id, tree, kept, root = true }: { id: string; tree: JoinTree; kept: boolean; root?: boolean }) {
   const state = kept ? (root ? "strong" : undefined) : "ghost";
-  if (typeof tree === "string") return <Node id={id} title={tree} w={32} state={kept ? undefined : "ghost"} />;
+  if (typeof tree === "string") return <Node id={id} title={`$${tree}$`} w={32} state={kept ? undefined : "ghost"} />;
   return (
     <Col gap={LEVEL.gap}>
       <Node id={id} title="join" state={state} />

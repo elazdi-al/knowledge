@@ -143,7 +143,7 @@ $$
   caption="A DFA for strings ending in 1."
   start="q1"
   accepting={["q2"]}
-  states={[{ id: "q1", label: "q_1" }, { id: "q2", label: "q_2" }]}
+  states={[{ id: "q1", label: "$q_1$" }, { id: "q2", label: "$q_2$" }]}
   transitions={[
     { from: "q1", to: "q1", label: "0" },
     { from: "q1", to: "q2", label: "1" },
@@ -176,10 +176,10 @@ Accepted: $1$, $01$, $101$. Rejected: $\epsilon$, $0$, $100$.
 <Pane>
 
 <Automaton
-  caption="The same transitions, but q1 is accepting."
+  caption="The same transitions, but $q_1$ is accepting."
   start="q1"
   accepting={["q1"]}
-  states={[{ id: "q1", label: "q_1" }, { id: "q2", label: "q_2" }]}
+  states={[{ id: "q1", label: "$q_1$" }, { id: "q2", label: "$q_2$" }]}
   transitions={[
     { from: "q1", to: "q1", label: "0" },
     { from: "q1", to: "q2", label: "1" },
@@ -214,9 +214,9 @@ Accepted: $\epsilon$, $0$, $110$. Rejected: $1$, $01$, $101$.
   start="q1"
   accepting={["q2"]}
   states={[
-    { id: "q1", label: "q_1" },
-    { id: "q2", label: "q_2" },
-    { id: "q3", label: "q_3" },
+    { id: "q1", label: "$q_1$" },
+    { id: "q2", label: "$q_2$" },
+    { id: "q3", label: "$q_3$" },
   ]}
   transitions={[
     { from: "q1", to: "q1", label: "0" },
@@ -325,7 +325,7 @@ Let $\Sigma=\{a,b\}$ and $L=\{w\mid \mathrm{count}(w,a)\text{ is even}\}$, where
   caption="A DFA for strings with an even number of a symbols."
   start="q0"
   accepting={["q0"]}
-  states={[{ id: "q0", label: "q_0" }, { id: "q1", label: "q_1" }]}
+  states={[{ id: "q0", label: "$q_0$" }, { id: "q1", label: "$q_1$" }]}
   transitions={[
     { from: "q0", to: "q1", label: "a" },
     { from: "q1", to: "q0", label: "a" },
@@ -383,9 +383,9 @@ Let $\Sigma=\{a,b\}$. The following DFA accepts once it has seen two `a` symbols
   start="q0"
   accepting={["q2"]}
   states={[
-    { id: "q0", label: "q_0" },
-    { id: "q1", label: "q_1" },
-    { id: "q2", label: "q_2" },
+    { id: "q0", label: "$q_0$" },
+    { id: "q1", label: "$q_1$" },
+    { id: "q2", label: "$q_2$" },
   ]}
   transitions={[
     { from: "q0", to: "q1", label: "a" },
@@ -478,7 +478,7 @@ If $M=(Q,\Sigma,\delta,q_0,F)$ recognizes $L$, then $M'=(Q,\Sigma,\delta,q_0,Q\s
 <Pane>
 
 <Automaton
-  caption="L: strings ending in 1."
+  caption="$L$: strings ending in 1."
   start="N"
   accepting={["Y"]}
   states={[{ id: "N" }, { id: "Y" }]}
@@ -545,7 +545,7 @@ Let $A$ be the language of strings containing at least one `1`. Let $B$ be the l
 <Pane>
 
 <Automaton
-  caption="A: strings containing at least one 1."
+  caption="$A$: strings containing at least one 1."
   start="N"
   accepting={["Y"]}
   states={[{ id: "N" }, { id: "Y" }]}
@@ -560,7 +560,7 @@ Let $A$ be the language of strings containing at least one `1`. Let $B$ be the l
 <Pane>
 
 <Automaton
-  caption="B: strings with an even number of 0s."
+  caption="$B$: strings with an even number of 0s."
   start="E"
   accepting={["E"]}
   states={[{ id: "E" }, { id: "O" }]}
@@ -590,7 +590,7 @@ In the product machine, the first letter tracks $A$ and the second letter tracks
 For union, accept `NE`, `YE`, and `YO`, because at least one component accepts.
 
 <Automaton
-  caption="A union B: accept if the A component accepts or the B component accepts."
+  caption="$A\cup B$: accept if the $A$ component accepts or the $B$ component accepts."
   start="NE"
   accepting={["NE", "YE", "YO"]}
   states={[
@@ -617,7 +617,7 @@ For union, accept `NE`, `YE`, and `YO`, because at least one component accepts.
 For intersection, use the same graph but accept only `YE`, because both components accept only there.
 
 <Automaton
-  caption="A intersection B: accept only if the A component and B component both accept."
+  caption="$A\cap B$: accept only if the $A$ component and $B$ component both accept."
   start="NE"
   accepting={["YE"]}
   states={[

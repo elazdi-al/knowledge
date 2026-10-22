@@ -91,22 +91,22 @@ export function ProgramMemorySchema() {
 
 export function DiffieHellmanSchema() {
   return (
-    <Diagram caption="Only A and B cross the network. Both sides compute the same secret s; a and b remain private.">
+    <Diagram caption="Only $A$ and $B$ cross the network. Both sides compute the same secret $s$; $a$ and $b$ remain private.">
       <Col gap={24}>
-        <Text text="Public parameters: p, g" size="note" muted />
+        <Text text="Public parameters: $p, g$" size="note" muted />
         <Free>
-          <Node id="alice" title="Alice" sub="Private exponent a" w={126} x={0} y={0} />
-          <Node id="bob" title="Bob" sub="Private exponent b" w={126} x={180} y={0} />
-          <Node id="alice-secret" title="s = Bᵃ mod p" tone="blue" w={126} x={0} y={172} />
-          <Node id="bob-secret" title="s = Aᵇ mod p" tone="blue" w={126} x={180} y={172} />
+          <Node id="alice" title="Alice" sub="Private exponent $a$" w={126} x={0} y={0} />
+          <Node id="bob" title="Bob" sub="Private exponent $b$" w={126} x={180} y={0} />
+          <Node id="alice-secret" title="$s = B^a \bmod p$" tone="blue" w={126} x={0} y={172} />
+          <Node id="bob-secret" title="$s = A^b \bmod p$" tone="blue" w={126} x={180} y={172} />
           <Space id="alice-send" x={63} y={86} />
           <Space id="bob-receive" x={243} y={86} />
           <Space id="bob-send" x={243} y={132} />
           <Space id="alice-receive" x={63} y={132} />
           <Edge from="alice" to="alice-secret" head="none" dashed route="straight" />
           <Edge from="bob" to="bob-secret" head="none" dashed route="straight" />
-          <Edge from="alice-send" to="bob-receive" label="A = gᵃ mod p" route="straight" />
-          <Edge from="bob-send" to="alice-receive" label="B = gᵇ mod p" route="straight" />
+          <Edge from="alice-send" to="bob-receive" label="$A = g^a \bmod p$" route="straight" />
+          <Edge from="bob-send" to="alice-receive" label="$B = g^b \bmod p$" route="straight" />
         </Free>
       </Col>
     </Diagram>
@@ -126,12 +126,12 @@ export function EcbLeakSchema() {
         {block("p0", "the lazy", cols[0], 20, "blue")}
         {block("p1", "the lazy", cols[1], 20, "blue")}
         {block("p2", "ps over", cols[2], 20)}
-        <Text text="Ciphertext blocks" size="note" muted x={0} y={128} />
+        <Text text="Ciphertext blocks" size="note" muted x={0} y={190} />
         {block("c0", "c7 5b e6", cols[0], 150, "blue")}
         {block("c1", "c7 5b e6", cols[1], 150, "blue")}
         {block("c2", "c6 38 2c", cols[2], 150)}
         <Edge from="p0" to="c0" route="straight" />
-        <Edge from="p1" to="c1" label="E_k" route="straight" />
+        <Edge from="p1" to="c1" label="$E_k$" route="straight" />
         <Edge from="p2" to="c2" route="straight" />
       </Free>
     </Diagram>
@@ -148,15 +148,15 @@ export function CbcModeSchema() {
   return (
     <Diagram caption="Each plaintext block is XORed with the previous ciphertext block before AES encrypts it; the IV seeds the first. Equal plaintext blocks no longer collide.">
       <Free>
-        {box("p1", "P_1", c1, yP)}
-        {box("p2", "P_2", c2, yP)}
+        {box("p1", "$P_1$", c1, yP)}
+        {box("p2", "$P_2$", c2, yP)}
         <Node id="iv" title="IV" w={42} x={0} y={yX} />
         {xor("x1", c1, yX)}
         {xor("x2", c2, yX)}
-        {box("e1", "E_k", c1, yE)}
-        {box("e2", "E_k", c2, yE)}
-        {box("c1", "C_1", c1, yC, "blue")}
-        {box("c2", "C_2", c2, yC, "blue")}
+        {box("e1", "$E_k$", c1, yE)}
+        {box("e2", "$E_k$", c2, yE)}
+        {box("c1", "$C_1$", c1, yC, "blue")}
+        {box("c2", "$C_2$", c2, yC, "blue")}
         <Edge from="p1" to="x1" route="straight" />
         <Edge from="p2" to="x2" route="straight" />
         <Edge from="iv" to="x1" toSide="left" />
@@ -182,14 +182,14 @@ export function CtrModeSchema() {
       <Free>
         {box("t1", "ctr 0", c1, yT)}
         {box("t2", "ctr 1", c2, yT)}
-        {box("e1", "E_k", c1, yE)}
-        {box("e2", "E_k", c2, yE)}
+        {box("e1", "$E_k$", c1, yE)}
+        {box("e2", "$E_k$", c2, yE)}
         {xor("x1", c1, yX)}
         {xor("x2", c2, yX)}
-        {box("pp1", "P_1", 60, yX)}
-        {box("pp2", "P_2", 240, yX)}
-        {box("cc1", "C_1", c1, yC, 56, "blue")}
-        {box("cc2", "C_2", c2, yC, 56, "blue")}
+        {box("pp1", "$P_1$", 60, yX)}
+        {box("pp2", "$P_2$", 240, yX)}
+        {box("cc1", "$C_1$", c1, yC, 56, "blue")}
+        {box("cc2", "$C_2$", c2, yC, 56, "blue")}
         <Edge from="t1" to="e1" route="straight" />
         <Edge from="t2" to="e2" route="straight" />
         <Edge from="e1" to="x1" route="straight" label="keystream" />
@@ -215,7 +215,7 @@ function ecAdd([x1, y1]: Pt, [x2, y2]: Pt): Pt {
   return [x3, m * (x1 - x3) - y1];
 }
 
-type Labelled = { text: string; anchor: Anchor };
+type Labelled = { text: string; anchor: Anchor; gap?: number };
 
 function EcPanel({ title, P, Q, labels }: { title: string; P: Pt; Q: Pt; labels: [Labelled, Labelled | null, Labelled, Labelled] }) {
   const a = plotArea({ x: [-2.7, 2.95], y: [-3.7, 3.7], w: 270, h: 300, at: [0, 30] });
@@ -228,12 +228,12 @@ function EcPanel({ title, P, Q, labels }: { title: string; P: Pt; Q: Pt; labels:
   return (
     <Free>
       <Text text={title} size="note" muted x={0} y={0} />
-      <Axes area={a} x={[-2.7, 2.95]} y={[-3.7, 3.7]} labels={["x", "y"]} />
+      <Axes area={a} x={[-2.7, 2.95]} y={[-3.7, 3.7]} labels={["$x$", "$y$"]} />
       <Path points={curve} state="strong" />
       <Path points={[a.p(along(-0.22)), a.p(along(1.12))]} />
       <Path points={[a.p(third), a.p(sum)]} dashed />
       {points.map(([p], i) => <Dot key={i} at={a.p(p)} state={i === 3 ? "active" : undefined} />)}
-      {points.map(([p, label], i) => label && <At key={`l${i}`} text={label.text} at={a.p(p)} anchor={label.anchor} gap={7} tone={i === 3 ? "blue" : undefined} weight={500} />)}
+      {points.map(([p, label], i) => label && <At key={`l${i}`} text={label.text} at={a.p(p)} anchor={label.anchor} gap={label.gap ?? 7} tone={i === 3 ? "blue" : undefined} />)}
     </Free>
   );
 }
@@ -245,33 +245,33 @@ export function EllipticCurveSchema() {
   const D: Pt = [1.6, ecY(1.6)];
   const chord = (
     <EcPanel
-      title="Addition: P + Q"
+      title="Addition: $P + Q$"
       P={P}
       Q={Q}
       labels={[
-        { text: "P", anchor: "e" },
-        { text: "Q", anchor: "s" },
-        { text: "-(P + Q)", anchor: "e" },
-        { text: "P + Q", anchor: "e" },
+        { text: "$P$", anchor: "e" },
+        { text: "$Q$", anchor: "s" },
+        { text: "$-(P + Q)$", anchor: "se" },
+        { text: "$P + Q$", anchor: "e", gap: 11 },
       ]}
     />
   );
   const tangent = (
     <EcPanel
-      title="Doubling: P + P"
+      title="Doubling: $P + P$"
       P={D}
       Q={D}
       labels={[
-        { text: "P", anchor: "nw" },
+        { text: "$P$", anchor: "nw" },
         null,
-        { text: "-2P", anchor: "nw" },
-        { text: "2P", anchor: "s" },
+        { text: "$-2P$", anchor: "nw", gap: 3 },
+        { text: "$2P$", anchor: "s" },
       ]}
     />
   );
   return (
     <Diagram
-      caption="The line through P and Q meets the curve a third time; reflecting that point across the x-axis gives P + Q. For P + P, the line is the tangent at P."
+      caption="The line through $P$ and $Q$ meets the curve a third time; reflecting that point across the x-axis gives $P + Q$. For $P + P$, the line is the tangent at $P$."
       narrowChildren={<Col gap={28}>{chord}{tangent}</Col>}
     >
       <Row gap={48} align="start">{chord}{tangent}</Row>

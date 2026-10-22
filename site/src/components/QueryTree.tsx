@@ -14,17 +14,18 @@ export type QueryOp =
   | "product" // ×
   | "division"; // ÷
 
+/** TeX, typeset like the prose's relational algebra. */
 const OP_GLYPH: Record<QueryOp, string> = {
-  project: "π",
-  select: "σ",
-  join: "⋈",
-  rename: "ρ",
-  group: "γ",
-  union: "∪",
-  intersect: "∩",
+  project: "\\pi",
+  select: "\\sigma",
+  join: "\\bowtie",
+  rename: "\\rho",
+  group: "\\gamma",
+  union: "\\cup",
+  intersect: "\\cap",
   difference: "-",
-  product: "×",
-  division: "÷",
+  product: "\\times",
+  division: "\\div",
 };
 
 export interface QueryNode {
@@ -34,9 +35,9 @@ export interface QueryNode {
   relation?: string;
   /** Built-in operator; ignored when `glyph` is given. */
   op?: QueryOp;
-  /** Override the operator glyph with an arbitrary symbol. */
+  /** Override the operator glyph with arbitrary TeX. */
   glyph?: string;
-  /** Subscript on an operator, e.g. "name, title" or "dept_name = \"Music\"". */
+  /** TeX subscript on an operator, e.g. `\\textit{name, title}` (MDX object props double the backslash). */
   sub?: string;
   /** Visual state. `highlight` = inverted box (the key operator the prose is
    *  about); `emphasis` = heavier outline; `new` = dashed outline. */
@@ -78,7 +79,7 @@ export function QueryTree({ nodes, links, leafOrder, title, caption, className }
         {n.relation ? (
           <Node id={id} title={n.relation} mono state={state} />
         ) : (
-          <Node id={id} title={`${n.glyph ?? OP_GLYPH[n.op!]}${n.sub ? `_{${n.sub}}` : ""}`} state={state} tone={n.glyph ? undefined : OP_TONE[n.op!]} />
+          <Node id={id} title={`$${n.glyph ?? OP_GLYPH[n.op!]}${n.sub ? `_{${n.sub}}` : ""}$`} state={state} tone={n.glyph ? undefined : OP_TONE[n.op!]} />
         )}
         {children.length > 0 && (
           <Row gap={24} align="start">

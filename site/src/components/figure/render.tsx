@@ -547,11 +547,13 @@ export interface FrameSvgProps {
   frame: Frame;
   /** accessible description */
   label: string;
+  /** id of an element that describes the figure instead of `label` */
+  labelledBy?: string;
   /** unique id prefix for patterns and clips */
   uid: string;
 }
 
-export function FrameSvg({ frame, label, uid }: FrameSvgProps) {
+export function FrameSvg({ frame, label, labelledBy, uid }: FrameSvgProps) {
   const byId = new Map(frame.items.map((it) => [it.id, it]));
   const byParent = new Map<string, Item[]>();
   for (const it of frame.items) {
@@ -598,7 +600,8 @@ export function FrameSvg({ frame, label, uid }: FrameSvgProps) {
       width={r2(frame.w)}
       viewBox={`0 0 ${r2(frame.w)} ${r2(frame.h)}`}
       role="img"
-      aria-label={label}
+      aria-label={labelledBy ? undefined : label}
+      aria-labelledby={labelledBy}
       fontFamily="var(--font-sans, ui-sans-serif, system-ui, sans-serif)"
       style={{ maxWidth: "100%", height: "auto", display: "block", color: V("ink") }}
     >

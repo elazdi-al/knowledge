@@ -2,7 +2,7 @@ import { Cells, Diagram, FONT, Grid, measure, Node, NODE, Text, type Tone } from
 import { TONE } from "@/components/tones";
 
 export interface TraceRow {
-  /** Control state, e.g. `q_0` or `q_{accept}`. `_` marks a subscript. */
+  /** Control state as TeX, e.g. `$q_0$` or `$q_{\text{accept}}$`. */
   state: string;
   /** Tape contents shown on this row. Blank cells may be `""`/`null`. */
   cells: Array<string | number | null>;
@@ -27,8 +27,8 @@ interface Props {
 
 /** The tone of a halting state, by its label. */
 const HALT: [Tone, RegExp][] = [
-  [TONE.accept, /accept|^q_\{?A\}?$/],
-  [TONE.reject, /reject|^q_\{?R\}?$/],
+  [TONE.accept, /accept|^\$?q_\{?A\}?\$?$/],
+  [TONE.reject, /reject|^\$?q_\{?R\}?\$?$/],
 ];
 
 /** Every configuration as one row: its state, the tape with the scanned cell lit, and the note. */

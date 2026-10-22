@@ -30,15 +30,15 @@ This NFA waits in $q_1$ until it guesses that a matching substring has started. 
   start="q1"
   accepting={["q4"]}
   states={[
-    { id: "q1", label: "q_1" },
-    { id: "q2", label: "q_2" },
-    { id: "q3", label: "q_3" },
-    { id: "q4", label: "q_4" },
+    { id: "q1", label: "$q_1$" },
+    { id: "q2", label: "$q_2$" },
+    { id: "q3", label: "$q_3$" },
+    { id: "q4", label: "$q_4$" },
   ]}
   transitions={[
     { from: "q1", to: "q1", label: "0,1" },
     { from: "q1", to: "q2", label: "1" },
-    { from: "q2", to: "q3", label: "0, ε" },
+    { from: "q2", to: "q3", label: "0, $\\epsilon$" },
     { from: "q3", to: "q4", label: "1" },
     { from: "q4", to: "q4", label: "0,1" },
   ]}
@@ -119,10 +119,10 @@ The machine may leave $q_1$ whenever it reads a `1`. After that guess, exactly t
   start="q1"
   accepting={["q4"]}
   states={[
-    { id: "q1", label: "q_1" },
-    { id: "q2", label: "q_2" },
-    { id: "q3", label: "q_3" },
-    { id: "q4", label: "q_4" },
+    { id: "q1", label: "$q_1$" },
+    { id: "q2", label: "$q_2$" },
+    { id: "q3", label: "$q_3$" },
+    { id: "q4", label: "$q_4$" },
   ]}
   transitions={[
     { from: "q1", to: "q1", label: "0,1" },
@@ -154,16 +154,16 @@ The start state chooses, by $\epsilon$-transition, whether to test divisibility 
   start="s"
   accepting={["e2", "e3"]}
   states={[
-    { id: "s", label: "s", x: 76, y: 172 },
-    { id: "e2", label: "r_0", x: 210, y: 90 },
-    { id: "o2", label: "r_1", x: 355, y: 90 },
-    { id: "e3", label: "t_0", x: 210, y: 252 },
-    { id: "t1", label: "t_1", x: 355, y: 216 },
-    { id: "t2", label: "t_2", x: 355, y: 302 },
+    { id: "s", label: "$s$", x: 76, y: 172 },
+    { id: "e2", label: "$r_0$", x: 210, y: 90 },
+    { id: "o2", label: "$r_1$", x: 355, y: 90 },
+    { id: "e3", label: "$t_0$", x: 210, y: 252 },
+    { id: "t1", label: "$t_1$", x: 355, y: 216 },
+    { id: "t2", label: "$t_2$", x: 355, y: 302 },
   ]}
   transitions={[
-    { from: "s", to: "e2", label: "ε" },
-    { from: "s", to: "e3", label: "ε" },
+    { from: "s", to: "e2", label: "$\\epsilon$" },
+    { from: "s", to: "e3", label: "$\\epsilon$" },
     { from: "e2", to: "o2", label: "0", bend: "up" },
     { from: "o2", to: "e2", label: "0", bend: "down" },
     { from: "e3", to: "t1", label: "0", bend: "up" },
@@ -210,9 +210,9 @@ $$
   start="p"
   accepting={["r"]}
   states={[
-    { id: "p", label: "p" },
-    { id: "q", label: "q" },
-    { id: "r", label: "r" },
+    { id: "p", label: "$p$" },
+    { id: "q", label: "$q$" },
+    { id: "r", label: "$r$" },
   ]}
   transitions={[
     { from: "p", to: "p", label: "0,1" },
@@ -241,14 +241,14 @@ $$
 Reading the table as a DFA, with one state per subset and start state $\{p\}$, gives the determinized machine. Only four of the $2^3=8$ subsets are reachable from $\{p\}$, and they already recognize the language:
 
 <Automaton
-  caption="The reachable part of the subset DFA; accepting subsets are those containing r."
+  caption="The reachable part of the subset DFA; accepting subsets are those containing $r$."
   start="P"
   accepting={["PR", "PQR"]}
   states={[
-    { id: "P", label: "{p}", x: 86, y: 156 },
-    { id: "PQ", label: "{p,q}", x: 250, y: 64 },
-    { id: "PQR", label: "{p,q,r}", x: 420, y: 156 },
-    { id: "PR", label: "{p,r}", x: 250, y: 252 },
+    { id: "P", label: "$\\{p\\}$", x: 86, y: 156 },
+    { id: "PQ", label: "$\\{p,q\\}$", x: 250, y: 64 },
+    { id: "PQR", label: "$\\{p,q,r\\}$", x: 420, y: 156 },
+    { id: "PR", label: "$\\{p,r\\}$", x: 250, y: 252 },
   ]}
   transitions={[
     { from: "P", to: "P", label: "0" },
@@ -352,15 +352,15 @@ Nondeterminism resolves the split problem of concatenation. The NFA for $L_1\cir
   start="q1"
   accepting={["f2"]}
   states={[
-    { id: "q1", label: "q_1" },
-    { id: "f1", label: "F_1" },
-    { id: "q2", label: "q_2" },
-    { id: "f2", label: "F_2" },
+    { id: "q1", label: "$q_1$" },
+    { id: "f1", label: "$F_1$" },
+    { id: "q2", label: "$q_2$" },
+    { id: "f2", label: "$F_2$" },
   ]}
   transitions={[
-    { from: "q1", to: "f1", label: "N_1" },
-    { from: "f1", to: "q2", label: "ε" },
-    { from: "q2", to: "f2", label: "N_2" },
+    { from: "q1", to: "f1", label: "$N_1$" },
+    { from: "f1", to: "q2", label: "$\\epsilon$" },
+    { from: "q2", to: "f2", label: "$N_2$" },
   ]}
 />
 

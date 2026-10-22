@@ -29,7 +29,7 @@ const TAPE = 36;
 const HEAD_W = 2 * TAPE;
 
 interface TapeProps {
-  /** control state, label syntax (`q_0`) */
+  /** control state, as TeX (`$q_0$`) */
   q: string;
   cells: CellItem[];
   head: number;

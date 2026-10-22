@@ -25,10 +25,10 @@ The logical tree says what result is needed. The physical plan says how much dat
 <QueryTree
   caption="A logical plan: filter S, join with R, then project the requested attributes."
   nodes={[
-    { id: "pi", op: "project", sub: "R.id, S.cdate" },
-    { id: "join", op: "join", sub: "R.id = S.id" },
+    { id: "pi", op: "project", sub: "\\textit{R.id, S.cdate}" },
+    { id: "join", op: "join", sub: "\\textit{R.id} = \\textit{S.id}" },
     { id: "r", relation: "R" },
-    { id: "sigma", op: "select", sub: "S.value > 100", state: "highlight" },
+    { id: "sigma", op: "select", sub: "\\textit{S.value} > 100", state: "highlight" },
     { id: "s", relation: "S" },
   ]}
   links={[

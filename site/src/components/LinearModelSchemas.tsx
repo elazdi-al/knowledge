@@ -9,17 +9,17 @@ export function PerceptronBoundarySchema() {
   const pos: Pt[] = [[3.9, 3.6], [4.8, 3.3], [4.2, 4.6], [5.1, 4.3]];
   // boundary x1 + x2 = 6, so w = (1, 1) and b = -6
   return (
-    <Diagram caption="The boundary and its normal w, which points to the side classified +1.">
+    <Diagram caption="The boundary and its normal $\mathbf{w}$, which points to the side classified $+1$.">
       <Free>
-        <Axes area={a} x={[0, 7.4]} y={[0, 7]} labels={["x_1", "x_2"]} />
+        <Axes area={a} x={[0, 7.4]} y={[0, 7]} labels={["$x_1$", "$x_2$"]} />
         <Path points={[a.p([0.75, 5.25]), a.p([5.25, 0.75])]} state="strong" />
-        <At text="w^T x + b = 0" at={a.p([5.25, 0.75])} anchor="w" gap={8} />
+        <At text="$\mathbf{w}^T \mathbf{x} + b = 0$" at={a.p([5.25, 0.75])} anchor="w" gap={8} />
         <Arrow from={a.p([4.4, 1.6])} to={a.p([5.3, 2.5])} state="active" />
-        <At text="w" at={a.p([5.3, 2.5])} anchor="sw" tone="blue" weight={500} />
+        <At text="$\mathbf{w}$" at={a.p([5.3, 2.5])} anchor="sw" tone="blue" />
         {neg.map((p, i) => <Dot key={`n${i}`} at={a.p(p)} tone={ML_TONE.negative} />)}
         {pos.map((p, i) => <Dot key={`p${i}`} at={a.p(p)} tone={ML_TONE.positive} />)}
-        <At text="y = -1" at={a.p([1.7, 0.45])} tone={ML_TONE.negative} weight={500} />
-        <At text="y = +1" at={a.p([4.6, 5.45])} tone={ML_TONE.positive} weight={500} />
+        <At text="$y = -1$" at={a.p([1.7, 0.45])} tone={ML_TONE.negative} />
+        <At text="$y = +1$" at={a.p([4.6, 5.45])} tone={ML_TONE.positive} />
       </Free>
     </Diagram>
   );
@@ -52,16 +52,16 @@ export function RegressionPlaneSchema() {
         <Arrow from={P(0, 0, 0)} to={P(4.8, 0, 0)} />
         <Arrow from={P(0, 0, 0)} to={P(0, 3.8, 0)} />
         <Arrow from={P(0, 0, 0)} to={P(0, 0, H)} />
-        <At text="x_1" at={P(4.8, 0, 0)} anchor="w" gap={6} muted />
-        <At text="x_2" at={P(0, 3.8, 0)} anchor="w" gap={6} muted />
-        <At text="y" at={P(0, 0, H)} anchor="s" gap={6} muted />
+        <At text="$x_1$" at={P(4.8, 0, 0)} anchor="w" gap={6} muted />
+        <At text="$x_2$" at={P(0, 3.8, 0)} anchor="w" gap={6} muted />
+        <At text="$y$" at={P(0, 0, H)} anchor="s" gap={6} muted />
         {/* Drawn before the plane, so the plane covers whatever lies behind it. */}
         {corners.slice(1).map(([u, v]) => (
           <Path key={`c${u}${v}`} points={[P(u, v, 0), on(u, v)]} dashed state="ghost" />
         ))}
         <Path points={[P(iu, iv, 0), on(iu, iv)]} dashed state="ghost" />
         <Dot at={P(iu, iv, 0)} r={2.5} state="ghost" />
-        <At text="x_i" at={P(iu, iv, 0)} anchor="e" gap={6} muted />
+        <At text="$\mathbf{x}_i$" at={P(iu, iv, 0)} anchor="e" gap={6} muted />
         <Poly points={corners.map(([u, v]) => on(u, v))} tone="blue" outline />
         {below.map(([u, v, r]) => (
           <Path key={`b${u}`} points={[on(u, v), on(u, v, r)]} tone={ML_TONE.residual} dashed />
@@ -76,10 +76,10 @@ export function RegressionPlaneSchema() {
           <Dot key={`ad${u}`} at={on(u, v, r)} />
         ))}
         <Dot at={on(iu, iv)} r={3} tone="blue" />
-        <At text="ŷ_i" at={on(iu, iv)} anchor="e" gap={7} tone="blue" weight={500} />
-        <At text="y_i" at={on(iu, iv, ir)} anchor="e" gap={7} weight={500} />
-        <At text="e_i" at={on(iu, iv, ir / 2)} anchor="w" gap={7} tone={ML_TONE.residual} weight={500} />
-        <At text="ŷ = w^T x + b" at={on(4, 1.5)} anchor="w" gap={10} tone="blue" weight={500} />
+        <At text="$\hat{y}_i$" at={on(iu, iv)} anchor="e" gap={7} tone="blue" />
+        <At text="$y_i$" at={on(iu, iv, ir)} anchor="e" gap={7} />
+        <At text="$e_i$" at={on(iu, iv, ir / 2)} anchor="w" gap={7} tone={ML_TONE.residual} />
+        <At text="$\hat{y} = \mathbf{w}^T \mathbf{x} + b$" at={on(4, 3)} anchor="w" gap={10} tone="blue" />
       </Free>
     </Diagram>
   );

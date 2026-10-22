@@ -408,7 +408,7 @@ export function layoutScene(scene: Scene, opts: LayoutOpts = {}): Frame {
     items: ctx.items,
     edges: treeEdges(scene.root, scene.edges.filter((e) => rects[e.from] && rects[e.to]), rects),
   };
-  growToFitEdges(frame);
+  growToFit(frame);
   if (opts.lint !== false && process.env.NODE_ENV !== "production") lint(frame, scene, opts.caption);
   return frame;
 }
@@ -431,9 +431,11 @@ function treeEdges(root: Block, edges: EdgeSpec[], rects: Record<string, Rect>):
   });
 }
 
-/** Arcs, loops and same-side curves bow past the items, and loop labels sit beyond them; keep every path and pill in the viewBox. */
-function growToFitEdges(frame: Frame) {
-  if (!frame.edges.length) return;
+/**
+ * Arcs, loops and same-side curves bow past the items, loop labels sit beyond them, and a `Free` child may sit at a
+ * negative offset (a label left of a plot); keep every item, path and pill in the viewBox.
+ */
+function growToFit(frame: Frame) {
   let minX = MARGIN, minY = MARGIN, maxX = frame.w - MARGIN, maxY = frame.h - MARGIN;
   const extend = (x0: number, y0: number, x1: number, y1: number) => {
     minX = Math.min(minX, x0);
@@ -441,6 +443,7 @@ function growToFitEdges(frame: Frame) {
     maxX = Math.max(maxX, x1);
     maxY = Math.max(maxY, y1);
   };
+  for (const { rect: r } of frame.items) extend(r.x, r.y, r.x + r.w, r.y + r.h);
   for (const r of routeItems(frame.items, frame.edges)) {
     for (const p of r.pts) extend(p.x - 4, p.y - 4, p.x + 4, p.y + 4);
     if (r.label && r.spec.label) {

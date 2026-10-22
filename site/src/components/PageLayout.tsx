@@ -203,8 +203,8 @@ const SLOT = { normal: undefined, hit: "strong", empty: "placeholder" } as const
 const BYTE = { normal: {}, gap: { state: "placeholder" }, meta: { tone: TONE.meta } } as const satisfies Record<string, CellItem>;
 const byte = (c: ByteCell): CellItem => ({ label: c.label, ...BYTE[c.state ?? "normal"] });
 const BAND = { meta: TONE.meta, data: undefined, footer: TONE.meta } as const;
-/** Node-strip cells that point somewhere (`P_i`, a leaf's `ptr` and `next`); the rest are keys. */
-const POINTER = /^(P_|ptr$|next$)/;
+/** Node-strip cells that point somewhere (`$P_i$`, a leaf's `ptr` and `next`); the rest are keys. */
+const POINTER = /^(\$P_|ptr$|next$)/;
 const stripCell = (label: string): CellInput => (POINTER.test(label) ? { label, tone: TONE.meta } : label);
 /** Record height per unit of `recWeight` in a slotted page. */
 const REC_H = 40;

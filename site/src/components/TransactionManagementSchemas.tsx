@@ -8,7 +8,7 @@ interface FigureProps {
   className?: string;
 }
 
-const txChip = (tx: TxId) => ({ text: `T_${tx}`, tone: TX_TONE[tx], mono: false });
+const txChip = (tx: TxId) => ({ text: `$T_${tx}$`, tone: TX_TONE[tx], mono: false });
 
 const LOG: { tx: TxId; op: string }[] = [
   { tx: 1, op: "W(A)" },

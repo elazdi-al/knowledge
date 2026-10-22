@@ -56,11 +56,11 @@ At implementation level a node is a **sorted array** of entries inside one page.
   nodes={[
     {
       title: "Internal node",
-      cells: ["P_1", "K_1", "P_2", "K_2", "P_3", "K_{q-1}", "P_q"],
+      cells: ["$P_1$", "$K_1$", "$P_2$", "$K_2$", "$P_3$", "$K_{q-1}$", "$P_q$"],
     },
     {
       title: "Leaf node",
-      cells: ["K_1", "ptr", "K_2", "ptr", "...", "next"],
+      cells: ["$K_1$", "ptr", "$K_2$", "ptr", "...", "next"],
       nextLink: true,
     },
   ]}
@@ -85,12 +85,12 @@ At implementation level a node is a **sorted array** of entries inside one page.
     { id: "l4", keys: [38, 44] },
   ]}
   links={[
-    { parent: "root", child: "li", label: "< 20" },
-    { parent: "root", child: "ri", label: "≥ 20" },
-    { parent: "li", child: "l1", label: "< 10" },
-    { parent: "li", child: "l2", label: "≥ 10" },
-    { parent: "ri", child: "l3", label: "< 35" },
-    { parent: "ri", child: "l4", label: "≥ 35" },
+    { parent: "root", child: "li", label: "$< 20$" },
+    { parent: "root", child: "ri", label: "$\\geq 20$" },
+    { parent: "li", child: "l1", label: "$< 10$" },
+    { parent: "li", child: "l2", label: "$\\geq 10$" },
+    { parent: "ri", child: "l3", label: "$< 35$" },
+    { parent: "ri", child: "l4", label: "$\\geq 35$" },
   ]}
 />
 

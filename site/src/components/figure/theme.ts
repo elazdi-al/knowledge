@@ -11,8 +11,8 @@ export const FONT = {
   groupTitle: 12.5,
   edgeLabel: 12,
   tag: 11,
-  /** sub/superscript scale relative to the base size */
-  subScale: 0.72,
+  /** `$...$` TeX size relative to the base size, KaTeX's ratio in the prose */
+  mathScale: 1.21,
   /** mono advance per glyph, in em */
   monoAdvance: 0.6,
 } as const;

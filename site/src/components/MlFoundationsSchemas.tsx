@@ -7,16 +7,16 @@ import { ML_TONE } from "@/components/tones";
 export function LossShapesSchema() {
   const a = plotArea({ x: [-3.3, 3.4], y: [0, 4.5], w: 268, h: 180, at: [12, 22] });
   return (
-    <Diagram caption="Squared and absolute error of one residual e. Past |e| = 2 the squared error is larger.">
+    <Diagram caption="Squared and absolute error of one residual $e$. Past $|e| = 2$ the squared error is larger.">
       <Free>
         {[-2, 2].map((e) => (
           <Path key={e} points={[a.p([e, 0]), a.p([e, 2])]} dashed state="ghost" />
         ))}
-        <Axes area={a} x={[-3.3, 3.4]} y={[0, 4.5]} labels={["e", "ℓ(e)"]} />
+        <Axes area={a} x={[-3.3, 3.4]} y={[0, 4.5]} labels={["$e$", "$\\ell(e)$"]} />
         <Path points={curve(a, (e) => (e * e) / 2, [-2.9, 2.9])} tone={ML_TONE.mse} />
         <Path points={curve(a, Math.abs, [-3.1, 3.1], 62)} tone={ML_TONE.mae} />
-        <At text="-2" at={a.p([-2, 0])} anchor="n" gap={6} muted />
-        <At text="2" at={a.p([2, 0])} anchor="n" gap={6} muted />
+        <At text="$-2$" at={a.p([-2, 0])} anchor="n" gap={6} muted />
+        <At text="$2$" at={a.p([2, 0])} anchor="n" gap={6} muted />
         <At text="MSE" at={a.p([2.9, 4.2])} anchor="w" gap={6} tone={ML_TONE.mse} weight={500} />
         <At text="MAE" at={a.p([3.1, 3.1])} anchor="w" gap={6} tone={ML_TONE.mae} weight={500} />
       </Free>
@@ -45,19 +45,19 @@ export function CurseOfDimensionalitySchema() {
     <Col key={d} gap={10}>
       {drawing}
       <Col gap={2}>
-        <Text text={`d = ${d}`} weight={500} />
+        <Text text={`$d = ${d}$`} />
         <Text text={count} size="note" muted />
       </Col>
     </Col>
   );
   return (
-    <Diagram caption="Four candidate values per parameter give a grid of 4, 16 and 64 points for d = 1, 2, 3.">
+    <Diagram caption="Four candidate values per parameter give a grid of 4, 16 and 64 points for $d = 1, 2, 3$.">
       <Row gap={48} align="end" wrap>
         {panel(1, "4 points", <Cells items={strip} cell={s} />)}
-        {panel(2, "4^2 = 16 points", <Cells items={square} cols={n} cell={s} />)}
+        {panel(2, "$4^2 = 16$ points", <Cells items={square} cols={n} cell={s} />)}
         {panel(
           3,
-          "4^3 = 64 points",
+          "$4^3 = 64$ points",
           <Free>
             <Poly points={quad([[0, n, 0], [n, n, 0], [n, n, n], [0, n, n]])} />
             <Poly points={quad([[n, 0, 0], [n, n, 0], [n, n, n], [n, 0, n]])} />
@@ -98,13 +98,13 @@ export function MinimaSchema() {
     <Diagram caption="A strict local minimum with its ball, a flat local minimum and the strict global one.">
       <Free>
         <Path points={[a.p([1.2, 2.6]), a.p([1.2, 0])]} dashed state="ghost" />
-        <Axes area={a} x={[0, 7.8]} y={[0, 4.7]} labels={["θ", "L(θ)"]} />
+        <Axes area={a} x={[0, 7.8]} y={[0, 4.7]} labels={["$\\theta$", "$L(\\theta)$"]} />
         <Path points={[a.p([0.75, 0]), a.p([1.65, 0])]} state="strong" thick />
         <Path points={[...left.map(a.p), a.p([4.5, 2.2]), ...right.map(a.p)]} state="strong" />
         <Path points={[a.p([3.3, 2.2]), a.p([4.5, 2.2])]} tone="blue" thick />
         <Dot at={a.p([1.2, 2.6])} tone="blue" r={4} />
         <Dot at={a.p([6.3, 1.0])} tone="blue" r={4} />
-        <At text="B_ε" at={a.p([1.2, 0])} anchor="n" gap={8} muted />
+        <At text="$B_\epsilon$" at={a.p([1.2, 0])} anchor="n" gap={8} muted />
         <At text="strict local" at={a.p([1.2, 2.6])} anchor="nw" gap={8} tone="blue" weight={500} />
         <At text="local, not strict" at={a.p([3.9, 2.2])} anchor="n" gap={10} tone="blue" weight={500} />
         <At text="strict global" at={a.p([6.3, 1.0])} anchor="n" gap={10} tone="blue" weight={500} />
@@ -131,7 +131,7 @@ export function FeatureScalingSchema() {
           return (
             <Col key={title} gap={8}>
               <Free>
-                <Axes area={a} x={[-4.8, 4.8]} y={[-2.5, 2.6]} labels={["w_1", "w_2"]} />
+                <Axes area={a} x={[-4.8, 4.8]} y={[-2.5, 2.6]} labels={["$w_1$", "$w_2$"]} />
                 {[1, 2, 3].map((k) => <Path key={k} points={ellipse([0, 0], rx * k, ry * k).map(a.p)} closed thin state="ghost" />)}
                 <Path points={path.map(a.p)} tone="blue" />
                 {path.map((p) => <Dot key={p.join()} at={a.p(p)} tone="blue" r={2.5} />)}
