@@ -7,39 +7,36 @@ updated: 2026-10-21
 
 ## Learning from Data
 
-**Machine learning.** Machine learning learns a function from examples of its inputs and desired outputs, instead of programming its rules by hand (e.g. from a photo to the animal it shows).
+**Example.** A single data point $(\mathbf{x}, y)$, where $\mathbf{x}\in\mathbb{R}^n$ is the feature vector and $y\in\mathcal{Y}$ is the target/label.
 
-*Traditional programming turns data and rules into outputs; machine learning turns data and outputs into rules.*
+**Model.** A prediction function $f_\theta:\mathbb{R}^n\to\mathcal{Y}$ that maps an input feature vector $\mathbf{x}$ to a predicted output $\hat{y}=f_\theta(\mathbf{x})$, where $\theta$ denotes the model’s learned parameters.
 
-An **example** $(\mathbf{x}, y)$ pairs an input $\mathbf{x} \in \mathbb{R}^n$ with its desired output $y$, the **target**.
+**Training set.** A set of examples $\{(\mathbf{x}_i,y_i)\}_{i=1}^m$ used to learn the model parameters $\theta$.
 
-The entries $x_1, \dots, x_n$ of $\mathbf{x}$ are its **features**. Features are also called covariates, predictors or input variables.
+**Classification.** Predicting a discrete class $y\in\{1,\dots,K\}$.
 
-**Model.** A model is a function $f_\theta$ that predicts the output $\hat{y} = f_\theta(\mathbf{x})$ of an input.
+**Binary classification.** Classification with exactly two classes, typically $y\in\{0,1\}$.
 
-Its **parameters** $\theta \in \mathbb{R}^d$ are the $d$ numbers that the model learns, also called weights.
-
-**Training set.** The training set holds the $m$ examples $(\mathbf{x}_i, y_i)$ that the model learns from.
-
-**Training.** Training, also called learning or fitting, sets the parameters so that the model fits the training set.
-
-Testing then runs the trained model on new inputs to predict their outputs.
-
-**Classification.** Classification predicts a target from a finite set of classes, called a **label**.
-
-Binary classification has two classes, written $-1$ and $+1$.
-
-**Regression.** Regression predicts a real-valued target.
+**Regression.** Predicting a continuous numerical value $y\in\mathbb{R}$.
 
 ## Linear Classification
 
-**Linear classifier.** A linear classifier predicts the sign of a weighted sum of the features, the **score**:
+**Linear classifier.** A model that assigns a class based on which side of a linear decision boundary an example $\mathbf{x}\in\mathbb{R}^n$ lies:
 
 $$
-z = \mathbf{w}^T \mathbf{x} + b, \qquad \hat{y} = \begin{cases} +1 & \text{if } z \ge 0, \\ -1 & \text{otherwise.} \end{cases}
+f:\mathbb{R}^n\to\{-1,+1\},\qquad
+f(\mathbf{x})=\operatorname{sign}(\mathbf{w}^\top\mathbf{x}+b),
 $$
 
-Its parameters are the **weight vector** $\mathbf{w} \in \mathbb{R}^n$ and the **bias** $b \in \mathbb{R}$.
+where $\mathbf{w}\in\mathbb{R}^n$, $b\in\mathbb{R}$, and
+
+$$
+\operatorname{sign}(z)=
+\begin{cases}
++1 & z\ge 0,\\
+-1 & z<0.
+\end{cases}
+$$
 
 **Decision boundary.** The decision boundary is the hyperplane $\mathbf{w}^T \mathbf{x} + b = 0$, a line when $n = 2$.
 
