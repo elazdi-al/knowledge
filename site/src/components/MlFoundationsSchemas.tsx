@@ -3,22 +3,28 @@ import { Cells, Col, Diagram, Dot, Free, Path, Poly, Row, Text, type CellInput }
 import { At, Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
 import { ML_TONE } from "@/components/tones";
 
-/** The per-example losses of MSE and MAE as functions of the residual. */
+/** The per-example squared, absolute, Huber and Tukey losses as functions of the residual. */
 export function LossShapesSchema() {
-  const a = plotArea({ x: [-3.3, 3.4], y: [0, 4.5], w: 268, h: 180, at: [12, 22] });
+  const a = plotArea({ x: [-4, 4.1], y: [0, 4.5], w: 320, h: 180, at: [12, 22] });
+  const delta = 1, c = 2.5;
+  const huber = (e: number) => (Math.abs(e) <= delta ? (e * e) / 2 : delta * (Math.abs(e) - delta / 2));
+  const tukey = (e: number) => ((c * c) / 6) * (1 - Math.max(0, 1 - (e / c) ** 2) ** 3);
   return (
-    <Diagram caption="Squared and absolute error of one residual $e$. Past $|e| = 2$ the squared error is larger.">
+    <Diagram caption="Per-example losses of one residual $e$, with $\delta = 1$ and $c = 2.5$.">
       <Free>
-        {[-2, 2].map((e) => (
-          <Path key={e} points={[a.p([e, 0]), a.p([e, 2])]} dashed state="ghost" />
-        ))}
-        <Axes area={a} x={[-3.3, 3.4]} y={[0, 4.5]} labels={["$e$", "$\\ell(e)$"]} />
+        <Path points={[a.p([delta, 0]), a.p([delta, huber(delta)])]} dashed state="ghost" />
+        <Path points={[a.p([c, 0]), a.p([c, tukey(c)])]} dashed state="ghost" />
+        <Axes area={a} x={[-4, 4.1]} y={[0, 4.5]} labels={["$e$", "$\\ell(e)$"]} />
         <Path points={curve(a, (e) => (e * e) / 2, [-2.9, 2.9])} tone={ML_TONE.mse} />
-        <Path points={curve(a, Math.abs, [-3.1, 3.1], 62)} tone={ML_TONE.mae} />
-        <At text="$-2$" at={a.p([-2, 0])} anchor="n" gap={6} muted />
-        <At text="$2$" at={a.p([2, 0])} anchor="n" gap={6} muted />
+        <Path points={curve(a, Math.abs, [-3.7, 3.7], 74)} tone={ML_TONE.mae} />
+        <Path points={curve(a, huber, [-3.7, 3.7], 148)} tone="blue" />
+        <Path points={curve(a, tukey, [-3.7, 3.7], 148)} tone="blue" dashed />
+        <At text="$\delta$" at={a.p([delta, 0])} anchor="n" gap={6} muted />
+        <At text="$c$" at={a.p([c, 0])} anchor="n" gap={6} muted />
         <At text="MSE" at={a.p([2.9, 4.2])} anchor="w" gap={6} tone={ML_TONE.mse} weight={500} />
-        <At text="MAE" at={a.p([3.1, 3.1])} anchor="w" gap={6} tone={ML_TONE.mae} weight={500} />
+        <At text="MAE" at={a.p([3.7, 3.7])} anchor="w" gap={6} tone={ML_TONE.mae} weight={500} />
+        <At text="Huber" at={a.p([3.7, huber(3.7)])} anchor="w" gap={6} tone="blue" weight={500} />
+        <At text="Tukey" at={a.p([3.7, tukey(3.7)])} anchor="w" gap={6} tone="blue" weight={500} />
       </Free>
     </Diagram>
   );

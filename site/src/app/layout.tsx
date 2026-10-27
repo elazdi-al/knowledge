@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { CommandMenu } from "@/components/CommandMenu";
 import { Header } from "@/components/Header";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { ThemeInitScript, ThemeToggle } from "@/components/ThemeToggle";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
@@ -24,10 +24,6 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-// Runs synchronously in <head>, before paint, so the correct palette is
-// applied without a flash on first render.
-const themeInitScript = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
-
 export const metadata: Metadata = {
   title: {
     default: "knowledge",
@@ -47,7 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <ThemeInitScript />
       </head>
       <body>
         <div className="layout-shell mx-auto px-6 w-full max-w-page">

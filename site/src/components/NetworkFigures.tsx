@@ -10,8 +10,10 @@ export const NET_TONE = {
   link: "blue",
   network: "purple",
   transport: "green",
-  /** dropped or rejected packets */
+  /** dropped or rejected packets; on a shared medium, the jam signal of a collision */
   drop: "red",
+  /** a second sender's frame, contending with the first for one shared medium */
+  rival: "teal",
 } as const satisfies { router: Record<number, Tone> } & Record<string, Tone | Record<number, Tone>>;
 
 const routerTone = (n?: number): Tone | undefined => (n === undefined ? undefined : (NET_TONE.router as Record<number, Tone>)[n]);

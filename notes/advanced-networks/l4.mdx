@@ -1,0 +1,276 @@
+---
+title: "Advanced Networks: Lecture 4"
+tags: ["Advanced networks"]
+created: 2026-10-04
+updated: 2026-10-27
+---
+
+## Sharing a Medium
+**MAC (Medium Access Control).** A MAC protocol determines **how multiple devices share access to the same communication medium** (e.g. the same Wi-Fi channel or Ethernet cable).
+
+It was introduced because several devices may need to transmit over this **single shared medium**.
+
+**Problem.** If multiple devices transmit at the same time, their signals may **collide or interfere**, making reception difficult or impossible.
+
+<SharedMediumSchema />
+
+**Main solutions.**
+- **Mutual exclusion:** ensure that only one device transmits at a time.
+- **Joint decoding:** allow simultaneous transmissions and have the receiver **separate and decode multiple signals together**.
+
+---
+### How to implement mutual exclusion ?
+
+**Deterministic MAC protocols.** Protocols that use **arbitration** to decide in advance which host may access the shared medium, thereby **preventing collisions by construction**.
+
+- **TDMA (Time Division Multiple Access).** Each host gets a dedicated **time slot** in which it may transmit.
+- **FDMA (Frequency Division Multiple Access).** Each host gets a dedicated **frequency band** in which it may transmit.
+- **CAN bus arbitration.** If several hosts transmit, the **highest-priority** transmission wins and the others stop.
+- **Token passing.** A special **token** is passed between hosts; only the host holding the token may transmit.
+
+Deterministic protocols avoid collisions proactively, but require **coordination, synchronization, and configuration**, so they are less flexible when hosts join, leave, or fail.
+
+**Stochastic (random-access) MAC protocols.** Protocols that allow hosts to **attempt transmission at any time** and resolve collisions when they occur.
+
+If a collision occurs, hosts wait for a **random back-off time** before retransmitting, reducing the chance of colliding again.
+
+Examples include **Wi-Fi, early Ethernet, Zigbee, and some cellular signaling channels**.**Random access protocol.** In a random access protocol, every host transmits at full rate whenever it wants. After a collision, the host retransmits after a random wait called the **back-off**. After too many attempts, it gives up.
+
+
+Random access needs no configuration. WiFi, early Ethernet, Zigbee, Powerline and the signalling channel of cellular networks use it.
+
+## Random Access
+
+**ALOHA.** A **random-access MAC protocol** where a host transmits whenever it has data, without first checking whether the channel is free.
+
+If two transmissions overlap, a **collision** occurs. The sender infers failure from a **missing ACK**, waits a **random back-off time**, then retransmits.
+
+- **Pure ALOHA:** a host may start transmitting **at any moment**, so packets can collide whenever their transmissions overlap.
+- **Slotted ALOHA:** time is divided into **fixed slots**, and hosts may transmit only at the **start of a slot**, reducing the possible collision window and roughly doubling the maximum utilization.
+
+**CSMA (Carrier Sense Multiple Access).** A MAC protocol where a host **listens to the shared channel before transmitting** and sends only if the channel is free.
+
+- **Persistent CSMA:** if the channel is busy, keep listening and transmit as soon as it becomes free.
+- **Non-persistent CSMA:** if the channel is busy, wait a **random time** before listening again, reducing the chance that several hosts transmit simultaneously.
+
+Compared with ALOHA, CSMA reduces collisions and improves channel utilization.
+
+**Example 1. A collision despite carrier sense.**
+
+The propagation delay between A and B is 2 ms, and the channel is idle. A starts transmitting at $t = 0$. Can B still collide with A?
+
+Yes. At $t = 1.9$ ms, the signal of A has not reached B yet. B senses an idle channel and starts. At $t = 2$ ms, the signal of A reaches B, and the frames collide.
+
+Let $T$ be the maximum propagation delay from A to any other host. If no collision occurs within $T$ after A starts, every host hears A and A has the channel. CSMA therefore works best when the propagation delay is small.
+
+**CSMA/CD (Carrier Sense Multiple Access with Collision Detection).** A MAC protocol that improves CSMA by making a station **listen before transmitting and continue monitoring the channel while transmitting**.
+
+**Collision detection.** A collision can still occur because of **propagation delay**: two distant stations may both sense an idle channel before either one's signal reaches the other.
+
+Let $T$ be the **maximum one-way propagation delay**. If no collision reaches a sender within $T$ after it starts transmitting, no other station could have started transmitting before hearing it.
+
+When a collision is detected, the station:
+
+$$
+\text{stop transmission}
+\;\to\;
+\text{send 32-bit jam signal}
+\;\to\;
+\text{wait}
+\;\to\;
+\text{retry}.
+$$
+
+The **jam signal** ensures that every station recognizes that a collision occurred.
+
+<CsmaCdSchema />
+
+**Binary exponential backoff.** After the $N$-th failed attempt,
+
+$$
+k=\min(10,N),
+\qquad
+r\sim\{0,\ldots,2^k-1\},
+$$
+
+and the station waits
+
+$$
+r\cdot\text{slotTime}
+$$
+
+before retrying. Thus, repeated collisions produce increasingly large random waiting windows, reducing further collisions but slowing access under heavy congestion.
+
+**Minimum frame size.** A sender must still be transmitting when the **worst-case collision propagates back to it**. Therefore,
+
+$$
+\text{transmission delay}
+\ge
+\text{round-trip propagation delay}
+=
+\text{slotTime}.
+$$
+
+Since
+
+$$
+\text{transmission delay}
+=
+\frac{\text{frame size}}{\text{bit rate}},
+$$
+
+we need
+
+$$
+\boxed{
+\text{minimum frame size}
+\ge
+\text{bit rate}\times\text{slotTime}
+}
+$$
+
+which is essentially the **bandwidth-delay product**.
+
+<MinFrameSizeSchema />
+
+#### **Successful transmission**
+With this minimum frame size, finishing transmission **without detecting a collision implies success**, so CSMA/CD does **not require ACKs**.
+
+After a successful frame, stations also leave a short **inter-frame gap** before transmitting again.
+
+**Hub.** A hub is a box of repeaters. It repeats every bit that arrives on one port onto all its other ports.
+
+**Half-duplex Ethernet.** Half-duplex Ethernet is early Ethernet, on coaxial cables or hubs. It is one shared medium and runs CSMA/CD with a fixed slot time.
+
+**Example 2. The 64-byte Ethernet frame.**
+
+Half-duplex Ethernet at 10 Mb/s has a slot time of 51.2 µs. What is its minimum frame size?
+
+The minimum frame size is $51.2\ \mu\text{s} \times 10\ \text{Mb/s} = 512$ bits, which is 64 bytes.
+
+### CSMA/CA in WiFi
+
+**CSMA/CA (CSMA with Collision Avoidance).** CSMA/CA is the CSMA of WiFi. The receiver acknowledges every frame, as in ALOHA, and a missing ACK signals a collision.
+
+A radio cannot detect a collision while it transmits, because its own signal drowns the others. WiFi therefore tries to avoid collisions instead. Carrier sense alone fails when a host is hidden.
+
+**Hidden station.** A hidden station is a host that the receiver hears but the sender does not. Carrier sense at the sender misses its transmissions.
+
+**RTS/CTS.** With RTS/CTS, the sender first sends a short Request To Send (RTS). The receiver answers with a Clear To Send (CTS). Every host that hears the CTS stays silent for the time that the CTS declares.
+
+<RtsCtsSchema />
+
+The CTS comes from the receiver. It therefore reaches every host that could collide at the receiver, hidden stations included.
+
+- **Conservative back-off.** A host waits a random time before it transmits, even when the channel is idle.
+- **Network allocation vector (NAV).** The MAC header of each frame carries the time its transmission needs. Every host that reads the header stays silent for that time. This is **virtual carrier sensing**.
+
+A classic WiFi network has one channel and one base station. At most one frame is in the air at a time, in either direction. This limit is a rule of the contention mechanism, not of physics. Since WiFi 6 (802.11ax), OFDMA and MU-MIMO let a base station serve several stations in one transmission opportunity.
+
+---
+
+## Switched Ethernet
+
+Today's Ethernet replaces the shared medium with switches and full-duplex links. A switch is a queuing system: it stores each frame in a buffer, then forwards it by its destination MAC address. Switches are also called **bridges**.
+
+**Full-duplex link.** A full-duplex link carries frames in both directions at the same time, on separate wires (e.g. a UTP cable). Frames on it never collide.
+
+Switches are **transparent**. An end system runs the same protocol on a coaxial cable, a hub or a switch. A switched LAN has no collisions, so CSMA/CD is disabled by default.
+
+**Example 3. Concurrent frames.**
+
+All boxes are switches, and each switch transmits on all its ports in parallel. How many frames can travel at the same time?
+
+<SwitchedLanSchema />
+
+Eighteen. Each of the 9 links is full-duplex, so it carries one frame in each direction. On half-duplex Ethernet, the answer is one.
+
+### Forwarding and Learning
+
+**Switch forwarding table.** The forwarding table of a switch maps each destination MAC address to an outgoing port. The lookup is an exact match, with no prefixes.
+
+For each incoming frame, the switch looks up the destination MAC address.
+
+| Destination in the table? | Action |
+|---|---|
+| Yes, on the incoming port | discard: the destination sits on the side the frame came from |
+| Yes, on another port | forward on that port |
+| No | **flood**: send on every port except the incoming one |
+
+**Self-learning.** A switch fills its forwarding table from the source MAC address of each incoming frame. The source sits behind the incoming port. An entry expires after an **ageing time** unless a new frame refreshes it.
+
+*A switch learns where a host is from the frames the host sends, never from the frames sent to it.*
+
+A switch is therefore plug and play. A router, in contrast, fills its table with a routing algorithm.
+
+**Example 4. A switch learns.**
+
+Hosts A, B and C sit on ports 1, 2 and 3 of a switch with an empty table.
+
+| Frame | Switch learns | Lookup | Action |
+|---|---|---|---|
+| A to C | A on port 1 | C unknown | flood to ports 2 and 3 |
+| C to A | C on port 3 | A on port 1 | forward to port 1 |
+| B to C | B on port 2 | C on port 3 | forward to port 3 |
+
+B received the first frame although it was for C. Until a switch learns a destination, flooding wastes bandwidth.
+
+## Loops and the Spanning Tree Protocol
+
+A redundant link keeps a LAN connected when another link fails, but it creates a loop. Self-learning fails on a loop, because a switch sees the same host on several ports.
+
+<SwitchLoopSchema />
+
+S1 floods a broadcast from A toward S3 and toward S2, and S2 floods it on to S3. S3 thus receives the frame of A on port 1 and on port 3. Switches are queuing systems with variable delays, so either copy may arrive last. The entry of S3 for A keeps changing.
+
+The copies also circulate around the loop forever. Each switch floods them on, and an Ethernet frame has no hop limit.
+
+**Spanning tree.** A spanning tree is a set of links that connects every switch and contains no loop.
+
+**STP (Spanning Tree Protocol).** STP is a distributed protocol in which the switches deactivate links until the active links form a spanning tree. STP recomputes the tree when a link fails or appears.
+
+1. **Elect a root.** The root is the switch with the smallest ID. The ID is configurable.
+2. **Keep the shortest paths.** Each switch keeps the links on its shortest path to the root. The spanning tree is the set of these paths.
+3. **Monitor the root.** If the root becomes unreachable, the switches compute a new spanning tree.
+
+Each link has a configurable **cost**, usually a decreasing function of its bit rate. The shortest path is the path with the smallest total cost to the root. The switches compute it with a variant of the Bellman-Ford algorithm.
+
+STP has no central control and needs no configuration. The switches learn each other's IDs by gossip. An ID can contain a MAC address, so a managed switch has one. It uses this address for management and STP, never for forwarding.
+
+**Example 5. Which links stay active?**
+
+Is link S4–S5 on the spanning tree? Is link S4–S3?
+
+<SpanningTreeSchema />
+
+S1 has the smallest ID, so S1 is the root. Each switch keeps its cheapest path to S1.
+
+| Switch | Shortest path to S1 | Cost |
+|---|---|---|
+| S2 | direct | 100 |
+| S3 | direct | 1 |
+| S5 | direct | 100 |
+| S4 | via S3 | 101 |
+| S6 | via S3 | 101 |
+
+S4 reaches S1 via S3 for 101, and via S5 for 200. Link S4–S3 is on the tree, and link S4–S5 is not. For the same reason, S2 drops link S2–S3.
+
+**Example 6. A link fails.**
+
+Four switches form a square with S1 as the root. Links S1–S2, S1–S3, S1–S4 and S2–S3 cost 1, and link S3–S4 costs 2. Link S1–S3 fails.
+
+| Switch | Path to S1 before | Path to S1 after |
+|---|---|---|
+| S2 | direct, cost 1 | direct, cost 1 |
+| S3 | direct, cost 1 | via S2, cost 2 |
+| S4 | direct, cost 1 | direct, cost 1 |
+
+S3 prefers S2 for a cost of 2 over S4 for a cost of 3. Link S2–S3 joins the tree, and link S3–S4 stays inactive.
+
+Classic STP (IEEE 802.1D) takes 30 to 50 seconds to recover from a failure. Rapid STP (RSTP, IEEE 802.1w) takes about one second.
+
+Every frame travels on the spanning tree, even when a shorter path exists. In Example 5, frames from A to B follow S5–S1–S3–S4 at a cost of 201. The direct link S5–S4 costs 100 but stays unused.
+
+*STP gives every switch a shortest path to the root, not to every other switch.*
+
+**Shortest Path Bridging (SPB, IEEE 802.1aq).** SPB computes a loop-free shortest path between every pair of switches, instead of routing all traffic via the root. It uses link-state routing.

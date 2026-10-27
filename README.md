@@ -1,151 +1,72 @@
 # knowledge
 
-Course notes written in MDX, and the site that renders them. The notes live in
-`notes/`. `site/` is a Next.js 16 app that exports them as static HTML. A
-Cloudflare Worker serves that export and answers search queries.
+Course notes in MDX (`notes/`) and the Next.js site that renders them (`site/`).
+The site is a static export, served by a Cloudflare Worker that also answers
+search and gates the private CTF course.
 
-On a note page you can highlight passages, which the browser keeps in
-IndexedDB, and copy the note's source as Markdown.
-
-## Repository layout
-
-```
-knowledge/
-├── notes/
-│   ├── data-intensive-systems/   one .mdx file per lecture
-│   └── theory-of-computation/
-├── RULES.md                      how to write a note
-└── site/
-    ├── src/app/                  routes: home, notes/[...slug], search-index.json
-    ├── src/components/           page chrome and the components notes use
-    ├── src/components/figure/    the static figure engine: primitives, layout, routing, SVG
-    ├── src/lib/                  note loader, MDX pipeline, search engine
-    ├── src/mdx-components.tsx    components every note can use
-    ├── worker/index.ts           the Worker that serves /api/search
-    ├── scripts/                  helper scripts
-    └── wrangler.toml             Worker and static asset config
-```
-
-## Run the site
+## Run
 
 ```sh
 cd site
 bun install
-bun run dev
+bun run dev    # http://localhost:3000, rereads ../notes on every request
 ```
 
-Open <http://localhost:3000>. In development the loader reads `../notes` on
-every request, so a saved edit shows up when you refresh the page. Nothing
-watches the files.
+| Command                      | Does                                                         |
+| ---------------------------- | ------------------------------------------------------------ |
+| `bun run build`              | Static export to `out/`, with the search index               |
+| `bun run preview`            | Build, then serve `out/` and the Worker with `wrangler dev`  |
+| `bun run deploy`             | Build, then `wrangler deploy`                                |
+| `bun run typecheck`          | `tsc --noEmit`                                               |
+| `bun run verify <note.mdx>`  | Render one note; fails on MDX errors and unknown components  |
 
-Run these from `site/` as well:
+The CTF password is a secret: `wrangler secret put CTF_PASSWORD`, or
+`.dev.vars` locally.
 
-| Command             | What it does                                                 |
-| ------------------- | ------------------------------------------------------------ |
-| `bun run build`     | Exports the site to `site/out/`, with `search-index.json`.   |
-| `bun run preview`   | Builds, then `wrangler dev` serves `out/` and the Worker.    |
-| `bun run deploy`    | Builds, then `wrangler deploy` publishes the Worker.         |
-| `bun run typecheck` | Runs `tsc --noEmit`.                                         |
+## Notes
 
-## Add a note
-
-Create an `.mdx` file in a course folder under `notes/`. Its path inside
-`notes/` becomes the URL, so `notes/data-intensive-systems/l9.mdx` is served at
-`/notes/data-intensive-systems/l9`. The homepage shows one tab per course
-folder and lists its notes by path, comparing numbers as numbers, so `l2`
-comes before `l10`. Titles in a course share a prefix (`Theory of
-Computation: Lecture 1`): the prefix names the tab and the rest labels the note. The loader also picks
-up `.md` files. Both compile as MDX.
-
-Every note starts with YAML frontmatter:
+`notes/<course>/<slug>.mdx` is served at `/notes/<course>/<slug>`. Notes sort
+by path, numbers numerically (`l2` before `l10`). Each course is a homepage
+tab, named by the shared title prefix (`Theory of Computation: Lecture 1`).
 
 ```md
 ---
-title: "Data Intensive Systems: Lecture 9"
-tags: ["Data intensive systems"]
-created: 2026-06-21
-updated: 2026-06-22
+title: "Data Intensive Systems: Lecture 9"   # required
+created: 2026-06-21                          # shown under the title
+draft: true                                  # left out of the build
 ---
 ```
 
-The zod schema in `site/src/lib/notes.ts` accepts these fields:
+`tags` and `updated` are parsed but not shown. Schema: `site/src/lib/notes.ts`.
 
-| Field         | Type     | Required | Effect                                           |
-| ------------- | -------- | -------- | ------------------------------------------------ |
-| `title`       | string   | yes      | Page title and homepage entry.                   |
-| `tags`        | string[] | no       | Parsed. The site does not show them.             |
-| `created`     | date     | no       | Shown as the date under the title.               |
-| `updated`     | date     | no       | Parsed. The site does not show it.               |
-| `draft`       | boolean  | no       | `true` leaves the note out of the build.         |
+The body is GitHub-flavored Markdown. Math is `$...$` and `$$...$$`, never
+`\(...\)` or `\[...\]`. A `---` line renders as an idea break. How to write a
+note: `RULES.md`.
 
-The body is GitHub-flavored Markdown with KaTeX math (`$...$` inline, `$$...$$`
-for blocks). Shiki highlights code blocks at build time. Headings get anchor
-links.
+## Figures
 
-To check one note without a full build, run `bun run verify` with its path
-(see the helper scripts below).
+Notes import nothing. Every component is registered in
+`site/src/mdx-components.tsx`. Figures compose primitives from the engine in
+`site/src/components/figure/` (`Row`, `Col`, `Graph`, `Node`, `Cells`, ...),
+which lays out, routes and renders one static SVG on the server. `$...$` in a
+label is typeset by MathJax. Colours are the `--dg-*` tokens in
+`site/src/app/diagram-tokens.css`.
 
-## Components in notes
+Scripts, from `site/`:
 
-Notes never import anything. `site/src/mdx-components.tsx` registers every
-component, so a new one goes there. The notes use these:
-
-- `Split` lays out its `Pane` children side by side on wide screens and
-  stacks them on narrow ones.
-- `Automaton` draws a finite automaton in the textbook style.
-- Course figures (`BPlusTree`, `IndexMap`, `PageLayout`, `ERDiagram`,
-  `HashDiagram`, `QueryTree`, `TuringTape`, `TuringTrace`, and the figures in
-  the `*Schemas.tsx` files) are thin adapters over the figure engine in
-  `site/src/components/figure/`. They compose primitives (`Row`, `Col`,
-  `Grid`, `Group`, `Graph`, `Node`, `Cells`, `Table`, `Edge`, ...); the engine
-  lays them out, routes the connectors, and renders one static SVG on the
-  server. A note can also write `<Diagram>` with those primitives directly.
-  Colours are the OKLCH `--dg-*` tokens in `site/src/app/diagram-tokens.css`,
-  light and dark.
-- A `---` line in the body renders as `IdeaBreak`, a short row of dashes
-  between ideas.
-
-`RULES.md` covers how to write a note: structure, concept blocks, examples,
-and what to leave out. It bans callout boxes.
+- `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots every figure,
+  light and dark, to `/tmp/figures`. Needs `bun run dev` and Playwright's
+  Chromium.
+- `bun scripts/gen-font-metrics.mjs` regenerates the glyph widths that size
+  figure boxes. Rerun only after changing its glyph list.
 
 ## Search
 
-Press Cmd-K on a Mac, or Ctrl-K elsewhere, to open the command menu. It
-searches note titles plus the concepts and sections inside each note.
-
-`bun run build` writes `search-index.json` into `out/`. In production the
-Worker in `site/worker/index.ts` builds the search engine from that file and
-answers `GET /api/search?q=...`. It caps each IP at 30 requests per 10 seconds
-and caches answers at the edge. The public `/search-index.json` path returns
-404. Under `bun run dev` there is no Worker, so the browser runs the same
-engine from `site/src/lib/search-core.ts` against the live index route.
-
-## Helper scripts
-
-Run these from `site/`:
-
-- `bun run verify ../notes/data-intensive-systems/l9.mdx` compiles and renders
-  one note the way the site does. It fails on MDX syntax errors and unknown
-  components.
-- `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots every figure,
-  light and dark, into `/tmp/figures`. It needs `bun run dev` running and
-  Playwright's headless Chromium.
-- `bun scripts/gen-font-metrics.mjs` downloads Inter and regenerates
-  `src/components/figure/font-metrics.ts`, the glyph widths that size figure
-  boxes. Rerun it only when the glyph list in the script changes.
+Cmd/Ctrl-K. In production the Worker (`site/worker/index.ts`) serves
+`GET /api/search?q=`, rate limited per IP and edge cached. In dev the browser
+runs the same engine (`site/src/lib/search-core.ts`).
 
 ## Stack
 
-- Next.js 16 with the App Router and `output: "export"`, React 19, TypeScript.
-- Tailwind CSS 4. The palette and prose styles live in
-  `site/src/app/globals.css`. Text sits in a 33rem reading measure
-  (`--container-measure`, about 70 characters at 16px); figures, code, splits
-  and display math break out to the 660px page width (`--container-page`).
-- Inter (with its `opsz` optical-size axis) and JetBrains Mono, loaded
-  through `next/font` in `site/src/app/layout.tsx`.
-- `@mdx-js/mdx` with remark-gfm, remark-math, rehype-katex,
-  rehype-pretty-code (Shiki), rehype-slug, and rehype-autolink-headings, wired
-  up in `site/src/lib/mdx.tsx`.
-- cmdk and Base UI for the command menu and tooltips.
-- Cloudflare Workers with static assets, deployed with Wrangler.
-- Bun for installs and scripts.
+Next.js 16, React 19, Tailwind 4, MDX with KaTeX and Shiki, Base UI and cmdk,
+Cloudflare Workers, Bun.

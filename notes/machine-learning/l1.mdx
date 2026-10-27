@@ -153,174 +153,179 @@ $$
 
 ## Matrix Form
 
-**Target vector.** The target vector $\mathbf{y} = (y_1, \dots, y_m) \in \mathbb{R}^m$ stacks the $m$ training targets.
-
-**Design matrix.** The design matrix $X \in \mathbb{R}^{m \times (n+1)}$ stacks the folded inputs, one per row:
+**Target vector.** The vector containing the true outputs associated with all examples in a dataset:
 
 $$
-X = \begin{pmatrix} \tilde{\mathbf{x}}_1^T \\ \vdots \\ \tilde{\mathbf{x}}_m^T \end{pmatrix} = \begin{pmatrix} x_{11} & \cdots & x_{1n} & 1 \\ \vdots & \ddots & \vdots & \vdots \\ x_{m1} & \cdots & x_{mn} & 1 \end{pmatrix}.
+\mathbf{y}=
+\begin{bmatrix}
+y_1\\
+y_2\\
+\vdots\\
+y_N
+\end{bmatrix}
+\in\mathbb{R}^N,
 $$
 
-The entry $X_{ij} = x_{ij}$ is feature $j$ of example $i$, and the last column holds the folded $1$s.
+where $y_i$ is the target value of example $\mathbf{x}_i$.
+
+**Design matrix.** The matrix containing all input examples of a dataset, with one example per row:
+
+$$
+X=
+\begin{bmatrix}
+\mathbf{x}_1^\top\\
+\mathbf{x}_2^\top\\
+\vdots\\
+\mathbf{x}_N^\top
+\end{bmatrix}
+\in\mathbb{R}^{N\times n},
+$$
+
+where $N$ is the number of examples and $n$ is the number of features.
 
 **Prediction vector.** The prediction vector $\hat{\mathbf{y}} = X \tilde{\mathbf{w}} \in \mathbb{R}^m$ holds all $m$ predictions. Row $i$ of the product is $\tilde{\mathbf{x}}_i^T \tilde{\mathbf{w}} = \hat{y}_i$.
 
 **Residual vector.** The residual vector $\mathbf{e} = \mathbf{y} - X \tilde{\mathbf{w}} \in \mathbb{R}^m$ holds all $m$ residuals $e_i$.
 
-**Example 1. Three points in matrix form.**
+**Underdetermined problem.** A problem with fewer independent equations than unknowns, so it generally has infinitely many solutions.
 
-The points $(x, y) = (1, 2), (2, 3), (3, 5)$ have one feature, so $n = 1$ and $\tilde{\mathbf{w}} = (w, b)$:
-
-$$
-X = \begin{pmatrix} 1 & 1 \\ 2 & 1 \\ 3 & 1 \end{pmatrix}, \qquad \mathbf{y} = \begin{pmatrix} 2 \\ 3 \\ 5 \end{pmatrix}.
-$$
-
-With $w = 1$ and $b = 0.5$, the prediction and residual vectors are
+For a linear system
 
 $$
-\hat{\mathbf{y}} = \begin{pmatrix} 1 & 1 \\ 2 & 1 \\ 3 & 1 \end{pmatrix} \begin{pmatrix} 1 \\ 0.5 \end{pmatrix} = \begin{pmatrix} 1.5 \\ 2.5 \\ 3.5 \end{pmatrix}, \qquad \mathbf{e} = \mathbf{y} - \hat{\mathbf{y}} = \begin{pmatrix} 0.5 \\ 0.5 \\ 1.5 \end{pmatrix}.
+A\mathbf{x}=\mathbf{b},
 $$
 
-**Underdetermined problem.** A problem is underdetermined when many parameter vectors fit the data equally well (e.g. a line $\hat{y} = w x + b$ through a single point: every line through the point fits).
+it is underdetermined when the system does not provide enough independent constraints to uniquely determine $\mathbf{x}$.
 
-**Overparametrization.** A model is overparametrized when it has more parameters than examples, $d > m$.
+**Overparameterization.** A model is overparameterized when it has more trainable parameters than needed to fit the training data, often more parameters than training examples.
 
-An overparametrized linear regression is underdetermined: $X$ has more columns than rows, so many $\tilde{\mathbf{w}}$ give the same predictions.
+For linear regression,
 
-Overparametrization is not only a problem: it can also make training easier.
+$$
+X\mathbf{w}=\mathbf{y},
+$$
+
+the problem is overparameterized when the number of parameters exceeds the number of examples:
+
+$$
+n>N.
+$$
+
+This typically makes the system underdetermined, so multiple parameter vectors $\mathbf{w}$ may fit the training data exactly.
 
 ## Loss Functions
 
-**Loss function.** A loss function $\ell(\hat{y}, y)$ scores the cost of one prediction, from $0$ when $\hat{y} = y$ upward.
-
-**Training loss.** The training loss averages the loss over the training set:
+**Loss function.** A function that measures how wrong a model’s prediction is compared with the true target:
 
 $$
-L(\theta) = \frac{1}{m} \sum_{i=1}^{m} \ell(f_\theta(\mathbf{x}_i), y_i).
+\ell(\hat y,y)\in\mathbb{R}_{\ge 0},
 $$
 
-The training loss is also called the cost, energy or training objective. Training minimizes it.
+where $\hat y$ is the prediction and $y$ is the true target; a smaller loss means a better prediction.
 
-For regression, the loss is usually a function of the residual $e = y - \hat{y}$.
+**Two desirable properties.**
 
-It should be **symmetric** around $0$, so an error costs the same above and below the target.
+1. **Statistical quality:** minimizing the loss should lead to good predictions on the actual task.
+2. **Computational tractability:** the loss should be easy to optimize, for example by being differentiable or convex.
 
-**Squared error.** The squared error is the loss $\ell(\hat{y}, y) = \frac{1}{2} (y - \hat{y})^2$.
+**Statistical–computational trade-off.** A loss that best represents the true task may be difficult to optimize, while an easier-to-optimize loss may only approximate the true objective.
 
-The $\frac{1}{2}$ cancels the 2 that differentiating the square brings down, and does not move the minimum.
-
-**Mean squared error (MSE).** The MSE is the training loss of the squared error, half the mean of the squared residuals:
-
-$$
-L(\tilde{\mathbf{w}}) = \frac{1}{2m} \sum_{i=1}^{m} e_i^2 = \frac{1}{2m} \|\mathbf{e}\|^2 = \frac{1}{2m} \|\mathbf{y} - X \tilde{\mathbf{w}}\|^2.
-$$
-
-In Example 1, $L = (0.5^2 + 0.5^2 + 1.5^2)/6 = 11/24$.
-
-**Outlier.** An outlier is an example far from the pattern of the others (e.g. a speed-of-light measurement of $-44$ among values near $25$).
-
-Squaring the large residuals of a few outliers lets them drag the whole fit.
-
-**Robust loss.** A robust loss penalizes large and very large residuals similarly, so a few outliers cannot drag the fit.
-
-**Mean absolute error (MAE).** The MAE is the training loss of the absolute error $|y - \hat{y}|$:
+For example, the $0$-$1$ loss directly measures classification errors,
 
 $$
-L(\tilde{\mathbf{w}}) = \frac{1}{m} \sum_{i=1}^{m} |e_i|.
+\ell_{0/1}(\hat y,y)=\mathbf{1}[\hat y\neq y],
 $$
+
+but is difficult to optimize, so surrogate losses such as logistic loss or hinge loss are often used instead.
+
+**Training loss.** The average loss of a model over all examples in the training set:
+
+$$
+L_{\text{train}}(\theta)
+=
+\frac{1}{N}
+\sum_{i=1}^{N}
+\ell\big(f_\theta(\mathbf{x}_i),y_i\big),
+$$
+
+where $\theta$ are the model parameters, $f_\theta(\mathbf{x}_i)$ is the prediction, and $y_i$ is the true target.
+
+**Mean Squared Error (MSE).** A loss function that measures the average squared difference between predictions and true targets:
+
+$$
+\operatorname{MSE}(\theta)
+=
+\frac{1}{N}
+\sum_{i=1}^{N}
+\left(f_\theta(\mathbf{x}_i)-y_i\right)^2,
+$$
+
+where $f_\theta(\mathbf{x}_i)$ is the prediction and $y_i$ is the true target; smaller MSE means predictions are closer to the targets.
+
+**Outlier.** A data point that lies unusually far from the rest of the observations in a dataset.
+
+For MSE, outliers can have a large influence because errors are squared, giving very large errors much more weight.
+
+**Robust loss.** A loss function designed to be less sensitive to outliers, so unusually large errors do not dominate the total loss as strongly as with MSE.
+
+**Mean Absolute Error (MAE).** A loss function equal to the average absolute difference between the true values $y_i$ and predictions $\hat y_i$:
+
+$$
+\mathrm{MAE}=\frac{1}{N}\sum_{i=1}^{N}|y_i-\hat y_i|.
+$$
+
+Unlike MSE, MAE is more robust to outliers because errors are not squared.
 
 <LossShapesSchema />
 
-The absolute error grows linearly, so the MAE is more robust than the MSE.
-
-**Example 2. A constant model with an outlier.**
-
-The constant model $\hat{y} = w$ fits the targets $1, 2, 3, 4$, then the same targets plus the outlier $20$. The sums of squared and absolute residuals for integer $w$ are:
-
-| $w$ | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-|---|---|---|---|---|---|---|---|
-| $\sum e_i^2$, targets $1$ to $4$ | 14 | **6** | **6** | 14 | 30 | 54 | 86 |
-| $\sum e_i^2$, with $20$ | 375 | 330 | 295 | 270 | 255 | **250** | 255 |
-| $\sum \lvert e_i \rvert$, targets $1$ to $4$ | 6 | **4** | **4** | 6 | 10 | 14 | 18 |
-| $\sum \lvert e_i \rvert$, with $20$ | 25 | 22 | **21** | 22 | 25 | 28 | 31 |
-
-The outlier moves the MSE fit from $2.5$ to $6$, but the MAE fit only from $[2, 3]$ to $3$.
-
-The best constant is the mean under the MSE and the median under the MAE.
-
 ## Minima and Convexity
 
-**Minimum.** A minimum is a point $\theta^*$ where $L$ is lowest, over all $\theta$ (**global**) or over a ball around it (**local**):
+**Convexity.** A function $f$ is convex if, for any $x_1,x_2$ in its domain and any $\lambda\in[0,1]$,
 
 $$
-B_\epsilon = \{\theta : \|\theta - \theta^*\| < \epsilon\}, \quad \epsilon > 0.
+f(\lambda x_1+(1-\lambda)x_2)
+\le
+\lambda f(x_1)+(1-\lambda)f(x_2).
 $$
 
-A minimum is **strict** when every other $\theta$ in that region has a strictly higher loss.
+It is **strictly convex** if the inequality is strict for $x_1\neq x_2$ and $\lambda\in(0,1)$.
 
-| | **minimum** | **strict minimum** |
-|---|---|---|
-| **global** | $L(\theta^*) \le L(\theta)\ \forall \theta$ | $L(\theta^*) < L(\theta)\ \forall \theta \ne \theta^*$ |
-| **local**, some $\epsilon > 0$ | $L(\theta^*) \le L(\theta)\ \forall \theta \in B_\epsilon$ | $L(\theta^*) < L(\theta)\ \forall \theta \in B_\epsilon \setminus \{\theta^*\}$ |
+For a convex function, every local minimum is a global minimum.
+
+**Sum of convex functions.** If $L_1,\ldots,L_n$ are convex, then
+
+$$
+L(\mathbf{w})=\sum_{i=1}^n L_i(\mathbf{w})
+$$
+
+is also convex.
+
+--- 
+
+**Global minimum.** If
+
+$$
+L(\mathbf{w}^\star)\le L(\mathbf{w}),\qquad \forall \mathbf{w},
+$$
+
+then $\mathbf{w}^\star$ is a global minimum of $L$.
+
+**Local minimum.** If
+
+$$
+L(\mathbf{w}^\star)\le L(\mathbf{w})
+$$
+
+for all $\mathbf{w}$ sufficiently close to $\mathbf{w}^\star$, then $\mathbf{w}^\star$ is a local minimum of $L$.
 
 <MinimaSchema />
 
-Every global minimum is local, and a strict global minimum is the only minimizer.
 
-**Convex function.** A convex function is a function whose graph never rises above its chords (e.g. $\theta^2$; not $\theta^3$, which rises above its chord on $[-1, 0]$):
-
-$$
-L(\alpha \theta + (1 - \alpha) \theta') \le \alpha L(\theta) + (1 - \alpha) L(\theta'), \quad \alpha \in [0, 1].
-$$
-
-*A convex loss has no false bottom.*
-
-It is **strictly convex** when the inequality is strict for $\theta \ne \theta'$ and $0 < \alpha < 1$.
-
-Every local minimum of a convex function is global.
-
-A strictly convex function has at most one minimizer.
-
-A sum of convex functions is convex. A training loss whose per-example losses are convex in $\theta$ is therefore convex.
-
-**Common mistake.** A convex loss does not always have a unique minimizer. It can reach its lowest value at many $\theta$, making the problem underdetermined. Strict convexity rules this out.
-
-If $h$ is convex and $q(\theta) = \mathbf{a}^T \theta + c$ is affine, then $h(q(\theta))$ is convex.
-
-**Proof.** The idea is that $q$ keeps chords straight. An affine map sends a convex combination to the same combination:
+**MSE with a linear model.** For linear regression, the MSE
 
 $$
-q(\alpha \theta + (1 - \alpha) \theta') = \alpha q(\theta) + (1 - \alpha) q(\theta').
+L(\mathbf{w})=\frac{1}{2N}\sum_{i=1}^N\left(y_i-\mathbf{w}^\top\mathbf{x}_i\right)^2
 $$
 
-Applying $h$ to both sides and using the convexity of $h$ gives
-
-$$
-h(q(\alpha \theta + (1 - \alpha) \theta')) \le \alpha h(q(\theta)) + (1 - \alpha) h(q(\theta')),
-$$
-
-which is the convexity inequality of $h(q(\theta))$.
-
-Each residual $e_i = y_i - \tilde{\mathbf{x}}_i^T \tilde{\mathbf{w}}$ is affine in $\tilde{\mathbf{w}}$. The square is convex, and so is $|e|$ by the triangle inequality. The MSE and the MAE of linear regression are therefore convex in $\tilde{\mathbf{w}}$.
-
-## Robustness and Convexity
-
-Robustness is a statistical property: the fit ignores a few odd examples.
-
-Convexity is a computational property: an algorithm can find the minimum.
-
-Better statistical properties cost computational ones.
-
-The MSE is convex but not robust. The MAE is convex and robust, but has a kink at $e = 0$.
-
-**Huber loss.** The Huber loss is squared for small residuals and linear beyond a threshold $\delta > 0$:
-
-$$
-\ell_\delta(e) = \begin{cases} \frac{1}{2} e^2 & \text{if } |e| \le \delta, \\ \delta |e| - \frac{1}{2} \delta^2 & \text{if } |e| > \delta. \end{cases}
-$$
-
-The Huber loss is convex, differentiable and robust, but a good $\delta$ is hard to choose.
-
-**Tukey's bisquare loss.** Tukey's bisquare loss has the derivative $e (1 - e^2 / \delta^2)^2$ for $|e| \le \delta$ and $0$ beyond.
-
-A distant outlier stops pulling at all, so Tukey's loss is very robust, but it is not convex.
+is convex in $\mathbf{w}$.
+Importance of convexity. Convexity is a desirable computational property because optimization does not suffer from bad local minima: any local minimum found is global.
