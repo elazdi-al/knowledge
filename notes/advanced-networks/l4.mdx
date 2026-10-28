@@ -138,6 +138,8 @@ With this minimum frame size, finishing transmission **without detecting a colli
 
 After a successful frame, stations also leave a short **inter-frame gap** before transmitting again.
 
+---
+
 **Hub.** A hub is a box of repeaters. It repeats every bit that arrives on one port onto all its other ports.
 
 **Half-duplex Ethernet.** Half-duplex Ethernet is early Ethernet, on coaxial cables or hubs. It is one shared medium and runs CSMA/CD with a fixed slot time.
@@ -148,22 +150,29 @@ Half-duplex Ethernet at 10 Mb/s has a slot time of 51.2 µs. What is its minimum
 
 The minimum frame size is $51.2\ \mu\text{s} \times 10\ \text{Mb/s} = 512$ bits, which is 64 bytes.
 
-### CSMA/CA in WiFi
+---
 
-**CSMA/CA (CSMA with Collision Avoidance).** CSMA/CA is the CSMA of WiFi. The receiver acknowledges every frame, as in ALOHA, and a missing ACK signals a collision.
+**CSMA/CA (Carrier Sense Multiple Access with Collision Avoidance)** is the WiFi variant of CSMA. Because wireless devices cannot reliably detect collisions while transmitting, WiFi tries to **avoid collisions before they happen** and uses **ACKs** to detect failed transmissions.
 
-A radio cannot detect a collision while it transmits, because its own signal drowns the others. WiFi therefore tries to avoid collisions instead. Carrier sense alone fails when a host is hidden.
+**Carrier sensing.** Before transmitting, a station listens to the channel. However, this does not always work because of the **hidden-node problem**. For example, A may not hear C even though both can interfere at B.
 
-**Hidden station.** A hidden station is a host that the receiver hears but the sender does not. Carrier sense at the sender misses its transmissions.
+**RTS/CTS.** RTS/CTS helps prevent collisions caused by hidden nodes.
 
-**RTS/CTS.** With RTS/CTS, the sender first sends a short Request To Send (RTS). The receiver answers with a Clear To Send (CTS). Every host that hears the CTS stays silent for the time that the CTS declares.
+1. A sends **RTS (Request to Send)** to B, asking permission to transmit.
+2. B replies with **CTS (Clear to Send)** and announces how long the channel will be reserved.
+3. Any nearby station that hears the CTS, such as C, **stays silent for that duration**.
+4. A sends the **data** to B.
+5. B confirms successful reception with an **ACK**.
+
+So even if A cannot hear C, C can hear B's CTS and knows not to transmit while A is sending.
 
 <RtsCtsSchema />
 
 The CTS comes from the receiver. It therefore reaches every host that could collide at the receiver, hidden stations included.
 
-- **Conservative back-off.** A host waits a random time before it transmits, even when the channel is idle.
-- **Network allocation vector (NAV).** The MAC header of each frame carries the time its transmission needs. Every host that reads the header stays silent for that time. This is **virtual carrier sensing**.
+**Conservative random backoff.** Even when the channel appears idle, a station waits for a **random backoff time** before transmitting. This reduces the chance that several stations transmit at the same time.
+
+**Network Allocation Vector (NAV).** The MAC header contains the **remaining transmission duration**. Other stations use this value to know how long they should stay silent. This is called **virtual carrier sensing**.
 
 A classic WiFi network has one channel and one base station. At most one frame is in the air at a time, in either direction. This limit is a rule of the contention mechanism, not of physics. Since WiFi 6 (802.11ax), OFDMA and MU-MIMO let a base station serve several stations in one transmission opportunity.
 
@@ -171,11 +180,71 @@ A classic WiFi network has one channel and one base station. At most one frame i
 
 ## Switched Ethernet
 
-Today's Ethernet replaces the shared medium with switches and full-duplex links. A switch is a queuing system: it stores each frame in a buffer, then forwards it by its destination MAC address. Switches are also called **bridges**.
+**Switched Ethernet.** Modern Ethernet where each host connects to a **switch through its own dedicated link**, instead of sharing one common medium.
 
-**Full-duplex link.** A full-duplex link carries frames in both directions at the same time, on separate wires (e.g. a UTP cable). Frames on it never collide.
+**Switch / Bridge.** A **Layer 2 (MAC-layer) device** that receives Ethernet frames and forwards them according to the **destination MAC address**.
 
-Switches are **transparent**. An end system runs the same protocol on a coaxial cable, a hub or a switch. A switched LAN has no collisions, so CSMA/CD is disabled by default.
+**Frame buffer.** Temporary memory inside a switch used to **queue frames** while they wait to be forwarded.
+
+### Duplex modes
+
+**Half-duplex.** A link where data can travel in **both directions, but not at the same time**.
+
+$$
+A \rightarrow B
+\qquad \text{or} \qquad
+A \leftarrow B
+$$
+
+If both sides transmit at the same time, **collisions can occur**.
+
+**Full-duplex.** A link where data can travel **simultaneously in both directions**.
+
+$$
+A \leftrightarrow B
+$$
+
+Because transmission and reception use separate paths, **collisions do not occur**.
+
+### Shared Ethernet
+
+**Hub / Repeater.** A **Layer 1 device** that repeats every incoming bit to all other ports. A hub therefore behaves like a **shared medium**.
+
+**Shared Ethernet.** Early Ethernet where multiple hosts shared the same **coaxial cable or hub**.
+
+Since only one shared medium is available, simultaneous transmissions can collide:
+
+$$
+\text{shared medium}
+\Rightarrow
+\text{collisions possible}
+\Rightarrow
+\text{CSMA/CD}
+$$
+
+Thus, early Ethernet generally operated in **half-duplex** mode and used **CSMA/CD** to handle access to the shared medium.
+
+### Modern switched Ethernet
+
+With a switch, each host gets its **own point-to-point link**. These links normally operate in **full-duplex**, so different links can carry frames simultaneously without collisions.
+
+$$
+\boxed{
+\text{switched + full-duplex Ethernet}
+\Rightarrow
+\text{collision-free}
+}
+$$
+
+Therefore, **CSMA/CD is disabled** in modern switched Ethernet.
+
+### Transparency
+
+**Transparent switch.** A switch does not change the Ethernet protocol seen by end hosts. Hosts send and receive the **same Ethernet frames** whether the network uses a coaxial cable, hub, or switch.
+
+<TransparentSwitchSchema />
+
+So, switched Ethernet is **not a different Ethernet protocol**. The underlying network structure changes, but the protocol used by the end hosts remains the same.
 
 **Example 3. Concurrent frames.**
 
@@ -185,35 +254,69 @@ All boxes are switches, and each switch transmits on all its ports in parallel. 
 
 Eighteen. Each of the 9 links is full-duplex, so it carries one frame in each direction. On half-duplex Ethernet, the answer is one.
 
-### Forwarding and Learning
+--- 
 
-**Switch forwarding table.** The forwarding table of a switch maps each destination MAC address to an outgoing port. The lookup is an exact match, with no prefixes.
+## Switch Forwarding
 
-For each incoming frame, the switch looks up the destination MAC address.
+**Forwarding table.** A table that maps a **destination MAC address** to the switch port used to reach it.
 
-| Destination in the table? | Action |
-|---|---|
-| Yes, on the incoming port | discard: the destination sits on the side the frame came from |
-| Yes, on another port | forward on that port |
-| No | **flood**: send on every port except the incoming one |
+$$
+\text{MAC address} \rightarrow \text{outgoing port}
+$$
 
-**Self-learning.** A switch fills its forwarding table from the source MAC address of each incoming frame. The source sits behind the incoming port. An entry expires after an **ageing time** unless a new frame refreshes it.
+The lookup uses an **exact match** on the destination MAC address.
 
-*A switch learns where a host is from the frames the host sends, never from the frames sent to it.*
+**Forwarding algorithm.** For each incoming Ethernet frame, the switch reads the **destination MAC address** and checks its forwarding table.
 
-A switch is therefore plug and play. A router, in contrast, fills its table with a routing algorithm.
+- If the destination MAC is known and maps to a **different port**, the frame is forwarded to that port.
+- If it maps to the **same port** on which the frame arrived, the frame is discarded because forwarding is unnecessary.
+- If the destination MAC is **unknown**, the switch sends the frame through **all ports except the incoming port**.
 
-**Example 4. A switch learns.**
+This last operation is called **flooding**.
 
-Hosts A, B and C sit on ports 1, 2 and 3 of a switch with an empty table.
+$$
+\text{unknown destination}
+\Rightarrow
+\text{flood all other ports}
+$$
 
-| Frame | Switch learns | Lookup | Action |
-|---|---|---|---|
-| A to C | A on port 1 | C unknown | flood to ports 2 and 3 |
-| C to A | C on port 3 | A on port 1 | forward to port 1 |
-| B to C | B on port 2 | C on port 3 | forward to port 3 |
+Multicast frames may be handled differently by more advanced switches.
 
-B received the first frame although it was for C. Until a switch learns a destination, flooding wastes bandwidth.
+## Switch Self-Learning
+
+**Self-learning.** A switch automatically builds its forwarding table by observing the **source MAC address** of incoming frames.
+
+If a frame from host A arrives on port 1, the switch learns:
+
+$$
+\text{MAC}_A \rightarrow \text{port 1}
+$$
+
+It can therefore later forward frames destined for A directly to port 1.
+
+**Plug-and-play.** Because switches learn addresses automatically from traffic, they normally require **no manual configuration** of the forwarding table.
+
+**Ageing.** Learned entries are removed after an **ageing time** if the switch does not observe them again.
+
+This allows the table to adapt when hosts disconnect or move to another port.
+
+$$
+\text{source MAC observed}
+\Rightarrow
+\text{learn port}
+\Rightarrow
+\text{use for future forwarding}
+$$
+
+### Forwarding vs learning
+
+The switch uses:
+
+- the **destination MAC address** to decide **where to forward** a frame
+- the **source MAC address** to **learn where a host is located**
+
+This is different from an IP router, which builds forwarding information using **routing algorithms and routing protocols**.
+
 
 ## Loops and the Spanning Tree Protocol
 

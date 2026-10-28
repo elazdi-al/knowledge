@@ -76,6 +76,7 @@ import {
   SpanningTreeSchema,
   SwitchedLanSchema,
   SwitchLoopSchema,
+  TransparentSwitchSchema,
 } from "@/components/MediumAccessSchemas";
 import {
   CurseOfDimensionalitySchema,
@@ -221,6 +222,7 @@ export function useMDXComponents(
     SwitchedLanSchema,
     SwitchLoopSchema,
     TracerouteSchema,
+    TransparentSwitchSchema,
     TransactionLogSchema,
     TuringTape,
     TuringTrace,

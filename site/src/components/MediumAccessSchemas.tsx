@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Dot, FONT, Free, measure, Node, NODE, Path, Row, Text, type EdgeState } from "@/components/figure";
-import { Link, NET_TONE } from "@/components/NetworkFigures";
+import { Col, Diagram, Dot, FONT, Free, Group, measure, Node, NODE, Path, Row, Text, type EdgeState } from "@/components/figure";
+import { Link, NET_TONE, Switch } from "@/components/NetworkFigures";
 import { SequenceChart, TimeSpace } from "@/components/PacketFigures";
 
 interface FigureProps {
@@ -291,6 +291,48 @@ export function SharedMediumSchema({ title, caption, className }: FigureProps) {
           <Dot key="hub" at={[72, 94]} r={5} tone={NET_TONE.link} />,
         ])}
       </Row>
+    </Diagram>
+  );
+}
+
+/** One frame, three networks: the hosts cannot tell a coaxial cable, a hub and a switch apart. All drawings share the centre line y = 60. */
+export function TransparentSwitchSchema({ title, caption, className }: FigureProps) {
+  const field = measure("destination", FONT.note) + 2 * NODE.padX;
+  return (
+    <Diagram
+      title={title}
+      caption={caption ?? "A sends B the same Ethernet frame on a coaxial cable, a hub and a switch. Blue is one shared medium; the switch gives each host its own link."}
+      className={className}
+    >
+      <Col gap={32} align="center">
+        <Row wrap gap={48} align="start">
+          {panel("Coaxial cable", [
+            <Path key="bus" points={[[4, 60], [180, 60]]} thick tone={NET_TONE.link} />,
+            ...tapped("coax", "A", [36, 17], [36, 60]),
+            ...tapped("coax", "B", [148, 17], [148, 60]),
+            ...tapped("coax", "C", [92, 103], [92, 60]),
+          ])}
+          {panel("Hub", [
+            ...tapped("hub", "A", [20, 17], [72, 60], true),
+            ...tapped("hub", "B", [124, 17], [72, 60], true),
+            ...tapped("hub", "C", [72, 111], [72, 60], true),
+            <Dot key="hub" at={[72, 60]} r={5} tone={NET_TONE.link} />,
+          ])}
+          {panel("Switch", [
+            ...tapped("sw", "A", [20, 17], [50, 49]),
+            ...tapped("sw", "B", [124, 17], [94, 49]),
+            ...tapped("sw", "C", [72, 111], [72, 71]),
+            <Free key="switch" x={36} y={49}>
+              <Switch id="sw.switch" />
+            </Free>,
+          ])}
+        </Row>
+        <Group title="Ethernet frame" tone={NET_TONE.link} dir="row" gap={4} pad={8}>
+          <Node title="B" sub="destination" tone={NET_TONE.link} w={field} />
+          <Node title="A" sub="source" tone={NET_TONE.link} w={field} />
+          <Node title="data" w={field} />
+        </Group>
+      </Col>
     </Diagram>
   );
 }
