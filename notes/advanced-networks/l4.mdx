@@ -320,25 +320,47 @@ This is different from an IP router, which builds forwarding information using *
 
 ## Loops and the Spanning Tree Protocol
 
-A redundant link keeps a LAN connected when another link fails, but it creates a loop. Self-learning fails on a loop, because a switch sees the same host on several ports.
+Problem. If switches form a cycle, flooded frames can circulate indefinitely because Ethernet frames have no TTL.
 
 <SwitchLoopSchema />
 
-S1 floods a broadcast from A toward S3 and toward S2, and S2 floods it on to S3. S3 thus receives the frame of A on port 1 and on port 3. Switches are queuing systems with variable delays, so either copy may arrive last. The entry of S3 for A keeps changing.
+Suppose **A sends a frame to an unknown destination**.
 
-The copies also circulate around the loop forever. Each switch floods them on, and an Ethernet frame has no hop limit.
+1. **S1 floods it** to S2 and S3.
+2. S2 and S3 flood the copies again.
+3. The copies travel around the cycle and return to switches that already saw them.
+
+This also breaks self-learning. S3 may first learn:
+
+```text
+A → S1
+```
+
+but later receive a copy through S2 and update it to:
+
+```text
+A → S2   ← wrong
+```
+
+The entry can keep switching between ports (**MAC flapping**).
+
+**Result.** Cycles cause duplicated frames, unstable forwarding tables, and potentially a **broadcast storm**.
 
 **Spanning tree.** A spanning tree is a set of links that connects every switch and contains no loop.
 
-**STP (Spanning Tree Protocol).** STP is a distributed protocol in which the switches deactivate links until the active links form a spanning tree. STP recomputes the tree when a link fails or appears.
+<LoopTreeSchema />
 
-1. **Elect a root.** The root is the switch with the smallest ID. The ID is configurable.
-2. **Keep the shortest paths.** Each switch keeps the links on its shortest path to the root. The spanning tree is the set of these paths.
-3. **Monitor the root.** If the root becomes unreachable, the switches compute a new spanning tree.
+**Spanning Tree Protocol (STP).** A distributed Layer-2 protocol that prevents switching loops by disabling some redundant links so that the active topology forms a **loop-free spanning tree**.
 
-Each link has a configurable **cost**, usually a decreasing function of its bit rate. The shortest path is the path with the smallest total cost to the root. The switches compute it with a variant of the Bellman-Ford algorithm.
+**How it works.**
+1. Switches elect a **root switch**: the switch with the smallest bridge ID.
+2. Each switch keeps the path with the **lowest total cost** to the root.
+3. Links that would create cycles are **blocked**.
+4. If the topology changes or a link fails, STP **recomputes the tree** and can reactivate previously blocked links.
 
-STP has no central control and needs no configuration. The switches learn each other's IDs by gossip. An ID can contain a MAC address, so a managed switch has one. It uses this address for management and STP, never for forwarding.
+**Link cost.** Each switch-to-switch link has a configurable cost, typically lower for faster links.
+
+STP is **distributed**: switches exchange information with each other and compute the spanning tree without a central controller.
 
 **Example 5. Which links stay active?**
 
@@ -361,6 +383,8 @@ S4 reaches S1 via S3 for 101, and via S5 for 200. Link S4–S3 is on the tree, a
 **Example 6. A link fails.**
 
 Four switches form a square with S1 as the root. Links S1–S2, S1–S3, S1–S4 and S2–S3 cost 1, and link S3–S4 costs 2. Link S1–S3 fails.
+
+<LinkFailureSchema />
 
 | Switch | Path to S1 before | Path to S1 after |
 |---|---|---|

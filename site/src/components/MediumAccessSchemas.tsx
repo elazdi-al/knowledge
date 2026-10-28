@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Dot, FONT, Free, Group, measure, Node, NODE, Path, Row, Text, type EdgeState } from "@/components/figure";
+import { Col, Diagram, Dot, Edge, FONT, Free, Group, measure, Node, NODE, Path, Row, Text, type EdgeState } from "@/components/figure";
 import { Link, NET_TONE, Switch } from "@/components/NetworkFigures";
 import { SequenceChart, TimeSpace } from "@/components/PacketFigures";
 
@@ -109,23 +109,40 @@ const SW_W = 52;
 const HOST_D = 34;
 type Spot = [id: string, cx: number, cy: number];
 
+/** Node id of `name`, prefixed with its panel when one figure draws the same topology twice. */
+const inPanel = (name: string, panel?: string) => (panel ? `${panel}.${name}` : name);
+
 /** Switches as named boxes and hosts as circles, each centred on its spot; a switch marked `root` gets a strong outline and the word above it. */
-function Topology({ switches, hosts }: { switches: (Spot | [...Spot, "root"])[]; hosts: Spot[] }) {
+function Topology({ switches, hosts = [], panel }: { switches: (Spot | [...Spot, "root"])[]; hosts?: Spot[]; panel?: string }) {
   const h = NODE.h;
   const items: ReactNode[] = [
-    ...switches.flatMap(([id, cx, cy, root]) => [
-      <Node key={id} id={id} title={id} x={cx - SW_W / 2} y={cy - h / 2} w={SW_W} h={h} state={root ? "strong" : undefined} />,
-      root && <Text key={`${id}.root`} text="root" size="note" muted x={cx - measure("root", FONT.note) / 2} y={cy - h / 2 - 20} />,
+    ...switches.flatMap(([name, cx, cy, root]) => [
+      <Node key={name} id={inPanel(name, panel)} title={name} x={cx - SW_W / 2} y={cy - h / 2} w={SW_W} h={h} state={root ? "strong" : undefined} />,
+      root && <Text key={`${name}.root`} text="root" size="note" muted x={cx - measure("root", FONT.note) / 2} y={cy - h / 2 - 20} />,
     ]),
-    ...hosts.map(([id, cx, cy]) => <Node key={id} id={id} title={id} shape="circle" x={cx - HOST_D / 2} y={cy - HOST_D / 2} w={HOST_D} h={HOST_D} />),
+    ...hosts.map(([name, cx, cy]) => <Node key={name} id={inPanel(name, panel)} title={name} shape="circle" x={cx - HOST_D / 2} y={cy - HOST_D / 2} w={HOST_D} h={HOST_D} />),
   ];
   return <Free>{items}</Free>;
 }
 
-/** A link between two nodes of a topology: `[from, to, label?, state?]`; a ghost link is also dashed, so it never relies on colour alone. */
-type Wire = [from: string, to: string, label?: string, state?: EdgeState];
-const wires = (list: Wire[]) =>
-  list.map(([from, to, label, state]) => <Link key={`${from}-${to}`} from={from} to={to} label={label} state={state} dashed={state === "ghost"} route="straight" />);
+/**
+ * A link between two nodes of a topology: `[from, to, label?, state?]`; a ghost link is also dashed, so it never relies on colour alone.
+ * A `failed` link is dashed in the drop hue.
+ */
+type Wire = [from: string, to: string, label?: string, state?: EdgeState | "failed"];
+const wires = (list: Wire[], panel?: string) =>
+  list.map(([from, to, label, state]) => (
+    <Link
+      key={`${from}-${to}`}
+      from={inPanel(from, panel)}
+      to={inPanel(to, panel)}
+      label={label}
+      state={state === "failed" ? undefined : state}
+      tone={state === "failed" ? NET_TONE.drop : undefined}
+      dashed={state === "ghost" || state === "failed"}
+      route="straight"
+    />
+  ));
 
 /** Four switches, six hosts, nine full-duplex links. */
 export function SwitchedLanSchema({ title, caption, className }: FigureProps) {
@@ -162,37 +179,57 @@ export function SwitchedLanSchema({ title, caption, className }: FigureProps) {
   );
 }
 
-/** Three switches in a loop: S3 receives A's flooded frames on two ports. */
+/** Three switches in a loop, A's flood drawn in A's hue: each arrow is labelled with the step of the prose that sends it. */
 export function SwitchLoopSchema({ title, caption, className }: FigureProps) {
+  const flood = (from: string, to: string, label?: string, head: "end" | "both" = "end") => (
+    <Edge key={`${from}-${to}`} from={from} to={to} label={label} head={head} tone={A} route="straight" />
+  );
   return (
     <Diagram
       title={title}
-      caption={caption ?? "Three switches in a loop. A frame that S1 floods from A reaches S3 on port 1 directly and on port 3 through S2."}
+      caption={caption ?? "A frame from A on a loop of three switches. S1 floods it to S2 and S3 (1), and S2 and S3 flood their copies to each other (2). S3 thus receives the same frame from S1 and from S2."}
       className={className}
     >
       <Topology
         switches={[
-          ["S3", 270, 110],
-          ["S1", 120, 220],
-          ["S2", 420, 220],
+          ["S3", 290, 30],
+          ["S1", 150, 170],
+          ["S2", 430, 170],
         ]}
-        hosts={[
-          ["E", 270, 20],
-          ["A", 20, 220],
-          ["B", 120, 310],
-          ["C", 420, 310],
-          ["D", 520, 220],
+        hosts={[["A", 30, 170]]}
+      />
+      {flood("A", "S1")}
+      {flood("S1", "S3", "1")}
+      {flood("S1", "S2", "1")}
+      {flood("S2", "S3", "2", "both")}
+    </Diagram>
+  );
+}
+
+/** The loop of `SwitchLoopSchema` after STP, root on top so the tree hangs from it: the dashed S2–S3 base is blocked. */
+export function LoopTreeSchema({ title, caption, className }: FigureProps) {
+  return (
+    <Diagram
+      title={title}
+      caption={
+        caption ??
+        "The same loop after STP, with equal link costs. S1 has the smallest ID and is the root. S2 and S3 keep their direct links to S1 (blue), and STP blocks link S2–S3 (dashed). A frame from A now reaches each switch once."
+      }
+      className={className}
+    >
+      <Topology
+        switches={[
+          ["S1", 290, 40, "root"],
+          ["S2", 150, 180],
+          ["S3", 430, 180],
         ]}
+        hosts={[["A", 150, 40]]}
       />
       {wires([
-        ["E", "S3"],
         ["A", "S1"],
-        ["S1", "B"],
-        ["S2", "C"],
-        ["S2", "D"],
-        ["S1", "S3", "S3 port 1"],
-        ["S2", "S3", "S3 port 3"],
-        ["S1", "S2"],
+        ["S1", "S3", undefined, "active"],
+        ["S1", "S2", undefined, "active"],
+        ["S2", "S3", "blocked", "ghost"],
       ])}
     </Diagram>
   );
@@ -234,6 +271,52 @@ export function SpanningTreeSchema({ title, caption, className }: FigureProps) {
         ["S5", "A"],
         ["S4", "B"],
       ])}
+    </Diagram>
+  );
+}
+
+/** Example 6's square, stood on its corner so link S1–S3 runs straight down, before and after that link fails: S3 moves onto S2, and S3–S4 stays off the tree. */
+export function LinkFailureSchema({ title, caption, className }: FigureProps) {
+  const square = (panel: string, name: string, links: Wire[]) => (
+    <Col gap={12} align="center">
+      <Text text={name} weight={500} />
+      <Topology
+        panel={panel}
+        switches={[
+          ["S1", 146, 37, "root"],
+          ["S4", 26, 112],
+          ["S2", 266, 112],
+          ["S3", 146, 187],
+        ]}
+      />
+      {wires(links, panel)}
+    </Col>
+  );
+  return (
+    <Diagram
+      title={title}
+      caption={
+        caption ??
+        "Example 6, each link labelled with its cost. Blue links form the spanning tree and dashed grey links are inactive. When link S1–S3 fails (red), S3 reaches the root S1 through S2 at cost 2, so link S2–S3 joins the tree."
+      }
+      className={className}
+    >
+      <Row wrap gap={56} align="start">
+        {square("before", "Before", [
+          ["S1", "S2", "1", "active"],
+          ["S1", "S3", "1", "active"],
+          ["S1", "S4", "1", "active"],
+          ["S2", "S3", "1", "ghost"],
+          ["S4", "S3", "2", "ghost"],
+        ])}
+        {square("after", "After S1–S3 fails", [
+          ["S1", "S2", "1", "active"],
+          ["S1", "S3", "failed", "failed"],
+          ["S1", "S4", "1", "active"],
+          ["S2", "S3", "1", "active"],
+          ["S4", "S3", "2", "ghost"],
+        ])}
+      </Row>
     </Diagram>
   );
 }

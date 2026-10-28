@@ -70,6 +70,8 @@ import { LanguageClasses } from "@/components/LanguageClasses";
 import { PerceptronBoundarySchema, RegressionPlaneSchema } from "@/components/LinearModelSchemas";
 import {
   CsmaCdSchema,
+  LinkFailureSchema,
+  LoopTreeSchema,
   MinFrameSizeSchema,
   RtsCtsSchema,
   SharedMediumSchema,
@@ -168,7 +170,9 @@ export function useMDXComponents(
     LockGranularitySchema,
     LockPhaseSchema,
     LanCaptureSchema,
+    LinkFailureSchema,
     LongestPrefixMatchSchema,
+    LoopTreeSchema,
     LossShapesSchema,
     MomentumSchema,
     ProjectionSchema,
