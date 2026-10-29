@@ -66,6 +66,17 @@ import {
   UpnpSchema,
   StunSchema,
 } from "@/components/IpServicesSchemas";
+import {
+  BartLisaSchema,
+  BridgedPathSchema,
+  Dot1xSchema,
+  EthernetFrameSchema,
+  MacAddressSchema,
+  MacsecFrameSchema,
+  MeshWifiSchema,
+  VlanRouterSchema,
+  VlanTrunkSchema,
+} from "@/components/LanSchemas";
 import { LanguageClasses } from "@/components/LanguageClasses";
 import { PerceptronBoundarySchema, RegressionPlaneSchema } from "@/components/LinearModelSchemas";
 import {
@@ -130,6 +141,15 @@ export function useMDXComponents(
     ...packetFigures,
     AddressPrefixSchema,
     Automaton,
+    BartLisaSchema,
+    BridgedPathSchema,
+    Dot1xSchema,
+    EthernetFrameSchema,
+    MacAddressSchema,
+    MacsecFrameSchema,
+    MeshWifiSchema,
+    VlanRouterSchema,
+    VlanTrunkSchema,
     BPlusTree,
     BufferQueue,
     ClockPolicy,

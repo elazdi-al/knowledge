@@ -17,7 +17,7 @@ updated: 2026-10-21
 
 **Binary classification.** Classification with exactly two classes, typically $y\in\{0,1\}$.
 
-**Regression.** Predicting a continuous numerical value $y\in\mathbb{R}$.
+--- 
 
 ## Linear Classification
 
@@ -101,6 +101,9 @@ $$
 $$
 
 So, for linearly separable data, the perceptron is guaranteed to converge after finitely many updates.
+
+---
+
 ## Regression
 
 **Regression.** A supervised learning task where, given an example $\mathbf{x}\in\mathbb{R}^n$, the goal is to predict a real-valued output:
@@ -320,12 +323,4 @@ for all $\mathbf{w}$ sufficiently close to $\mathbf{w}^\star$, then $\mathbf{w}^
 
 <MinimaSchema />
 
-
-**MSE with a linear model.** For linear regression, the MSE
-
-$$
-L(\mathbf{w})=\frac{1}{2N}\sum_{i=1}^N\left(y_i-\mathbf{w}^\top\mathbf{x}_i\right)^2
-$$
-
-is convex in $\mathbf{w}$.
-Importance of convexity. Convexity is a desirable computational property because optimization does not suffer from bad local minima: any local minimum found is global.
+**Importance of convexity.** Convexity is a desirable computational property because optimization does not suffer from bad local minima: any local minimum found is global.

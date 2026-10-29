@@ -1,0 +1,269 @@
+---
+title: "Advanced Networks: Lecture 5"
+tags: ["Advanced networks"]
+created: 2026-10-28
+updated: 2026-10-28
+---
+
+## The Ethernet Frame
+
+Every Ethernet frame has the same layout. Its MAC header holds the destination address, the source address and the Ethertype.
+
+<EthernetFrameSchema />
+
+**Preamble.** The preamble is 7 bytes of `10101010` that open every frame. The receiver uses it to synchronize its clock with the clock of the sender.
+
+Ethernet hosts transmit independently, and the channel is idle between frames. The receiver therefore synchronizes again at the start of each frame.
+
+**SFD (Start Frame Delimiter).** The SFD is the byte `10101011` that follows the preamble. Its final `11` marks the start of the frame.
+
+The Ethertype names the protocol of the payload.
+
+| Ethertype | Payload |
+|---|---|
+| `0x0800` | IPv4 |
+| `0x0806` | ARP |
+| `0x86dd` | IPv6 |
+| `0x88e5` | MACsec, an authenticated or encrypted frame |
+| `0x88f7` | Precision Time Protocol |
+
+**Common mistake.** The Ethertype does not say whether a frame carries TCP. It names only the protocol directly inside the frame, such as IPv4. The protocol field of the IP header names TCP.
+
+The MAC header has no length field. The protocol inside the frame finds the length of its own data, as IPv4 does with its total length field.
+
+A frame counts from the destination address to the FCS. It has at least 64 bytes, so that collisions can be detected, and at most 1518 bytes. If the payload is shorter than 46 bytes, the sender pads it.
+
+This layout is Ethernet v2. IEEE 802.3 defines a second format. WiFi frames look similar, with more fields in the MAC header.
+
+**Example 1. Padding an ARP request.**
+
+An ARP packet has 28 bytes. How many bytes of padding does its frame carry?
+
+The payload needs at least $64 - 14 - 4 = 46$ bytes: the frame minimum, minus the MAC header and the FCS. The sender adds $46 - 28 = 18$ bytes of zeros. A capture tool shows them as a trailer after the ARP packet.
+
+**FCS (Frame Check Sequence).** The FCS is the last field of the frame. It holds a 32-bit CRC (Cyclic Redundancy Check), a checksum that the sender computes over the frame.
+
+The receiver computes the CRC again. If the result differs from the FCS, bit errors corrupted the frame, and the receiver drops it. Ethernet handles errors only this way: it drops the frame and never repairs it.
+
+The 32-bit CRC detects every error of one, two or three bits, and every error burst of at most 32 bits. It also detects most pairs of bursts of at most 17 bits. A random pattern of bit errors goes undetected with probability $2^{-32} \approx 2.3 \times 10^{-10}$.
+
+## MAC Addresses
+
+**OUI (Organizationally Unique Identifier).** The OUI is the first 24 bits of a MAC address. The IEEE assigns each OUI to one manufacturer, which numbers its interfaces with the last 24 bits.
+
+Two bits of the first byte classify every MAC address.
+
+- **I/G bit (individual/group).** The I/G bit is 0 in the address of one interface and 1 in a group address.
+- **U/L bit (universal/local).** The U/L bit is 0 in an address that the manufacturer assigned, called globally administered. It is 1 in a locally administered address.
+
+Ethernet sends each byte least significant bit first. The I/G bit is the least significant bit of the first byte, so it is the first bit on the wire. The U/L bit comes next.
+
+<MacAddressSchema />
+
+*A MAC address names a group exactly when its first byte is odd.*
+
+**Randomized MAC address.** A randomized MAC address is a locally administered address that the operating system picks at random. iOS, Android and Windows 11 use one by default, so that the address no longer identifies the device.
+
+**Example 2. Classifying addresses.**
+
+Which of these addresses name one interface? Which did a manufacturer assign?
+
+| Address | First byte | I/G | U/L | Kind |
+|---|---|---|---|---|
+| `08:00:20:71:0d:d4` | `00001000` | 0 | 0 | one interface, assigned by its manufacturer (Sun) |
+| `3a:62:9e:14:c0:7b` | `00111010` | 0 | 1 | one interface, randomized |
+| `01:00:5e:02:36:cf` | `00000001` | 1 | 0 | group: IPv4 multicast |
+| `33:33:ff:66:00:01` | `00110011` | 1 | 1 | group: IPv6 multicast |
+| `ff:ff:ff:ff:ff:ff` | `11111111` | 1 | 1 | group: broadcast |
+
+## Unicast, Broadcast and Multicast Frames
+
+**Broadcast MAC address.** The broadcast MAC address is `ff:ff:ff:ff:ff:ff`. Every interface accepts a frame sent to it.
+
+**Multicast MAC address.** A multicast MAC address is a group address other than the broadcast address. An interface accepts a frame sent to it only if its host subscribed to the group.
+
+Each upper-layer protocol has its own multicast range. IPv4 multicast addresses start with `01:00:5e`, and IPv6 multicast addresses start with `33:33`.
+
+| Destination | Shared medium | Switched Ethernet |
+|---|---|---|
+| unicast | every station reads the frame, only the destination keeps it | switches forward the frame toward the destination, once they have learned it |
+| broadcast | every station keeps the frame | switches flood the frame on all spanning-tree ports, except the port it arrived on |
+| multicast | an adapter drops the frame unless its host subscribed | a simple switch floods the frame; a smart switch sends it only to subscribed hosts |
+
+The spanning tree has no loop, so a flooded frame reaches every host exactly once.
+
+**Example 3. Adding IPv6.**
+
+A network of Ethernet switches runs IPv4. The administrator adds IPv6. Do the switch configurations change?
+
+No. Switches read only the MAC header, so they work the same for IPv4, IPv6 or any other payload. Smart switches are the one exception. They read the group memberships of the IP layer to send multicast frames only to subscribers.
+
+---
+
+## LANs as Broadcast Domains
+
+**Broadcast domain.** A broadcast domain is the set of interfaces that one broadcast frame reaches.
+
+A LAN is exactly one broadcast domain. It is a logical network, not a box, a cable or a technology. One switch can carry several LANs, and one LAN can span several medium access technologies.
+
+## Virtual LANs
+
+**VLAN (Virtual LAN).** A VLAN is a LAN defined by configuration. The network manager assigns each switch port to one VLAN, and the switch treats ports of different VLANs as separate LANs.
+
+VLANs decouple membership in a LAN from physical location. Broadcast traffic stays within one VLAN, and access control can apply per VLAN. Several LANs share the free ports of one switch. A user who moves keeps their LAN without new cabling.
+
+Each VLAN behaves like a physically separate LAN. It has its own forwarding tables and its own spanning tree, computed by MSTP (Multiple Spanning Tree Protocol).
+
+**Trunk port.** A trunk port is a switch port that belongs to several VLANs. Switches that share VLANs connect through trunk ports.
+
+**VLAN tag.** The VLAN tag is a 4-byte field that IEEE 802.1Q inserts after the source address. It holds `0x8100` and the VLAN ID of the frame.
+
+<VlanTrunkSchema />
+
+Every frame on a trunk link carries a VLAN tag, so the receiving switch knows its VLAN. The tag raises the maximum frame size from 1518 to 1522 bytes. A port of one VLAN sends and receives untagged frames, so hosts never see tags.
+
+**Example 4. Between two VLANs.**
+
+Host A in VLAN 2 has an IP packet for host C in VLAN 3. Both hosts connect to switch S1. Should A resolve the MAC address of C, or its MAC address and VLAN?
+
+Neither. VLANs 2 and 3 are two separate LANs, so A cannot send to C directly. The packet must cross a router R, the gateway of both VLANs.
+
+R joins both VLANs in one of three ways.
+
+- R has one interface in each VLAN. A resolves the MAC address of the VLAN 2 interface of R and sends it the packet. R forwards the packet on its VLAN 3 interface.
+- R has a trunk port, linked to a trunk port of S1.
+- R and S1 are one device, and R reaches all VLAN ports directly.
+
+<VlanRouterSchema />
+
+With a trunk link, the frame crosses it twice, once in each VLAN.
+
+| Hop | Link | VLAN tag |
+|---|---|---|
+| A to S1 | port of VLAN 2 | none |
+| S1 to R | trunk | 2 |
+| R to S1 | trunk | 3 |
+| S1 to C | port of VLAN 3 | none |
+
+## Bridges
+
+A bridge can also join different medium access technologies, such as WiFi and Ethernet, into one LAN. No router is involved.
+
+**WiFi access point.** A WiFi access point is a bridge between WiFi and Ethernet. It combines a WiFi base station with a switch whose Ethernet side is the **distribution system**.
+
+A WiFi frame carries three MAC addresses: source, destination and access point. When WiFi host A sends to Ethernet host G through access point E, the frame carries the addresses A, G and E.
+
+**Mesh WiFi.** In mesh WiFi, base stations connect to each other through WiFi relays instead of Ethernet. The relays act as switches.
+
+A frame between two relays carries four MAC addresses: source, destination, transmitting relay and receiving relay.
+
+<MeshWifiSchema />
+
+| Point | Source | Destination | Other addresses |
+|---|---|---|---|
+| 1 | A | B | access point M1 |
+| 2 | A | B | transmitting relay M2, receiving relay M3 |
+
+**Example 5. A bridge keeps the addresses.**
+
+The web server sends an IP packet to Elaine. What is the destination MAC address at point 1, in each network? Which network uses resources better?
+
+<BridgedPathSchema />
+
+M4, in both networks. Elaine and the web server share one bridged LAN, so the web server resolves the MAC address of Elaine directly. A bridge forwards a frame without rewriting its addresses. A router, by contrast, writes a new MAC header at every hop.
+
+The access point uses resources better. In the top network, every WiFi frame crosses the air twice. It goes once between Elaine and the base station, and once between the base station and the bridge.
+
+## Switches Versus Routers
+
+Switches, bridges and WiFi base stations interconnect devices within a LAN. IP routers interconnect subnets, and so far each subnet is one LAN.
+
+Switches are plug-and-play. They work the same whatever the IP numbering plan or the IP version.
+
+A switch looks up the exact MAC address, with one table entry per host. MAC addresses have no prefixes to aggregate, so the table grows with the number of hosts, not of networks. Large networks therefore use routers.
+
+Historically, routers ran in software and switches in hardware. Today both exist in either form.
+
+---
+
+## Attacks on the MAC Layer
+
+MAC addresses travel in cleartext, and many frames are broadcast. Plain Ethernet, at home or at EPFL, authenticates no MAC address.
+
+**Eavesdropping.** In eavesdropping, an attacker reads the payloads of frames sent to other hosts.
+
+**Free riding.** In free riding, an unauthorized device joins the network and uses it.
+
+**Impersonation.** In impersonation, an attacker sends frames with the MAC address of another host. A **replay attack** resends a captured frame.
+
+| Defence | Mechanism | Stops |
+|---|---|---|
+| access control | the user shows credentials before joining | free riding |
+| authenticity | cryptography authenticates the source MAC address | impersonation |
+| confidentiality | cryptography encrypts frame payloads, but not MAC addresses | eavesdropping |
+
+**Shared access control.** With shared access control, all users know the same password, as in WPA2-Personal and WPA3-Personal.
+
+**Per-user access control.** With per-user access control, each user has a personal password, as in WPA2-Enterprise and WPA3-Enterprise.
+
+**Session key.** A session key is a secret key that a host and the base station share for one session. They use it to authenticate and encrypt frames.
+
+Home WiFi uses shared access control. It stops free riding but does not tell users apart. Under WPA2-Personal, anyone who knows the password can derive the session key of another user from their handshake. WPA3 derives secrets per session, so the password alone no longer allows impersonation.
+
+EPFL WiFi uses per-user access control, authentication and encryption. All three attacks are impossible there in principle.
+
+## IEEE 802.1X and MACsec
+
+**IEEE 802.1X.** IEEE 802.1X is the standard for per-user access control on WiFi and Ethernet. The base station or switch admits a host only after an authentication server accepts its credentials.
+
+**MACsec (IEEE 802.1AE).** MACsec is the standard that authenticates and encrypts Ethernet frames with session keys. WiFi does the same with WPA2 or WPA3.
+
+Admission involves the host, the base station (or switch) and the authentication server, typically a RADIUS server.
+
+<Dot1xSchema />
+
+The TLS connection runs from the host to the server, so eavesdroppers never read the credentials. After the accept, the host and the base station derive session keys. The base station binds these keys to the MAC address of the host.
+
+<MacsecFrameSchema />
+
+The ICV (Integrity Check Value) authenticates the source address and the payload, so a forged source address fails the check. Encryption covers only the payload. The MAC addresses stay in cleartext, because every switch must read them.
+
+**Example 6. The EPFL WiFi profile.**
+
+A Mac connected to the EPFL WiFi shows these settings. What role does each one play?
+
+```text
+802.1X profile:       Wi-Fi (epfl)
+Authentication:       EAP-PEAP (MSCHAPv2)
+Security type:        WPA2
+Trusted certificate:  DigiCert Global Root G2
+Trusted server:       radius.epfl.ch
+```
+
+| Setting | Role |
+|---|---|
+| 802.1X | per-user access control |
+| PEAP | the TLS tunnel to the authentication server |
+| MSCHAPv2 | the inner protocol that checks the credentials |
+| WPA2 | authenticates and encrypts frames with session keys |
+| `radius.epfl.ch` | the authentication server |
+| DigiCert Global Root G2 | lets the host verify the certificate of the server |
+
+The trusted certificate and server stop a fake base station from collecting the credentials.
+
+**Example 7. Bart shares his access.**
+
+Bart, an EPFL student, connects his PC to the EPFL WiFi. Lisa has no EPFL account and plugs into the Ethernet port of his PC. Can Lisa reach the internet if Bart's PC acts as a bridge? As a NAT?
+
+<BartLisaSchema />
+
+| Bart's PC acts as | Source MAC of Lisa's frames at point 1 | Base station |
+|---|---|---|
+| bridge | M3, Lisa's | drops them |
+| NAT | M1, Bart's | accepts them |
+
+As a bridge, Bart's PC forwards Lisa's frames with her source address M3. The base station bound Bart's session key to M1, so it drops every frame from M3. Even frames that Bart's PC authenticates with his key fail this check.
+
+As a NAT, Bart's PC is a layer-3 device that splits the network into two LANs. Lisa's frames end at Bart's PC, and the frames on the WiFi come from M1. The base station accepts them, and Lisa uses the campus network without an account. To EPFL, Lisa looks like another program on Bart's PC, with its own port.
+
+The same holds if Bart sits behind his own NAT box, since that box authenticated to the EPFL WiFi. A virtual machine on a laptop works the same way: the hypervisor runs a NAT, so the VM reaches the WiFi without authenticating again.
