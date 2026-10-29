@@ -1,6 +1,9 @@
-import { getAllNotes, groupByCourse } from "@/lib/notes";
+import { getAllNotes, groupByCourse, WRITING } from "@/lib/notes";
 import { isPrivate } from "@/lib/private-course";
 import { NoteList } from "@/components/NoteList";
+
+/** "Oct 2026". UTC, like the YAML dates, so a post never slips into the previous month. */
+const month = (d?: Date) => d?.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 
 export default async function HomePage() {
   // The private course reaches the client only through the Worker's gate.
@@ -8,7 +11,11 @@ export default async function HomePage() {
   const courses = groupByCourse(notes).map((course) => ({
     slug: course.slug,
     name: course.name,
-    notes: course.notes.map(({ note, label }) => ({ slug: note.slug, label })),
+    notes: course.notes.map(({ note, label }) => ({
+      slug: note.slug,
+      label,
+      date: course.slug === WRITING ? month(note.frontmatter.created) : undefined,
+    })),
   }));
 
   return (

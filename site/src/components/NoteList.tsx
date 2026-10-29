@@ -4,13 +4,13 @@ import { Input } from "@base-ui/react/input";
 import { Tabs } from "@base-ui/react/tabs";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { COURSES, CourseIcon } from "@/components/CourseIcon";
+import { ARCHIVE, COURSES, CourseIcon } from "@/components/CourseIcon";
 import { PRIVATE_COURSE, type PrivateIndex } from "@/lib/private-course";
 
 export interface CourseEntry {
   slug: string;
   name: string;
-  notes: { slug: string; label: string }[];
+  notes: { slug: string; label: string; date?: string }[];
 }
 
 interface Props {
@@ -58,13 +58,14 @@ async function requestGate(password?: string): Promise<Gate> {
 
 const ROW = "-mx-3 h-10 rounded-md px-3";
 
-function NoteRow({ slug, label }: { slug: string; label: string }) {
+function NoteRow({ slug, label, date }: CourseEntry["notes"][number]) {
   return (
     <Link
       href={`/notes/${slug}`}
-      className={`${ROW} flex items-center no-underline hover:bg-[color:var(--color-hover)]`}
+      className={`${ROW} flex items-center justify-between gap-4 no-underline hover:bg-[color:var(--color-hover)]`}
     >
-      {label}
+      <span className="truncate">{label}</span>
+      {date && <span className="shrink-0 text-gray-1100 tabular-nums">{date}</span>}
     </Link>
   );
 }
@@ -126,16 +127,28 @@ function PrivateNotes({
   );
 }
 
-/** One tab per course; the selected course lives in the URL hash so going back lands on it. */
+/** An archived course's old hash, or a note's back link to one, opens the archive. */
+const tabOf = (slug: string) => (COURSES[slug]?.archived ? ARCHIVE : slug);
+
+/**
+ * One tab per course, then the private course, then one archive tab that stacks every archived course. The selected
+ * tab lives in the URL hash so going back lands on it.
+ */
 export function NoteList({ courses }: Props) {
-  const [course, setCourse] = useState(courses[0]?.slug);
+  const current = courses.filter((c) => !COURSES[c.slug]?.archived);
+  const archived = courses.filter((c) => COURSES[c.slug]?.archived);
+  const tabs = [...current, { slug: PRIVATE_COURSE, name: PRIVATE_COURSE }];
+  if (archived.length > 0) tabs.push({ slug: ARCHIVE, name: ARCHIVE });
+
+  const [course, setCourse] = useState(tabs[0].slug);
   // Lifted out of the panel: Base UI unmounts inactive panels.
   const [gate, setGate] = useState<Gate>({ kind: "idle" });
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fromHash = decodeURIComponent(location.hash.slice(1));
-    if (fromHash === PRIVATE_COURSE || courses.some((c) => c.slug === fromHash)) setCourse(fromHash);
+    const fromHash = tabOf(decodeURIComponent(location.hash.slice(1)));
+    if (tabs.some((t) => t.slug === fromHash)) setCourse(fromHash);
+    // `tabs` derives from `courses`.
   }, [courses]);
 
   // Visitors who never open the private tab never reach the Worker.
@@ -164,7 +177,7 @@ export function NoteList({ courses }: Props) {
       className="flex min-h-0 flex-1 flex-col"
     >
       <Tabs.List className="course-tabs -mx-2 mb-5 sm:-mt-2 sm:mb-2">
-        {[...courses, { slug: PRIVATE_COURSE, name: PRIVATE_COURSE }].map((c) => (
+        {tabs.map((c) => (
           <Tabs.Tab key={c.slug} value={c.slug} className="course-tab">
             <CourseIcon course={c.slug} className="size-3.5 shrink-0" />
             <span>{COURSES[c.slug]?.label ?? c.name}</span>
@@ -173,14 +186,29 @@ export function NoteList({ courses }: Props) {
         <Tabs.Indicator className="course-tabs__indicator" renderBeforeHydration />
       </Tabs.List>
       <div ref={scroller} className="home-scroller">
-        <div className="grid">
-          {courses.map((c) => (
+        <div className="grid grid-cols-1">
+          {current.map((c) => (
             <Tabs.Panel key={c.slug} value={c.slug} className="course-panel flex flex-col">
               {c.notes.map((note) => (
                 <NoteRow key={note.slug} {...note} />
               ))}
             </Tabs.Panel>
           ))}
+          {archived.length > 0 && (
+            <Tabs.Panel value={ARCHIVE} className="course-panel flex flex-col gap-6">
+              {archived.map((c) => (
+                <section key={c.slug} className="flex flex-col">
+                  <h2 className="flex h-8 items-center gap-1.5 text-sm font-medium lowercase text-gray-1100">
+                    <CourseIcon course={c.slug} className="size-3.5 shrink-0" />
+                    {COURSES[c.slug].label}
+                  </h2>
+                  {c.notes.map((note) => (
+                    <NoteRow key={note.slug} {...note} />
+                  ))}
+                </section>
+              ))}
+            </Tabs.Panel>
+          )}
           <Tabs.Panel value={PRIVATE_COURSE} className="course-panel flex flex-col">
             <PrivateNotes
               gate={gate}

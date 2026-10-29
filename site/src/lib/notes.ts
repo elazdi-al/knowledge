@@ -101,6 +101,9 @@ export interface Course {
   notes: { note: Note; label: string }[];
 }
 
+/** Standalone posts rather than a course: full titles, newest first. */
+export const WRITING = "writing";
+
 /**
  * Notes grouped by their top-level folder, in listing order. The course name
  * is the title prefix every note in the folder shares ("Theory of
@@ -112,9 +115,10 @@ export function groupByCourse(notes: Note[]): Course[] {
     const key = note.slugSegments.length > 1 ? note.slugSegments[0] : "";
     bySlug.set(key, [...(bySlug.get(key) ?? []), note]);
   }
+  bySlug.get(WRITING)?.sort((a, b) => (b.frontmatter.created?.getTime() ?? 0) - (a.frontmatter.created?.getTime() ?? 0));
   return [...bySlug].map(([slug, group]) => {
     const prefixes = new Set(group.map((n) => n.frontmatter.title.split(": ")[0]));
-    const shared = prefixes.size === 1 && group.every((n) => n.frontmatter.title.includes(": "));
+    const shared = slug !== WRITING && prefixes.size === 1 && group.every((n) => n.frontmatter.title.includes(": "));
     const name = shared ? [...prefixes][0] : slug.replace(/-/g, " ");
     return {
       slug,

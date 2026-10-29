@@ -28,6 +28,11 @@ The CTF password is a secret: `wrangler secret put CTF_PASSWORD`, or
 `notes/<course>/<slug>.mdx` is served at `/notes/<course>/<slug>`. Notes sort
 by path, numbers numerically (`l2` before `l10`). Each course is a homepage
 tab, named by the shared title prefix (`Theory of Computation: Lecture 1`).
+`archived: true` on a course in `site/src/components/CourseIcon.tsx` moves it
+into the `archive` tab; its URLs stay the same.
+
+`notes/writing/` holds standalone posts (CTF writeups, project articles). Their
+titles are kept whole, and the tab lists them newest first by `created`.
 
 ```md
 ---

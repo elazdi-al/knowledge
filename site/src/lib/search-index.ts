@@ -1,4 +1,4 @@
-import type { Note } from "./notes";
+import { WRITING, type Note } from "./notes";
 
 /**
  * Build-time search index.
@@ -157,6 +157,8 @@ function fileLabel(file: string): string {
 function noteLabel(slugSegments: string[]): string {
   const file = slugSegments[slugSegments.length - 1];
   if (slugSegments.length < 2) return fileLabel(file);
+  // Posts have names, not numbers: "boneh-durfee", not "W BONEH-DURFEE".
+  if (slugSegments[0] === WRITING) return file;
   return `${courseInitials(slugSegments[0])} ${fileLabel(file)}`;
 }
 
