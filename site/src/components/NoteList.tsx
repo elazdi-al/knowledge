@@ -4,7 +4,7 @@ import { Input } from "@base-ui/react/input";
 import { Tabs } from "@base-ui/react/tabs";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ARCHIVE, COURSES, CourseIcon } from "@/components/CourseIcon";
+import { ARCHIVE, CategoryIcon, COURSES, CourseIcon } from "@/components/CourseIcon";
 import { PRIVATE_COURSE, type PrivateIndex } from "@/lib/private-course";
 
 export interface CourseEntry {
@@ -70,6 +70,18 @@ function NoteRow({ slug, label, date }: CourseEntry["notes"][number]) {
   );
 }
 
+/** A small heading over its notes: an archived course, or a CTF category. */
+function Group({ heading, notes }: { heading: React.ReactNode; notes: CourseEntry["notes"] }) {
+  return (
+    <section className="flex flex-col">
+      <h2 className="flex h-8 items-center gap-1.5 text-sm font-medium lowercase text-gray-1100">{heading}</h2>
+      {notes.map((note) => (
+        <NoteRow key={note.slug} {...note} />
+      ))}
+    </section>
+  );
+}
+
 function PrivateNotes({
   gate,
   onUnlock,
@@ -90,11 +102,21 @@ function PrivateNotes({
   }, [gate]);
 
   if (gate.kind === "open") {
-    return gate.notes.length > 0 ? (
-      gate.notes.map((note) => <NoteRow key={note.slug} {...note} />)
-    ) : (
-      <p className="flex h-10 items-center text-gray-1100">No notes yet.</p>
-    );
+    if (gate.notes.length === 0) return <p className="flex h-10 items-center text-gray-1100">No notes yet.</p>;
+    // One group per category folder: ctf/cryptography/rsa sits under "cryptography".
+    const categories = Map.groupBy(gate.notes, (note) => note.slug.split("/").at(-2)!);
+    return [...categories].map(([category, notes]) => (
+      <Group
+        key={category}
+        heading={
+          <>
+            <CategoryIcon category={category} className="size-3.5 shrink-0" />
+            {category.replace(/-/g, " ")}
+          </>
+        }
+        notes={notes}
+      />
+    ));
   }
   if (gate.kind !== "locked" && gate.kind !== "unlocking") return null;
 
@@ -197,19 +219,20 @@ export function NoteList({ courses }: Props) {
           {archived.length > 0 && (
             <Tabs.Panel value={ARCHIVE} className="course-panel flex flex-col gap-6">
               {archived.map((c) => (
-                <section key={c.slug} className="flex flex-col">
-                  <h2 className="flex h-8 items-center gap-1.5 text-sm font-medium lowercase text-gray-1100">
-                    <CourseIcon course={c.slug} className="size-3.5 shrink-0" />
-                    {COURSES[c.slug].label}
-                  </h2>
-                  {c.notes.map((note) => (
-                    <NoteRow key={note.slug} {...note} />
-                  ))}
-                </section>
+                <Group
+                  key={c.slug}
+                  heading={
+                    <>
+                      <CourseIcon course={c.slug} className="size-3.5 shrink-0" />
+                      {COURSES[c.slug].label}
+                    </>
+                  }
+                  notes={c.notes}
+                />
               ))}
             </Tabs.Panel>
           )}
-          <Tabs.Panel value={PRIVATE_COURSE} className="course-panel flex flex-col">
+          <Tabs.Panel value={PRIVATE_COURSE} className="course-panel flex flex-col gap-6">
             <PrivateNotes
               gate={gate}
               onUnlock={(password) => {

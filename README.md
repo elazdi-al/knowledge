@@ -34,6 +34,11 @@ into the `archive` tab; its URLs stay the same.
 `notes/writing/` holds standalone posts (CTF writeups, project articles). Their
 titles are kept whole, and the tab lists them newest first by `created`.
 
+The private `ctf` tab groups its notes by category folder:
+`notes/ctf/cryptography/rsa.mdx` is listed under "cryptography". `cryptography`,
+`pwn`, `web`, `reversing`, `forensics` and `misc` have icons; other folders get a
+book.
+
 ```md
 ---
 title: "Data Intensive Systems: Lecture 9"   # required

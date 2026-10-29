@@ -3,7 +3,6 @@ import { Automaton } from "@/components/Automaton";
 import { BPlusTree } from "@/components/BPlusTree";
 import { BufferQueue } from "@/components/BufferQueue";
 import { ClockPolicy } from "@/components/ClockPolicy";
-import { CbcModeSchema, CtrModeSchema, DiffieHellmanSchema, EcbLeakSchema, EllipticCurveSchema, EndiannessSchema, ProgramMemorySchema } from "@/components/CtfSchemas";
 import {
   GraphCertificateSchema,
   PnpContainmentSchema,
@@ -156,19 +155,13 @@ export function useMDXComponents(
     CausalConsistencySchema,
     ConflictSerializabilitySchema,
     CsmaCdSchema,
-    CbcModeSchema,
-    CtrModeSchema,
     CurseOfDimensionalitySchema,
     DeadlockPreventionSchema,
-    DiffieHellmanSchema,
-    EcbLeakSchema,
-    EllipticCurveSchema,
     DfaToPathReductionSchema,
     DhcpRelaySchema,
     DomainNameSchema,
     DynamoSiblingsSchema,
     EncapsulationSchema,
-    EndiannessSchema,
     EpflForwardingSchema,
     FeatureScalingSchema,
     ERDiagram,
@@ -220,7 +213,6 @@ export function useMDXComponents(
     LeftDeepPlanSchema,
     OptimizerArchitectureSchema,
     PrefixDelegationSchema,
-    ProgramMemorySchema,
     QueryTree,
     QueryProcessingFlow,
     QuorumOverlapSchema,
