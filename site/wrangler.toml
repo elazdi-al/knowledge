@@ -12,6 +12,7 @@
 # Unset, the gate fails closed: nothing unlocks.
 
 name = "knowledge"
+account_id = "1a7fee377b197835d9a94546767494e7"
 main = "worker/index.ts"
 # Newest date the workerd binary pinned by wrangler 4.93 supports locally.
 compatibility_date = "2026-05-25"
