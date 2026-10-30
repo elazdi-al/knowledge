@@ -1,10 +1,12 @@
+<img src="site/public/favicon.svg" alt="knowledge logo" width="48">
+
 # knowledge
 
 Course notes in MDX (`notes/`) and the Next.js site that renders them (`site/`).
 A Cloudflare Worker serves the static export, answers search, and gates the
 private CTF course.
 
-Live at <https://knowledge.galipetapp.workers.dev>.
+[knowledge.elazdi.com](https://knowledge.elazdi.com)
 
 ![A lecture page with its side outline and network figures](docs/screenshot.png)
 
@@ -26,7 +28,8 @@ bun run check:figures       # fails on a registered figure that no note uses
 ```
 
 Set the CTF password with `wrangler secret put CTF_PASSWORD`, or in `.dev.vars`
-locally.
+locally. `wrangler.toml` pins the Cloudflare account, so unset any
+`CLOUDFLARE_API_TOKEN` for another account before you deploy.
 
 ## Notes
 
@@ -62,4 +65,4 @@ to `/tmp/figures`. It needs `bun run dev` and Playwright's Chromium.
 
 ## License
 
-Code is [MIT](LICENSE). Notes are [CC BY 4.0](notes/LICENSE).
+Code is MIT (`LICENSE`). Notes are CC BY 4.0 (`notes/LICENSE`).
