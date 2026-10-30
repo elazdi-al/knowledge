@@ -10,10 +10,6 @@
 #   wrangler secret put CTF_PASSWORD     # production
 #   CTF_PASSWORD=… in .dev.vars          # wrangler dev (gitignored)
 # Unset, the gate fails closed: nothing unlocks.
-#
-# The first `wrangler deploy` creates the `knowledge` Worker; if a custom
-# domain still points at the old Pages project, move it to this Worker in
-# the dashboard (Workers & Pages → knowledge → Domains & Routes).
 
 name = "knowledge"
 main = "worker/index.ts"

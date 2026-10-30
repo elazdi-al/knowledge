@@ -1,5 +1,6 @@
-# source slides
+# source slides and papers
 *.pdf
+sources/
 
 # private CTF notes
 notes/ctf/
