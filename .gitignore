@@ -1,6 +1,9 @@
 # source slides
 *.pdf
 
+# private CTF notes
+notes/ctf/
+
 # logs
 *.log
 npm-debug.log*

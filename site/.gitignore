@@ -1,7 +1,6 @@
 node_modules/
 .next/
 out/
-.vercel/
 .wrangler/
 .dev.vars
 
@@ -9,22 +8,5 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
-# env
-.env*.local
-.env.local
-
-# editor
-.DS_Store
-.idea/
-.vscode/*
-!.vscode/extensions.json
-
-# logs
-*.log
-
-# local diagram previews
-preview-*.html
-preview-*.png
-crop-*.png
-_slices/
+# local figure screenshots
 _shots/
