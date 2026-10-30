@@ -21,8 +21,6 @@ import { ERInstanceMapping } from "@/components/ERInstanceMapping";
 import {
   CausalConsistencySchema,
   DynamoSiblingsSchema,
-  KeyRangeLockingSchema,
-  PhantomReadSchema,
   QuorumOverlapSchema,
 } from "@/components/EventualConsistencySchemas";
 import { figureComponents } from "@/components/figure";
@@ -180,7 +178,6 @@ export function useMDXComponents(
     Ipv4HeaderSchema,
     Ipv6AddressSchema,
     Ipv6HeaderSchema,
-    KeyRangeLockingSchema,
     LanguageClasses,
     LockGranularitySchema,
     LockPhaseSchema,
@@ -206,7 +203,6 @@ export function useMDXComponents(
     Pane,
     PathStacksSchema,
     PerceptronBoundarySchema,
-    PhantomReadSchema,
     PnpContainmentSchema,
     ExecutionModelSchema,
     GraceProbeSchema,
