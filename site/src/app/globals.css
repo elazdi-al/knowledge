@@ -421,7 +421,7 @@ html:has(.home-pane) main {
     font-weight: 400;
   }
 
-  /* Text and tables sit in the reading measure, centred; figures, code,
+  /* Text, tables and code sit in the reading measure, centred; figures,
      splits and display math take the full page width so they never shrink. */
   .prose > * {
     min-width: 0;
@@ -429,7 +429,7 @@ html:has(.home-pane) main {
     margin-inline: auto;
   }
 
-  .prose > :is(.diagram, .split, figure, pre, .katex-display) {
+  .prose > :is(.diagram, .split, figure:not([data-rehype-pretty-code-figure]), .katex-display) {
     max-width: 100%;
   }
 
@@ -645,7 +645,7 @@ html:has(.home-pane) main {
 
   .prose figure[data-rehype-pretty-code-figure] {
     min-width: 0;
-    max-width: 100%;
+    max-width: min(100%, var(--container-measure));
   }
 
   .prose [data-rehype-pretty-code-title] {

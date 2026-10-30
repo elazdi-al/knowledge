@@ -13,25 +13,17 @@ $$
 L(\theta^*) = \min_{\theta \in \mathbb{R}^d} L(\theta).
 $$
 
-**Optimization algorithm.** An optimization algorithm computes a good $\theta$, usually by improving a guess step by step.
+**Grid search.** A brute-force optimization method that evaluates the loss $L(\mathbf w)$ on a predefined grid of parameter values and returns the best point tested.
 
-**Big-O notation.** The statement $f(x) = O(g(x))$ means that $|f(x)| \le c\,|g(x)|$ for all $x > x_0$, for some constants $c > 0$ and $x_0$.
+If each of the $D$ parameters has $K$ possible values, grid search evaluates $K^D$ different parameter combinations.
 
-*Big-O counts operations up to a constant factor.*
+**Curse of dimensionality.** The number of grid points grows **exponentially with the number of parameters $D$**. 
 
-A matrix-vector product $X \mathbf{v}$ with $X \in \mathbb{R}^{m \times d}$ costs $O(md)$. A product of an $a \times b$ and a $b \times c$ matrix costs $O(abc)$.
-
-**Grid search.** Grid search is an optimization algorithm that evaluates $L$ at every point of a grid of candidate parameters and keeps the best.
-
-Grid search needs only values of $L$, so it works for any loss when there are few parameters.
-
-With $s$ candidate values per parameter, grid search evaluates $s^d$ points. The cost is exponential in $d$ (e.g. $10^{100}$ points for 100 parameters).
+For example, with $10$ values per parameter: $10^D$ points must be evaluated, making grid search impractical in high dimensions.
 
 <CurseOfDimensionalitySchema />
 
-For linear regression, each evaluation of the MSE costs $O(mn)$.
-
-A grid can also miss a narrow valley between its points, so grid search gives no guarantee of ending near a minimum.
+**Limitation.** Grid search only tests predefined points, so the true optimum may lie **between grid points or outside the chosen range**.
 
 ## Gradient Descent
 

@@ -75,6 +75,19 @@ The good version names the term, then says what it is or does in plain sentences
 - Follow "this" with a noun ("this state"). Name subjects explicitly.
 - No em dashes, no hedges ("may or may not", "as if", "really", "basically"), no motivational framing, no casual tone.
 
+## Line Breaks
+
+The page is narrow (36rem), so a plain newline in the source does not break the line. Place every break yourself.
+
+- Start every sentence on a new line. End the previous line with `\` (a hard break). A sentence never starts mid-line.
+- If a sentence wraps, break it at its natural clause: after a comma, or before "then", "so", "because", "and", "with". Each part fits on one line.
+- Prefer two balanced lines over a full line plus a one-word tail.
+- Keep a bold term and its first sentence on one line: `**Term.** First sentence.\`
+- A short lead-in before a display ("Therefore", "Then") sits on its own line.
+- Never end a paragraph with `\`; it renders as a literal backslash.
+- In a list item, indent each continuation line to the item's text.
+- Check breaks on the rendered page at desktop width, not in the source.
+
 ## Examples and Intuition Helpers
 
 - Few examples. Each one tests or distinguishes a concept; none restates the definition.
@@ -102,6 +115,12 @@ The good version names the term, then says what it is or does in plain sentences
 ## Math
 
 - Intuition first, then notation. Display central or long formulas on their own line; inline math must not wrap.
+- Write display math as a block: `$$`, the formula, `$$`, each on its own line. A one-line `$$...$$` renders as small, left-aligned inline math.
+- A formula that would sit alone on a line goes in a display block, so it is centered.
+- A short formula inside a sentence stays inline. Never give each small step its own display.
+- Write a chain of steps as one `aligned` block joined by `\implies`, not as separate displays with "then" between them.
+- Join two related results in one display: `A \quad\text{so}\quad B`.
+- In a list item, indent the display block to the item's text, or the list breaks.
 - One meaning per symbol across a course. Define each symbol where it first appears; no free variables.
 - Never start a sentence with a symbol. Write "implies", "for all" and "so" in prose.
 - A sentence with each formula replaced by "blah" is still grammatical English.
