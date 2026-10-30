@@ -19,9 +19,7 @@ const NOTES_DIR = path.resolve(process.cwd(), "..", "notes");
 
 const FrontmatterSchema = z.object({
   title: z.string(),
-  tags: z.array(z.string()).default([]),
   created: z.coerce.date().optional(),
-  updated: z.coerce.date().optional(),
   draft: z.boolean().default(false),
 });
 
