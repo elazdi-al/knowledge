@@ -1,43 +1,34 @@
 # knowledge
 
 Course notes in MDX (`notes/`) and the Next.js site that renders them (`site/`).
-The site is a static export, served by a Cloudflare Worker that also answers
-search and gates the private CTF course.
+A Cloudflare Worker serves the static export, answers search, and gates the
+private CTF course.
+
+![A lecture page with its side outline and network figures](docs/screenshot.png)
+
+Stack: Next.js 16, React 19, Tailwind 4, MDX with KaTeX and Shiki, Base UI and
+cmdk, Cloudflare Workers, Bun.
 
 ## Run
 
 ```sh
 cd site
 bun install
-bun run dev    # http://localhost:3000, rereads ../notes on every request
+bun run dev                 # http://localhost:3000, rereads ../notes on every request
+bun run build               # static export to out/, with the search index
+bun run preview             # build, then serve out/ and the Worker with wrangler dev
+bun run deploy              # build, then wrangler deploy
+bun run typecheck
+bun run verify <note.mdx>   # render one note; fails on MDX errors and unknown components
 ```
 
-| Command                      | Does                                                         |
-| ---------------------------- | ------------------------------------------------------------ |
-| `bun run build`              | Static export to `out/`, with the search index               |
-| `bun run preview`            | Build, then serve `out/` and the Worker with `wrangler dev`  |
-| `bun run deploy`             | Build, then `wrangler deploy`                                |
-| `bun run typecheck`          | `tsc --noEmit`                                               |
-| `bun run verify <note.mdx>`  | Render one note; fails on MDX errors and unknown components  |
-
-The CTF password is a secret: `wrangler secret put CTF_PASSWORD`, or
-`.dev.vars` locally.
+Set the CTF password with `wrangler secret put CTF_PASSWORD`, or in `.dev.vars`
+locally.
 
 ## Notes
 
-`notes/<course>/<slug>.mdx` is served at `/notes/<course>/<slug>`. Notes sort
-by path, numbers numerically (`l2` before `l10`). Each course is a homepage
-tab, named by the shared title prefix (`Theory of Computation: Lecture 1`).
-`archived: true` on a course in `site/src/components/CourseIcon.tsx` moves it
-into the `archive` tab; its URLs stay the same.
-
-`notes/writing/` holds standalone posts (CTF writeups, project articles). Their
-titles are kept whole, and the tab lists them newest first by `created`.
-
-The private `ctf` tab groups its notes by category folder:
-`notes/ctf/cryptography/rsa.mdx` is listed under "cryptography". `cryptography`,
-`pwn`, `web`, `reversing`, `forensics` and `misc` have icons; other folders get a
-book.
+`notes/<course>/<slug>.mdx` is served at `/notes/<course>/<slug>`. `RULES.md` says
+how to write a note. The frontmatter schema is in `site/src/lib/notes.ts`.
 
 ```md
 ---
@@ -47,36 +38,21 @@ draft: true                                  # left out of the build
 ---
 ```
 
-`tags` and `updated` are parsed but not shown. Schema: `site/src/lib/notes.ts`.
+Write math as `$...$` and `$$...$$`, never `\(...\)` or `\[...\]`.
 
-The body is GitHub-flavored Markdown. Math is `$...$` and `$$...$$`, never
-`\(...\)` or `\[...\]`. A `---` line renders as an idea break. How to write a
-note: `RULES.md`.
+Each course is a homepage tab, named by the shared title prefix. Three cases differ:
+
+- `archived: true` on a course in `site/src/components/CourseIcon.tsx` moves it
+  into the `archive` tab.
+- `notes/writing/` holds standalone posts, listed newest first.
+- `notes/ctf/<category>/` holds the private notes, grouped by category. Git ignores
+  this folder.
 
 ## Figures
 
-Notes import nothing. Every component is registered in
-`site/src/mdx-components.tsx`. Figures compose primitives from the engine in
-`site/src/components/figure/` (`Row`, `Col`, `Graph`, `Node`, `Cells`, ...),
-which lays out, routes and renders one static SVG on the server. `$...$` in a
-label is typeset by MathJax. Colours are the `--dg-*` tokens in
-`site/src/app/diagram-tokens.css`.
+`site/src/mdx-components.tsx` registers every component, so notes import nothing.
+Figures compose the primitives in `site/src/components/figure/`. Colors are the
+`--dg-*` tokens in `site/src/app/diagram-tokens.css`.
 
-Scripts, from `site/`:
-
-- `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots every figure,
-  light and dark, to `/tmp/figures`. Needs `bun run dev` and Playwright's
-  Chromium.
-- `bun scripts/gen-font-metrics.mjs` regenerates the glyph widths that size
-  figure boxes. Rerun only after changing its glyph list.
-
-## Search
-
-Cmd/Ctrl-K. In production the Worker (`site/worker/index.ts`) serves
-`GET /api/search?q=`, rate limited per IP and edge cached. In dev the browser
-runs the same engine (`site/src/lib/search-core.ts`).
-
-## Stack
-
-Next.js 16, React 19, Tailwind 4, MDX with KaTeX and Shiki, Base UI and cmdk,
-Cloudflare Workers, Bun.
+From `site/`, `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots figures
+to `/tmp/figures`. It needs `bun run dev` and Playwright's Chromium.
