@@ -4,7 +4,8 @@ import { Input } from "@base-ui/react/input";
 import { Tabs } from "@base-ui/react/tabs";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ARCHIVE, CategoryIcon, COURSES, CourseIcon } from "@/components/CourseIcon";
+import { CategoryIcon, CourseIcon } from "@/components/CourseIcon";
+import { ARCHIVE, COURSES } from "@/lib/courses";
 import { PRIVATE_COURSE, type PrivateIndex } from "@/lib/private-course";
 
 export interface CourseEntry {
