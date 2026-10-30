@@ -4,6 +4,8 @@ Course notes in MDX (`notes/`) and the Next.js site that renders them (`site/`).
 A Cloudflare Worker serves the static export, answers search, and gates the
 private CTF course.
 
+Live at <https://knowledge.galipetapp.workers.dev>.
+
 ![A lecture page with its side outline and network figures](docs/screenshot.png)
 
 Stack: Next.js 16, React 19, Tailwind 4, MDX with KaTeX and Shiki, Base UI and
@@ -20,6 +22,7 @@ bun run preview             # build, then serve out/ and the Worker with wrangle
 bun run deploy              # build, then wrangler deploy
 bun run typecheck
 bun run verify <note.mdx>   # render one note; fails on MDX errors and unknown components
+bun run check:figures       # fails on a registered figure that no note uses
 ```
 
 Set the CTF password with `wrangler secret put CTF_PASSWORD`, or in `.dev.vars`
@@ -42,8 +45,8 @@ Write math as `$...$` and `$$...$$`, never `\(...\)` or `\[...\]`.
 
 Each course is a homepage tab, named by the shared title prefix. Three cases differ:
 
-- `archived: true` on a course in `site/src/components/CourseIcon.tsx` moves it
-  into the `archive` tab.
+- `archived: true` on a course in `site/src/lib/courses.ts` moves it into the
+  `archive` tab.
 - `notes/writing/` holds standalone posts, listed newest first.
 - `notes/ctf/<category>/` holds the private notes, grouped by category. Git ignores
   this folder.
@@ -56,3 +59,7 @@ Figures compose the primitives in `site/src/components/figure/`. Colors are the
 
 From `site/`, `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots figures
 to `/tmp/figures`. It needs `bun run dev` and Playwright's Chromium.
+
+## License
+
+Code is [MIT](LICENSE). Notes are [CC BY 4.0](notes/LICENSE).
