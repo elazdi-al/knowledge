@@ -8,6 +8,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { bundledThemes, createHighlighter, type LanguageRegistration } from "shiki";
+import { normalizeMathDelimiters } from "@/lib/math-delimiters";
 import { useMDXComponents } from "@/mdx-components";
 
 // Relational schema notation, `Students(sid: string, ...)`, colored with the
@@ -48,7 +49,7 @@ async function withPythonCalls(name: "github-light" | "github-dark-dimmed", colo
 }
 
 export async function renderMDX(source: string) {
-  const { default: Content } = await evaluate(source, {
+  const { default: Content } = await evaluate(normalizeMathDelimiters(source), {
     ...runtime,
     baseUrl: import.meta.url,
     remarkPlugins: [remarkFrontmatter, remarkGfm, remarkMath],

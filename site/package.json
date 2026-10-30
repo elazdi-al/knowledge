@@ -10,7 +10,8 @@
     "deploy": "next build && wrangler deploy",
     "preview": "next build && wrangler dev",
     "verify": "bun scripts/verify-note.tsx",
-    "check:figures": "bun scripts/check-figures.ts"
+    "check:figures": "bun scripts/check-figures.ts",
+    "check:math": "bun scripts/check-math.tsx"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

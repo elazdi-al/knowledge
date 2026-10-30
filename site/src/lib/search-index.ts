@@ -1,3 +1,4 @@
+import { normalizeMathDelimiters } from "./math-delimiters";
 import { WRITING, type Note } from "./notes";
 
 /**
@@ -351,7 +352,7 @@ export function buildSearchIndex(notes: Note[]): SearchIndex {
   const outItems: SearchItem[] = [];
 
   notes.forEach((note, noteIdx) => {
-    const { blocks, sections } = parseBlocks(note.body);
+    const { blocks, sections } = parseBlocks(normalizeMathDelimiters(note.body));
 
     outNotes.push({
       slug: note.slug,

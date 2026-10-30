@@ -115,7 +115,7 @@ The page is narrow (36rem), so a plain newline in the source does not break the 
 ## Math
 
 - Intuition first, then notation. Display central or long formulas on their own line; inline math must not wrap.
-- Write display math as a block: `$$`, the formula, `$$`, each on its own line. A one-line `$$...$$` renders as small, left-aligned inline math.
+- Write display math as a block: `$$`, the formula, `$$`, each on its own line. A one-line `$$...$$` renders as small, left-aligned inline math. `\[...\]` always renders as a display block, and `\(...\)` as inline math.
 - A formula that would sit alone on a line goes in a display block, so it is centered.
 - A short formula inside a sentence stays inline. Never give each small step its own display.
 - Write a chain of steps as one `aligned` block joined by `\implies`, not as separate displays with "then" between them.

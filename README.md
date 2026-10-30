@@ -25,6 +25,7 @@ bun run deploy              # build, then wrangler deploy
 bun run typecheck
 bun run verify <note.mdx>   # render one note; fails on MDX errors and unknown components
 bun run check:figures       # fails on a registered figure that no note uses
+bun run check:math          # fails if a math delimiter stops converting or rendering
 ```
 
 Set the CTF password with `wrangler secret put CTF_PASSWORD`, or in `.dev.vars`
@@ -44,7 +45,8 @@ draft: true                                  # left out of the build
 ---
 ```
 
-Write math as `$...$` and `$$...$$`, never `\(...\)` or `\[...\]`.
+Write inline math as `$...$` or `\(...\)`, and display math as `$$...$$` or
+`\[...\]`.
 
 Each course is a homepage tab, named by the shared title prefix. Three cases differ:
 
