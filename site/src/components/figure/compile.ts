@@ -24,20 +24,25 @@ const nameOf = (t: unknown): string => {
 };
 
 /** The markers a component expands to. Components here are plain functions, called once, so they cannot use state or context. */
-function expand(type: unknown, props: Props): TNode[] {
-  if (type === Fragment) return collect(props.children);
-  if (isMarker(type)) return [{ def: type.def, props, children: type.def.arrange ? collect(props.children) : [] }];
+function expand(type: unknown, props: Props, diagnostics: Diagnostic[], inMark: boolean): TNode[] {
+  if (type === Fragment) return collect(props.children, diagnostics, inMark);
+  if (isMarker(type)) return [{ def: type.def, props, children: type.def.arrange ? collect(props.children, diagnostics, true) : [] }];
+  // a figure's own component may be used as a part of another figure: its contents join in
+  if (typeof type === "function" && "figure" in type) {
+    if (inMark && (props.caption || props.title)) diagnostics.push({ code: "prop/ignored", severity: "warn", message: `A <Diagram> inside another figure has a caption or title.`, hint: "Only the outermost one shows; drop it, or give the outer figure the caption." });
+    return collect(props.children, diagnostics, inMark);
+  }
   if (typeof type === "function") {
     if (type.prototype?.isReactComponent) throw new Error(`[figure] class component <${nameOf(type)}> cannot be used inside <Diagram>; use a function.`);
-    return collect(type(props));
+    return collect(type(props), diagnostics, inMark);
   }
   const wrapper = type as { $$typeof?: symbol; type?: unknown; render?: (p: Props, ref: null) => ReactNode };
-  if (wrapper?.$$typeof === Symbol.for("react.memo")) return expand(wrapper.type, props);
-  if (wrapper?.$$typeof === Symbol.for("react.forward_ref")) return collect(wrapper.render?.(props, null));
+  if (wrapper?.$$typeof === Symbol.for("react.memo")) return expand(wrapper.type, props, diagnostics, inMark);
+  if (wrapper?.$$typeof === Symbol.for("react.forward_ref")) return collect(wrapper.render?.(props, null), diagnostics, inMark);
   throw new Error(`[figure] <${nameOf(type)}> cannot be used inside <Diagram>; figures are made of marks and functions that return marks.`);
 }
 
-function collect(children: ReactNode): TNode[] {
+function collect(children: ReactNode, diagnostics: Diagnostic[], inMark: boolean): TNode[] {
   const out: TNode[] = [];
   Children.forEach(children, (child) => {
     if (child == null || typeof child === "boolean") return;
@@ -46,7 +51,7 @@ function collect(children: ReactNode): TNode[] {
       throw new Error(`[figure] bare ${typeof child} child; wrap text in <Text>`);
     }
     const el = child as ReactElement<Props>;
-    out.push(...expand(el.type, el.props));
+    out.push(...expand(el.type, el.props, diagnostics, inMark));
   });
   return out;
 }
@@ -133,7 +138,7 @@ function register(id: string, state: State, ctx: Ctx) {
 /** Compile the children of a `<Diagram>` into a scene. An edge to a missing id is an error; edges touching a ghost are ghosts. */
 export function toScene(children: ReactNode): Scene {
   const ctx: Ctx = { edges: [], overlays: [], states: new Map([[ROOT, "default"]]), diagnostics: [] };
-  const kids = collect(children).flatMap((n, i) => resolve(n, ctx, `${ROOT}.${i}`, false, "col"));
+  const kids = collect(children, ctx.diagnostics, false).flatMap((n, i) => resolve(n, ctx, `${ROOT}.${i}`, false, "col"));
   const root: AnyBlock = { id: ROOT, state: "default", def: Col.def as unknown as AnyBlock["def"], data: Col.def.data({}), children: kids };
   const known = [...ctx.states.keys()].filter((id) => id !== ROOT);
   const seen = new Set<string>();

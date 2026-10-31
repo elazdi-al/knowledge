@@ -24,6 +24,7 @@ jobs:
       - run: bun run check:math
       - run: bun run check:golden
       - run: bun run check:diagnostics
+      - run: bun run check:readme
       # next build generates next-env.d.ts, which typecheck needs.
       - run: bun run build
       - run: bun run typecheck

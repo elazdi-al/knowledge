@@ -35,6 +35,7 @@ export { arc, Circle, Dot, Ellipse, Line, Path, Poly, Space, Svg, type CirclePro
 export { Dots, Tag, Text, type DotsProps, type TagProps, type TextProps } from "./marks/text";
 export { measure } from "./measure";
 export * from "./model";
+export { badge, group, ink, line, lookOf, polyline, rect, shapeStyle, solid, styled, tint, V } from "./paint";
 export { labelPillW } from "./route";
 export { CELL, FONT, GROUP, LABEL_CLEAR, LINE_H, MAX_CONTENT_W, NODE, STROKE, TABLE, TAG } from "./theme";
 

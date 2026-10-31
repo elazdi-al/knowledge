@@ -1,5 +1,4 @@
 import type { MDXComponents } from "mdx/types";
-import { Automaton } from "@/components/Automaton";
 import { BPlusTree } from "@/components/BPlusTree";
 import { BufferQueue } from "@/components/BufferQueue";
 import { ClockPolicy } from "@/components/ClockPolicy";
@@ -139,7 +138,6 @@ export function useMDXComponents(
     ...packetFigures,
     AddressPrefixSchema,
     AddressVsDereferenceDiagram,
-    Automaton,
     BartLisaSchema,
     BridgedPathSchema,
     Dot1xSchema,

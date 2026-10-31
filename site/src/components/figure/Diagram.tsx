@@ -33,6 +33,8 @@ export interface DiagramProps extends FigureProps {
   narrowChildren?: ReactNode;
 }
 
+Diagram.figure = true;
+
 export function Diagram({ caption, title, className, children, narrowChildren }: DiagramProps) {
   const uid = `dg${useId().replace(/\W/g, "")}`;
   const scene = toScene(children);

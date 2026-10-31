@@ -59,8 +59,10 @@ Each course is a homepage tab, named by the shared title prefix. Three cases dif
 ## Figures
 
 `site/src/mdx-components.tsx` registers every component, so notes import nothing.
-Figures compose the primitives in `site/src/components/figure/`. Colors are the
-`--dg-*` tokens in `site/src/app/diagram-tokens.css`.
+Figures use the library in `site/src/components/figure/`. Its
+[README](site/src/components/figure/README.md) says which tool fits and how to check a
+figure with `bun run figure:preview`. Colors are the `--dg-*` tokens in
+`site/src/app/diagram-tokens.css`.
 
 From `site/`, `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots figures
 to `/tmp/figures`. It needs `bun run dev` and Playwright's Chromium.
