@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, layoutScene, MAX_CONTENT_W, measure, Row, Space, Text, toScene, labelPillW, LABEL_CLEAR, LINE_H } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Fit, measure, Row, Space, Text, labelPillW, LABEL_CLEAR, LINE_H } from "@/components/figure";
 
 export interface BPlusNode {
   /** Stable id referenced by links / promote / leafOrder. */
@@ -175,11 +175,13 @@ export function BPlusTree({ nodes, links, leafLinks = "double", promote = [], ro
       </>
     );
   };
-  const compact = layoutScene(toScene(tree(false))).w > MAX_CONTENT_W;
 
   return (
     <Diagram title={title} caption={caption} className={className}>
-      {tree(compact)}
+      <Fit>
+        {tree(false)}
+        {tree(true)}
+      </Fit>
     </Diagram>
   );
 }
