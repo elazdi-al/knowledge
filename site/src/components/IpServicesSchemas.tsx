@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type FigureProps, labelPillW, GROUP, TAG, LINE_H } from "@/components/figure";
 import { DEVICE_NAME, Host, Link, NET_TONE, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
-import { SequenceChart } from "@/components/PacketFigures";
+import { SequenceChart } from "@/components/figure";
 
 /** One lane spacing for the setup row and both charts, so each device sits on its lifelines: the widest label, GetExternalIPAddress, plus SequenceChart's clearance. */
 const NAT_PITCH = labelPillW("GetExternalIPAddress") + 40;

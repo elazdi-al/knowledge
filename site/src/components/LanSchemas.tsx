@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Path, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
 import { Link, NET_TONE, Router, ROUTER_SIZE } from "@/components/NetworkFigures";
-import { SequenceChart } from "@/components/PacketFigures";
+import { SequenceChart } from "@/components/figure";
 
 // --- frame formats -----------------------------------------------------------------------------------------------
 

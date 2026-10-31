@@ -1,5 +1,9 @@
-import { Col, Diagram, Edge, Canvas, Node, Row, Space, type Side, nodeTitleW } from "@/components/figure";
-import { TONE } from "@/components/tones";
+import { Diagram } from "../Diagram";
+import { Edge } from "../marks/edge";
+import { Canvas, Col, Row } from "../marks/layout";
+import { Node, nodeTitleW } from "../marks/node";
+import { Space } from "../marks/shapes";
+import type { Side, Tone } from "../model";
 
 /**
  * A finite-automaton diagram in the textbook style: round states (one
@@ -56,6 +60,8 @@ interface Props {
   /** Bold heading inside the card (e.g. "Before"). */
   title?: string;
   caption?: string;
+  /** Tone of the accepting double ring. */
+  acceptTone?: Tone;
   className?: string;
 }
 
@@ -76,7 +82,7 @@ function ctrlOf(a: Pt, b: Pt, bend: number): Pt {
   return { x: (a.x + b.x) / 2 - dy * k, y: (a.y + b.y) / 2 + dx * k };
 }
 
-export function Automaton({ states, transitions, start, startDir = "left", accepting, gap = 150, title, caption, className }: Props) {
+export function Automaton({ states, transitions, start, startDir = "left", accepting, gap = 150, title, caption, className, acceptTone = "green" }: Props) {
   const startId = start ?? states[0]?.id;
   const index = new Map(states.map((s, i) => [s.id, i]));
   const manual = states.some((s) => s.x !== undefined || s.y !== undefined);
@@ -130,7 +136,7 @@ export function Automaton({ states, transitions, start, startDir = "left", accep
 
   const node = (s: AutoState, at?: [number, number]) => {
     const acc = !!s.accepting || !!accepting?.includes(s.id);
-    return <Node key={s.id} id={s.id} shape="circle" w={D} title={s.label ?? s.id} double={acc} tone={acc ? TONE.accept : undefined} {...(at && { at, anchor: "nw" as const })} />;
+    return <Node key={s.id} id={s.id} shape="circle" w={D} title={s.label ?? s.id} double={acc} tone={acc ? acceptTone : undefined} {...(at && { at, anchor: "nw" as const })} />;
   };
 
   let body;

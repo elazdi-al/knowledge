@@ -2,6 +2,8 @@ import { Diagram } from "./Diagram";
 import { Cells, Table } from "./marks/data";
 import { Edge } from "./marks/edge";
 import { Curve, Plot, Scatter, Series } from "./kits/plot";
+import { Automaton } from "./kits/automaton";
+import { SequenceChart, TimeSpace } from "./kits/sequence";
 import { Tree } from "./kits/tree";
 import { Graph } from "./marks/graph";
 import { Canvas, Col, Grid, Group, Row } from "./marks/layout";
@@ -20,6 +22,8 @@ export { mark, type Common, type Marker } from "./mark";
 export { Cells, Table, tableColumnWidths, type CellInput, type CellItem, type CellsProps, type RowInput, type TableCell, type TableProps, type TableRow } from "./marks/data";
 export { Edge, type EdgeProps } from "./marks/edge";
 export { Axes, Curve, curve, Plot, plotArea, Scatter, Series, type Area, type AxisSpec, type CurveProps, type PlotProps, type ScatterProps, type SeriesProps } from "./kits/plot";
+export { Automaton, type AutoState, type AutoTransition, type Dir } from "./kits/automaton";
+export { headWidth, SequenceChart, TimeSpace, type Message, type Send, type Span } from "./kits/sequence";
 export { Tree, type TreeNode, type TreeProps } from "./kits/tree";
 export { Graph, type GraphProps } from "./marks/graph";
 export { Canvas, Col, Grid, Group, Row, type CanvasProps, type ColProps, type GridProps, type GroupProps, type RowProps } from "./marks/layout";
@@ -35,4 +39,4 @@ export { labelPillW } from "./route";
 export { CELL, FONT, GROUP, LABEL_CLEAR, LINE_H, MAX_CONTENT_W, NODE, STROKE, TABLE, TAG } from "./theme";
 
 /** Everything an MDX author needs, keyed by tag name. */
-export const figureComponents = { Diagram, Row, Col, Grid, Group, Graph, Tree, Plot, Scatter, Curve, Series, Canvas, Fit, Space, Node, Cells, Table, Text, Tag, Dots, Legend, Poly, Path, Line, Circle, Ellipse, Dot, Svg, Edge, Brace };
+export const figureComponents = { Diagram, Row, Col, Grid, Group, Graph, Tree, Plot, Scatter, Curve, Series, Canvas, Fit, Space, Node, Cells, Table, Text, Tag, Dots, Legend, Poly, Path, Line, Circle, Ellipse, Dot, Svg, Edge, Brace, Automaton, SequenceChart, TimeSpace };

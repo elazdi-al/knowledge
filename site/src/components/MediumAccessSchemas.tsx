@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Col, Diagram, Dot, Edge, FONT, Canvas, Group, measure, Node, NODE, Path, Row, Space, Text, type EdgeState, type FigureProps } from "@/components/figure";
 import { Link, NET_TONE, Switch } from "@/components/NetworkFigures";
-import { SequenceChart, TimeSpace } from "@/components/PacketFigures";
+import { SequenceChart, TimeSpace } from "@/components/figure";
 
 /** A's frames in the link hue, B's in the rival hue, jam signals in the drop hue. */
 const A = NET_TONE.link, B = NET_TONE.rival, JAM = NET_TONE.drop;
