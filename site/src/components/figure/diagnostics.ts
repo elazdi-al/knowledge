@@ -5,6 +5,7 @@ export type DiagnosticCode =
   | "edge/invisible-endpoint"
   | "edge/crosses-shape"
   | "edge/label-overlap"
+  | "overlay/overlap"
   | "id/duplicate"
   | "prop/invalid"
   | "prop/ignored"

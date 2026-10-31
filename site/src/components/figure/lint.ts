@@ -6,7 +6,7 @@ import { EDGE_LABEL, MAX_CONTENT_W } from "./theme";
 
 const overlaps = (a: Rect, b: Rect, slack = 0.5) => a.x + a.w > b.x + slack && b.x + b.w > a.x + slack && a.y + a.h > b.y + slack && b.y + b.h > a.y + slack;
 
-export function lint(frame: Frame, items: Placed[]): Diagnostic[] {
+export function lint(frame: Frame, items: Placed[], overlays: Rect[]): Diagnostic[] {
   const out: Diagnostic[] = [];
   const warn = (code: Diagnostic["code"], message: string, hint?: string) => out.push({ code, severity: "warn", message, hint });
   if (frame.w > MAX_CONTENT_W) warn("frame/too-wide", `Frame is ${Math.round(frame.w)}px wide (max ${MAX_CONTENT_W}).`, "Stack or wrap.");
@@ -51,6 +51,9 @@ export function lint(frame: Frame, items: Placed[]): Diagnostic[] {
       if (encloses(it.rect, a) && encloses(it.rect, b) && it.id !== r.spec.from && it.id !== r.spec.to) continue;
       if (overlaps(lr, it.rect)) warn("edge/label-overlap", `Label "${r.spec.label}" on edge ${r.spec.id} overlaps "${it.id}".`);
     }
+  }
+  for (const o of overlays) {
+    for (const it of obstacles) if (overlaps(o, it.rect, 1)) warn("overlay/overlap", `An annotation overlaps "${it.id}".`, "Give it room with a larger gap.");
   }
   const labelled = routes.filter((r) => r.label);
   for (let i = 0; i < labelled.length; i++)

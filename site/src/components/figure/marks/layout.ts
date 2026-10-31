@@ -26,6 +26,7 @@ interface StackData {
   pad: number;
   /** a wrapping row becomes a column in the narrow layout of a static figure */
   wrap?: boolean;
+  uniform?: boolean;
   title?: string;
   badge?: string;
   dashed?: boolean;
@@ -45,10 +46,12 @@ function gapsOf(b: Block<StackData>, ctx: LayoutCtx): number[] {
   });
 }
 
-function arrangeStack(b: Block<StackData>, kids: Size[], ctx: LayoutCtx, given?: Size): Arranged {
-  const { dir, pad, align, title } = b.data;
+function arrangeStack(b: Block<StackData>, sizes: Size[], ctx: LayoutCtx, given?: Size): Arranged {
+  const { dir, pad, align, title, uniform } = b.data;
   const main = (k: Size) => (dir === "row" ? k.w : k.h);
   const cross = (k: Size) => (dir === "row" ? k.h : k.w);
+  const largest = Math.max(0, ...sizes.map(main));
+  const kids = uniform ? sizes.map((k) => (dir === "row" ? { ...k, w: largest } : { ...k, h: largest })) : sizes;
   const band = title ? GROUP.titleBand : 0;
   const titleW = title ? measureStyle(title, TEXT.groupTitle) : 0;
   const gaps = gapsOf(b, ctx);
@@ -75,24 +78,26 @@ export interface RowProps extends Common, WithChildren {
   gap?: number;
   align?: Align;
   pad?: number;
+  /** give every child the size of the largest along the stack */
+  uniform?: boolean;
   /** static figures only: below 520px this row is laid out as a column */
   wrap?: boolean;
 }
 export type ColProps = Omit<RowProps, "wrap">;
 
-const STACK: PropTable<ColProps> = { ...COMMON, children: true, gap: "number", align: ALIGN, pad: "number" };
+const STACK: PropTable<ColProps> = { ...COMMON, children: true, gap: "number", align: ALIGN, pad: "number", uniform: true };
 
 export const Row: Marker<RowProps> = mark<RowProps, StackData>({
   kind: "row",
   props: { ...STACK, wrap: true },
-  data: (p) => ({ dir: "row", gap: p.gap ?? GAP.stack, align: p.align ?? "center", pad: p.pad ?? 0, wrap: p.wrap === true }),
+  data: (p) => ({ dir: "row", gap: p.gap ?? GAP.stack, align: p.align ?? "center", pad: p.pad ?? 0, wrap: p.wrap === true, uniform: p.uniform }),
   arrange: arrangeStack,
 });
 
 export const Col: Marker<ColProps> = mark<ColProps, StackData>({
   kind: "col",
   props: STACK,
-  data: (p) => ({ dir: "col", gap: p.gap ?? GAP.stack, align: p.align ?? "center", pad: p.pad ?? 0 }),
+  data: (p) => ({ dir: "col", gap: p.gap ?? GAP.stack, align: p.align ?? "center", pad: p.pad ?? 0, uniform: p.uniform }),
   arrange: arrangeStack,
 });
 
@@ -104,6 +109,7 @@ export interface GroupProps extends Common, WithChildren {
   pad?: number;
   align?: Align;
   dashed?: boolean;
+  uniform?: boolean;
 }
 
 export const Group: Marker<GroupProps> = mark<GroupProps, StackData>({
@@ -116,6 +122,7 @@ export const Group: Marker<GroupProps> = mark<GroupProps, StackData>({
     gap: p.gap ?? GAP.stack,
     align: p.align ?? "center",
     pad: p.pad ?? GROUP.pad,
+    uniform: p.uniform,
     title: p.title,
     badge: p.badge,
     dashed: p.dashed === true,

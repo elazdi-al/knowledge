@@ -1,12 +1,12 @@
-import { Diagram, Edge, FONT, Canvas, measure, Node, NODE, Row, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE } from "@/components/figure";
+import { Diagram, Edge, FONT, Canvas, measure, Node, NODE, Row, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE, LINE_H } from "@/components/figure";
 
 /** Width of a `Text` drawn at `size`; mono text draws half a pixel smaller. */
 const textW = (text: string, size: "label" | "note", mono = false) => {
   const px = size === "note" ? FONT.note : FONT.label;
   return measure(text, mono ? px - 0.5 : px, { mono });
 };
-const NOTE_H = Math.round(FONT.note * 1.4);
-const LABEL_H = Math.round(FONT.label * 1.4);
+const NOTE_H = LINE_H.note;
+const LABEL_H = LINE_H.label;
 /** One 8-byte stack slot, and the gap between stacked slots. */
 const SLOT_H = 28;
 const SLOT_GAP = 4;

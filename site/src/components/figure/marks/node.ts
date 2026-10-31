@@ -1,5 +1,5 @@
 import { COMMON, mark, type Common, type Marker } from "../mark";
-import { measure, measureStyle } from "../measure";
+import { measure, measureStyle, wrapLines } from "../measure";
 import type { Op, Rect, Shape, State, Tone } from "../model";
 import { SHAPES } from "../model";
 import { badge, hLine, lookOf, polygonPoints, rect, shapeStyle, V } from "../paint";
@@ -13,6 +13,8 @@ export interface NodeProps extends Common {
   shape?: Shape;
   /** second outline inset 4px (circle, box, diamond) */
   double?: boolean;
+  /** wrap the title at spaces to fit this many px; `\n` in a title always breaks */
+  maxWidth?: number;
   /** rule under the title (ER key / partial key) */
   underline?: "solid" | "dashed";
   w?: number;
@@ -21,6 +23,7 @@ export interface NodeProps extends Common {
 }
 interface NodeData {
   title?: string;
+  maxWidth?: number;
   sub?: string;
   mono: boolean;
   badge?: string;
@@ -38,7 +41,10 @@ export const nodeTitleStyle = (b: TitleOf): TextStyle =>
   b.mono
     ? { size: FONT.mono, mono: true, weight: b.state === "strong" ? 600 : undefined }
     : { size: b.shape === "triangle" ? FONT.note : FONT.title, weight: b.tone || b.state === "strong" || b.state === "active" ? 600 : 500 };
-export const nodeTitleW = (b: TitleOf & { title?: string }) => (b.title ? measureStyle(b.title, nodeTitleStyle(b)) : 0);
+const titleLines = (b: TitleOf & { title?: string; maxWidth?: number }) => (b.title ? wrapLines(b.title, b.maxWidth, (l) => measureStyle(l, nodeTitleStyle(b))) : []);
+export const nodeTitleW = (b: TitleOf & { title?: string; maxWidth?: number }) => Math.max(0, ...titleLines(b).map((l) => measureStyle(l, nodeTitleStyle(b))));
+
+const lineHeight = (b: TitleOf) => Math.round(nodeTitleStyle(b).size * 1.4);
 
 const diamondPoints = (r: Rect, inset = 0) => {
   const cx = r.x + r.w / 2, cy = r.y + r.h / 2, hw0 = r.w / 2, hh0 = r.h / 2;
@@ -91,9 +97,10 @@ export const Node: Marker<NodeProps> = mark<NodeProps, NodeData>({
   kind: "node",
   solid: true,
   obstacle: true,
-  props: { ...COMMON, title: true, sub: true, mono: true, badge: true, shape: SHAPES, double: true, underline: ["solid", "dashed"], w: "number", h: "number", align: ["start", "center"] },
+  props: { ...COMMON, title: true, sub: true, mono: true, badge: true, shape: SHAPES, double: true, maxWidth: "number", underline: ["solid", "dashed"], w: "number", h: "number", align: ["start", "center"] },
   data: (p) => ({
     title: p.title,
+    maxWidth: p.maxWidth,
     sub: p.sub,
     mono: p.mono === true,
     badge: p.badge,
@@ -106,10 +113,10 @@ export const Node: Marker<NodeProps> = mark<NodeProps, NodeData>({
   }),
   outline: (d) => d.shape,
   size(b) {
-    const { title, sub, mono, shape, w, h, double } = b.data;
-    const titleW = nodeTitleW({ title, mono, shape, state: b.state, tone: b.tone });
-    const textW = Math.max(titleW, sub ? measure(sub, FONT.note) : 0);
-    const baseH = sub ? NODE.hSub : NODE.h;
+    const { title, maxWidth, sub, mono, shape, w, h, double } = b.data;
+    const of = { title, maxWidth, mono, shape, state: b.state, tone: b.tone };
+    const textW = Math.max(nodeTitleW(of), sub ? measure(sub, FONT.note) : 0);
+    const baseH = (sub ? NODE.hSub : NODE.h) + (Math.max(1, titleLines(of).length) - 1) * lineHeight(of);
     if (shape === "circle") {
       const d = w ?? Math.max(NODE.circleMin, textW + 16, sub ? NODE.hSub : 0);
       return { w: d, h: h ?? d };
@@ -133,34 +140,36 @@ export const Node: Marker<NodeProps> = mark<NodeProps, NodeData>({
   },
   paint(it, { uid, ground }) {
     const r = it.rect;
-    const { title, sub, mono, shape, align, underline, double, badge: chip } = it.data;
+    const { title, maxWidth, sub, mono, shape, align, underline, double, badge: chip } = it.data;
     // a grey node on a light ground needs a firmer outline than a light node on a grey panel
     const l = (ground(it) ?? "surface") === "panel" ? lookOf(it.state, uid, V("surface"), it.tone) : lookOf(it.state, uid, V("panel"), it.tone, V("rule"));
     const cy = r.y + r.h / 2 + (shape === "cylinder" ? NODE.cap / 2 : 0);
     const x = align === "start" ? r.x + NODE.padX : r.x + r.w / 2;
     const anchor = align === "start" ? ("start" as const) : ("middle" as const);
-    const of = { mono, shape, state: it.state, tone: it.tone };
+    const of = { title, maxWidth, mono, shape, state: it.state, tone: it.tone };
     const style = nodeTitleStyle(of);
-    const titleY = shape === "triangle" ? r.y + 0.4 * r.h : sub ? cy - 7.5 : cy;
-    const titleW = nodeTitleW({ ...of, title });
+    const lines = titleLines(of);
+    const spread = ((lines.length || 1) - 1) * lineHeight(of);
+    const titleY = (shape === "triangle" ? r.y + 0.4 * r.h : sub ? cy - 7.5 : cy) - spread / 2;
+    const titleW = nodeTitleW(of);
     const ux = anchor === "start" ? x : x - titleW / 2;
-    const uy = titleY + style.size / 2 + 2;
+    const uy = titleY + spread + style.size / 2 + 2;
     return [
       {
         el: "g",
         kids: [
           ...outlineOps(shape, r, double, shapeStyle(l)),
-          ...(title ? [{ el: "text" as const, x, y: titleY, text: title, size: style.size, weight: style.weight, mono: style.mono, italic: l.italic, fill: l.text, anchor }] : []),
+          ...lines.map((text, i) => ({ el: "text" as const, x, y: titleY + i * lineHeight(of), text, size: style.size, weight: style.weight, mono: style.mono, italic: l.italic, fill: l.text, anchor })),
           ...(title && underline ? [hLine(ux, ux + titleW, uy, { stroke: l.text, strokeWidth: STROKE.border, strokeDasharray: underline === "dashed" ? "3 2" : undefined })] : []),
-          ...(sub ? [{ el: "text" as const, x, y: cy + 8.5, text: sub, size: FONT.note, fill: l.sub, italic: l.italic, anchor }] : []),
+          ...(sub ? [{ el: "text" as const, x, y: cy + 8.5 + spread / 2, text: sub, size: FONT.note, fill: l.sub, italic: l.italic, anchor }] : []),
           ...(chip ? [badge(chip, it.tone, r.x + r.w / 2, r.y)] : []),
         ],
       },
     ];
   },
   check(it) {
-    const { title, mono, shape } = it.data;
-    if (title && nodeTitleW({ title, mono, shape, state: it.state, tone: it.tone }) + 8 > it.rect.w) {
+    const { title, maxWidth, mono, shape } = it.data;
+    if (title && nodeTitleW({ title, maxWidth, mono, shape, state: it.state, tone: it.tone }) + 8 > it.rect.w) {
       return [{ code: "node/title-overflow", severity: "warn", message: `Title "${title}" is wider than node "${it.id}".` }];
     }
     return [];

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, layoutScene, MAX_CONTENT_W, measure, Row, Space, Text, toScene, labelPillW, LABEL_CLEAR } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, layoutScene, MAX_CONTENT_W, measure, Row, Space, Text, toScene, labelPillW, LABEL_CLEAR, LINE_H } from "@/components/figure";
 
 export interface BPlusNode {
   /** Stable id referenced by links / promote / leafOrder. */
@@ -53,7 +53,7 @@ interface Props {
 
 /** Key strips are a little tighter than the default cell so eight leaves fit the column. */
 const CELL = 26;
-const NOTE_H = Math.round(FONT.note * 1.4);
+const NOTE_H = LINE_H.note;
 /** Namespaced item ids: author ids like "root" would collide with the engine's path ids. */
 const nid = (id: string) => `n:${id}`;
 /** Sideways bow of a promote arc, so it never runs along the pointer it climbs beside. */

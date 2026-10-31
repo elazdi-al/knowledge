@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Dot, Canvas, Path, Poly, Row, Text, type CellInput } from "@/components/figure";
-import { At, Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
+import { Cells, Col, Diagram, Dot, Canvas, Path, Poly, Row, Text, type CellInput, Line } from "@/components/figure";
+import { Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
 import { ML_TONE } from "@/components/tones";
 
 /** The per-example squared, absolute, Huber and Tukey losses as functions of the residual. */
@@ -19,12 +19,12 @@ export function LossShapesSchema() {
         <Path points={curve(a, Math.abs, [-3.7, 3.7], 74)} tone={ML_TONE.mae} />
         <Path points={curve(a, huber, [-3.7, 3.7], 148)} tone="blue" />
         <Path points={curve(a, tukey, [-3.7, 3.7], 148)} tone="blue" dashed />
-        <At text="$\delta$" at={a.p([delta, 0])} anchor="n" gap={6} muted />
-        <At text="$c$" at={a.p([c, 0])} anchor="n" gap={6} muted />
-        <At text="MSE" at={a.p([2.9, 4.2])} anchor="w" gap={6} tone={ML_TONE.mse} weight={500} />
-        <At text="MAE" at={a.p([3.7, 3.7])} anchor="w" gap={6} tone={ML_TONE.mae} weight={500} />
-        <At text="Huber" at={a.p([3.7, huber(3.7)])} anchor="w" gap={6} tone="blue" weight={500} />
-        <At text="Tukey" at={a.p([3.7, tukey(3.7)])} anchor="w" gap={6} tone="blue" weight={500} />
+        <Text size="note" text="$\delta$" at={a.p([delta, 0])} anchor="n" offset={6} muted />
+        <Text size="note" text="$c$" at={a.p([c, 0])} anchor="n" offset={6} muted />
+        <Text size="note" text="MSE" at={a.p([2.9, 4.2])} anchor="w" offset={6} tone={ML_TONE.mse} weight={500} />
+        <Text size="note" text="MAE" at={a.p([3.7, 3.7])} anchor="w" offset={6} tone={ML_TONE.mae} weight={500} />
+        <Text size="note" text="Huber" at={a.p([3.7, huber(3.7)])} anchor="w" offset={6} tone="blue" weight={500} />
+        <Text size="note" text="Tukey" at={a.p([3.7, tukey(3.7)])} anchor="w" offset={6} tone="blue" weight={500} />
       </Canvas>
     </Diagram>
   );
@@ -110,10 +110,10 @@ export function MinimaSchema() {
         <Path points={[a.p([3.3, 2.2]), a.p([4.5, 2.2])]} tone="blue" thick />
         <Dot at={a.p([1.2, 2.6])} tone="blue" r={4} />
         <Dot at={a.p([6.3, 1.0])} tone="blue" r={4} />
-        <At text="$B_\epsilon$" at={a.p([1.2, 0])} anchor="n" gap={8} muted />
-        <At text="strict local" at={a.p([1.2, 2.6])} anchor="nw" gap={8} tone="blue" weight={500} />
-        <At text="local, not strict" at={a.p([3.9, 2.2])} anchor="n" gap={10} tone="blue" weight={500} />
-        <At text="strict global" at={a.p([6.3, 1.0])} anchor="n" gap={10} tone="blue" weight={500} />
+        <Text size="note" text="$B_\epsilon$" at={a.p([1.2, 0])} anchor="n" offset={8} muted />
+        <Text size="note" text="strict local" at={a.p([1.2, 2.6])} anchor="nw" offset={8} tone="blue" weight={500} />
+        <Text size="note" text="local, not strict" at={a.p([3.9, 2.2])} anchor="n" offset={10} tone="blue" weight={500} />
+        <Text size="note" text="strict global" at={a.p([6.3, 1.0])} anchor="n" offset={10} tone="blue" weight={500} />
       </Canvas>
     </Diagram>
   );

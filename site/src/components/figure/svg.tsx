@@ -11,6 +11,7 @@ function opNode(op: Op, key: number): ReactNode {
     const { el: _el, ...text } = op;
     return <Label key={key} {...text} />;
   }
+  if (op.el === "raw") return <g key={key} transform={`translate(${op.x} ${op.y})`}>{op.node}</g>;
   if (op.el === "g" || op.el === "clipPath") {
     const { el, kids, ...attrs } = op;
     return createElement(el, { key, ...attrs }, kids.map(opNode));

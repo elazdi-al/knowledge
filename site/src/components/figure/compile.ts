@@ -5,7 +5,7 @@ import { partIds, type Common } from "./mark";
 import { Edge, type EdgeProps } from "./marks/edge";
 import { Col } from "./marks/layout";
 import { Space } from "./marks/shapes";
-import type { AnyBlock, EdgeSpec, MarkDef, Point, Scene, State } from "./model";
+import type { AnyBlock, EdgeSpec, MarkDef, Overlay, Point, Scene, State } from "./model";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDef = MarkDef<any, any>;
@@ -26,7 +26,7 @@ const nameOf = (t: unknown): string => {
 /** The markers a component expands to. Components here are plain functions, called once, so they cannot use state or context. */
 function expand(type: unknown, props: Props): TNode[] {
   if (type === Fragment) return collect(props.children);
-  if (isMarker(type)) return [{ def: type.def, props, children: collect(props.children) }];
+  if (isMarker(type)) return [{ def: type.def, props, children: type.def.arrange ? collect(props.children) : [] }];
   if (typeof type === "function") {
     if (type.prototype?.isReactComponent) throw new Error(`[figure] class component <${nameOf(type)}> cannot be used inside <Diagram>; use a function.`);
     return collect(type(props));
@@ -53,6 +53,7 @@ function collect(children: ReactNode): TNode[] {
 
 interface Ctx {
   edges: EdgeSpec[];
+  overlays: Overlay[];
   /** id -> state, for edge presence and ghosting */
   states: Map<string, State>;
   diagnostics: Diagnostic[];
@@ -70,7 +71,7 @@ function checkProps(t: TNode, parentKind: string, ctx: Ctx) {
       ctx.diagnostics.push({ code: "prop/invalid", severity: "error", message: `${where} has no prop "${name}".`, hint: suggest(name, Object.keys(table)) });
     } else if (allowed === "number" ? typeof value !== "number" : allowed !== true && !allowed.includes(value as string)) {
       ctx.diagnostics.push({ code: "prop/invalid", severity: "error", message: `${where} ${name}="${String(value)}" is not valid.`, hint: allowed === "number" ? "Pass a number." : `One of: ${(allowed as readonly string[]).join(", ")}.` });
-    } else if (PLACEMENT.includes(name) && parentKind !== "canvas" && !t.def.origin && t.def.kind !== "dot") {
+    } else if (PLACEMENT.includes(name) && parentKind !== "canvas") {
       ctx.diagnostics.push({ code: "prop/ignored", severity: "warn", message: `${where} sets ${name}, but only a child of <Canvas> is placed.`, hint: `Its parent is <${parentKind}>.` });
     }
   }
@@ -79,6 +80,8 @@ function checkProps(t: TNode, parentKind: string, ctx: Ctx) {
 /** An edge's point ends and waypoints become hidden zero-size children of the canvas, so they size it like anything else and routing sees only ids. */
 function resolveEdge(t: TNode, ctx: Ctx, pathId: string, state: State, parentKind: string): AnyBlock[] {
   const { from, to, via = [] } = t.props as Pick<EdgeProps, "from" | "to" | "via">;
+  const { label } = t.props as Pick<EdgeProps, "label">;
+  if (label?.includes("\n")) ctx.diagnostics.push({ code: "prop/invalid", severity: "error", message: `Edge label "${label}" has a line break.`, hint: "An edge label is one line; shorten it, or place a <Text> beside the edge." });
   const points = [from, to, ...via].filter((e) => Array.isArray(e));
   if (points.length && parentKind !== "canvas") {
     ctx.diagnostics.push({ code: "edge/point-outside-canvas", severity: "error", message: `An edge in <${parentKind}> ends on a point or has via points.`, hint: "Points are coordinates of a <Canvas>; put the edge inside one, or end it on an id." });
@@ -105,6 +108,10 @@ function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean, pare
   checkProps(t, parentKind, ctx);
   const p = t.props as Pick<Common, "id" | "state" | "tone" | "at" | "anchor" | "offset">;
   if (t.def === (Edge.def as unknown)) return resolveEdge(t, ctx, pathId, inheritGhost ? "ghost" : "default", parentKind);
+  if (t.def.overlay) {
+    ctx.overlays.push({ def: t.def, data: t.def.data(t.props) });
+    return [];
+  }
   const id = typeof p.id === "string" ? p.id : pathId;
   const state: State = inheritGhost ? "ghost" : (p.state ?? "default");
   register(id, state, ctx);
@@ -125,7 +132,7 @@ function register(id: string, state: State, ctx: Ctx) {
 
 /** Compile the children of a `<Diagram>` into a scene. An edge to a missing id is an error; edges touching a ghost are ghosts. */
 export function toScene(children: ReactNode): Scene {
-  const ctx: Ctx = { edges: [], states: new Map([[ROOT, "default"]]), diagnostics: [] };
+  const ctx: Ctx = { edges: [], overlays: [], states: new Map([[ROOT, "default"]]), diagnostics: [] };
   const kids = collect(children).flatMap((n, i) => resolve(n, ctx, `${ROOT}.${i}`, false, "col"));
   const root: AnyBlock = { id: ROOT, state: "default", def: Col.def as unknown as AnyBlock["def"], data: Col.def.data({}), children: kids };
   const known = [...ctx.states.keys()].filter((id) => id !== ROOT);
@@ -142,5 +149,10 @@ export function toScene(children: ReactNode): Scene {
     const ghosted = ctx.states.get(e.from) === "ghost" || ctx.states.get(e.to) === "ghost";
     return [{ ...e, id, state: ghosted ? ("ghost" as const) : e.state }];
   });
-  return { root, edges, diagnostics: ctx.diagnostics };
+  const overlays = ctx.overlays.filter((o) => {
+    const missing = (o.def.refs?.(o.data) ?? []).filter((id: string) => !ctx.states.has(id));
+    for (const id of missing) ctx.diagnostics.push({ code: "edge/unknown-endpoint", severity: "error", message: `<${o.def.kind}> has no item "${id}".`, hint: suggest(id, known) });
+    return !missing.length;
+  });
+  return { root, edges, overlays, diagnostics: ctx.diagnostics };
 }

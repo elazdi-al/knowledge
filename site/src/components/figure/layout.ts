@@ -61,7 +61,7 @@ function connectEdges(root: AnyBlock, edges: EdgeSpec[], rects: Record<string, R
  * negative offset (a label left of a plot); keep every item, path and pill in the viewBox. Moves the boxes if it must,
  * and returns the frame size and the final routes.
  */
-function growToFit(boxes: Box[], edges: EdgeSpec[], content: Size) {
+function growToFit(boxes: Box[], edges: EdgeSpec[], content: Size, overlayBounds: () => Rect[]) {
   let minX = MARGIN, minY = MARGIN, maxX = content.w + MARGIN, maxY = content.h + MARGIN;
   const extend = (x0: number, y0: number, x1: number, y1: number) => {
     minX = Math.min(minX, x0);
@@ -78,6 +78,7 @@ function growToFit(boxes: Box[], edges: EdgeSpec[], content: Size) {
       extend(r.label.x - hw, r.label.y - hh, r.label.x + hw, r.label.y + hh);
     }
   }
+  for (const r of overlayBounds()) extend(r.x, r.y, r.x + r.w, r.y + r.h);
   const dx = Math.max(0, MARGIN - minX), dy = Math.max(0, MARGIN - minY);
   if (dx > 0 || dy > 0) {
     for (const { rect } of boxes) {
@@ -96,7 +97,10 @@ export function layoutScene(scene: Scene, uid = "fig"): Frame {
   place(scene.root, { x: MARGIN, y: MARGIN, w: s.w, h: s.h }, undefined, ctx);
   const boxes = ctx.items.flatMap((it) => [boxOf(it), ...it.parts.map((p) => partBox(it, p))]);
   const rects = Object.fromEntries(boxes.map((b) => [b.id, b.rect]));
-  const fit = growToFit(boxes, connectEdges(scene.root, scene.edges, rects), s);
+  const byId = new Map(boxes.map((b) => [b.id, b]));
+  const drawOverlays = () => scene.overlays.map((o) => o.def.overlay!(o.data, (id: string) => byId.get(id)!));
+  const fit = growToFit(boxes, connectEdges(scene.root, scene.edges, rects), s, () => drawOverlays().map((o) => o.bounds));
+  const overlays = drawOverlays();
 
   /** The fill of the nearest panel around an item, if any. */
   const ground = (it: Placed): "panel" | "surface" | undefined => {
@@ -106,8 +110,8 @@ export function layoutScene(scene: Scene, uid = "fig"): Frame {
     return undefined;
   };
   const edgesIn = (layer: EdgeSpec["layer"]) => fit.routes.filter((r) => r.spec.layer === layer).map(edgeOp);
-  const ops = [...edgesIn("below"), ...ctx.items.flatMap((it) => it.def.paint?.(it, { uid, ground }) ?? []), ...edgesIn("above")];
+  const ops = [...edgesIn("below"), ...ctx.items.flatMap((it) => it.def.paint?.(it, { uid, ground }) ?? []), ...edgesIn("above"), ...overlays.flatMap((o) => o.ops)];
   const frame: Frame = { ...fit, ops, boxes, diagnostics: scene.diagnostics };
-  frame.diagnostics = [...scene.diagnostics, ...lint(frame, ctx.items)];
+  frame.diagnostics = [...scene.diagnostics, ...lint(frame, ctx.items, overlays.map((o) => o.bounds))];
   return frame;
 }

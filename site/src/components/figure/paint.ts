@@ -1,5 +1,5 @@
 /** Building blocks of a mark's `paint`: token colours, how a state looks, and shorthands for ops. */
-import type { Op, Rect, State, Style, Tone } from "./model";
+import type { Op, Point, Rect, State, Style, Tone } from "./model";
 import { measureStyle } from "./measure";
 import { NODE, STROKE, TEXT, r2, type TextStyle } from "./theme";
 
@@ -102,6 +102,14 @@ export function stateOutline(c: { state: State; tone?: Tone; rect: Rect }, frame
   const radii = [left && top ? rx : 0, right && top ? rx : 0, right && bottom ? rx : 0, left && bottom ? rx : 0];
   return [{ el: "path", d: cornerPath(r, radii), style: { ...shapeStyle(lookOf(c.state, uid, "none", c.tone)), fill: "none" } }];
 }
+
+/** An open arrowhead at `tip` for a line arriving at `angle` radians: left leg, tip, right leg. */
+export function chevron([x, y]: Point, angle: number, size: number): Point[] {
+  const a = 0.62;
+  return [[x - size * Math.cos(angle - a), y - size * Math.sin(angle - a)], [x, y], [x - size * Math.cos(angle + a), y - size * Math.sin(angle + a)]];
+}
+/** A polyline as path data. */
+export const polyline = (pts: Point[]) => pts.map(([x, y], i) => `${i ? "L" : "M"}${r2(x)},${r2(y)}`).join(" ");
 
 /** Small chip centred on a node's or group's top edge. */
 export function badge(text: string, tone: Tone | undefined, cx: number, y: number): Op {

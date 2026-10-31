@@ -45,3 +45,20 @@ export function textWidth(s: string, size: number, weight: number): number {
 
 /** Width of `text` drawn in a text role. */
 export const measureStyle = (text: string, s: TextStyle) => measure(text, s.size, { weight: s.weight, mono: s.mono });
+
+/** `text` as lines: its own line breaks, then greedy wrapping at spaces outside TeX. */
+export function wrapLines(text: string, maxWidth: number | undefined, width: (line: string) => number): string[] {
+  return text.split("\n").flatMap((para) => {
+    if (maxWidth === undefined) return [para];
+    const lines: string[] = [];
+    let line = "";
+    for (const word of para.match(/(?:\$[^$]*\$|[^\s$])+|\$/g) ?? [""]) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && width(next) > maxWidth) {
+        lines.push(line);
+        line = word;
+      } else line = next;
+    }
+    return [...lines, line];
+  });
+}

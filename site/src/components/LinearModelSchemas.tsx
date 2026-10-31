@@ -1,5 +1,5 @@
-import { Diagram, Dot, Canvas, Path, Poly } from "@/components/figure";
-import { Arrow, At, Axes, plotArea, type Pt } from "@/components/PlotFigures";
+import { Diagram, Dot, Canvas, Path, Poly, Line, Text } from "@/components/figure";
+import { Axes, plotArea, type Pt } from "@/components/PlotFigures";
 import { ML_TONE } from "@/components/tones";
 
 /** Two linearly separable classes, the boundary w·x + b = 0 and its normal w. */
@@ -13,13 +13,13 @@ export function PerceptronBoundarySchema() {
       <Canvas>
         <Axes area={a} x={[0, 7.4]} y={[0, 7]} labels={["$x_1$", "$x_2$"]} />
         <Path points={[a.p([0.75, 5.25]), a.p([5.25, 0.75])]} state="strong" />
-        <At text="$\mathbf{w}^T \mathbf{x} + b = 0$" at={a.p([5.25, 0.75])} anchor="w" gap={8} />
-        <Arrow from={a.p([4.4, 1.6])} to={a.p([5.3, 2.5])} state="active" />
-        <At text="$\mathbf{w}$" at={a.p([5.3, 2.5])} anchor="sw" tone="blue" />
+        <Text size="note" text="$\mathbf{w}^T \mathbf{x} + b = 0$" at={a.p([5.25, 0.75])} anchor="w" offset={8} />
+        <Line head="end" from={a.p([4.4, 1.6])} to={a.p([5.3, 2.5])} state="active" />
+        <Text size="note" text="$\mathbf{w}$" at={a.p([5.3, 2.5])} anchor="sw" tone="blue" offset={4} />
         {neg.map((p, i) => <Dot key={`n${i}`} at={a.p(p)} tone={ML_TONE.negative} />)}
         {pos.map((p, i) => <Dot key={`p${i}`} at={a.p(p)} tone={ML_TONE.positive} />)}
-        <At text="$y = -1$" at={a.p([1.7, 0.45])} tone={ML_TONE.negative} />
-        <At text="$y = +1$" at={a.p([4.6, 5.45])} tone={ML_TONE.positive} />
+        <Text size="note" text="$y = -1$" at={a.p([1.7, 0.45])} tone={ML_TONE.negative} offset={4} />
+        <Text size="note" text="$y = +1$" at={a.p([4.6, 5.45])} tone={ML_TONE.positive} offset={4} />
       </Canvas>
     </Diagram>
   );
@@ -49,19 +49,19 @@ export function RegressionPlaneSchema() {
     <Diagram caption="With two features the model is a plane. Residuals hidden below it are dashed.">
       <Canvas>
         <Poly points={corners.map(([u, v]) => P(u, v, 0))} outline />
-        <Arrow from={P(0, 0, 0)} to={P(4.8, 0, 0)} />
-        <Arrow from={P(0, 0, 0)} to={P(0, 3.8, 0)} />
-        <Arrow from={P(0, 0, 0)} to={P(0, 0, H)} />
-        <At text="$x_1$" at={P(4.8, 0, 0)} anchor="w" gap={6} muted />
-        <At text="$x_2$" at={P(0, 3.8, 0)} anchor="w" gap={6} muted />
-        <At text="$y$" at={P(0, 0, H)} anchor="s" gap={6} muted />
+        <Line head="end" from={P(0, 0, 0)} to={P(4.8, 0, 0)} />
+        <Line head="end" from={P(0, 0, 0)} to={P(0, 3.8, 0)} />
+        <Line head="end" from={P(0, 0, 0)} to={P(0, 0, H)} />
+        <Text size="note" text="$x_1$" at={P(4.8, 0, 0)} anchor="w" offset={6} muted />
+        <Text size="note" text="$x_2$" at={P(0, 3.8, 0)} anchor="w" offset={6} muted />
+        <Text size="note" text="$y$" at={P(0, 0, H)} anchor="s" offset={6} muted />
         {/* Drawn before the plane, so the plane covers whatever lies behind it. */}
         {corners.slice(1).map(([u, v]) => (
           <Path key={`c${u}${v}`} points={[P(u, v, 0), on(u, v)]} dashed state="ghost" />
         ))}
         <Path points={[P(iu, iv, 0), on(iu, iv)]} dashed state="ghost" />
         <Dot at={P(iu, iv, 0)} r={2.5} state="ghost" />
-        <At text="$\mathbf{x}_i$" at={P(iu, iv, 0)} anchor="e" gap={6} muted />
+        <Text size="note" text="$\mathbf{x}_i$" at={P(iu, iv, 0)} anchor="e" offset={6} muted />
         <Poly points={corners.map(([u, v]) => on(u, v))} tone="blue" outline />
         {below.map(([u, v, r]) => (
           <Path key={`b${u}`} points={[on(u, v), on(u, v, r)]} tone={ML_TONE.residual} dashed />
@@ -76,10 +76,10 @@ export function RegressionPlaneSchema() {
           <Dot key={`ad${u}`} at={on(u, v, r)} />
         ))}
         <Dot at={on(iu, iv)} r={3} tone="blue" />
-        <At text="$\hat{y}_i$" at={on(iu, iv)} anchor="e" gap={7} tone="blue" />
-        <At text="$y_i$" at={on(iu, iv, ir)} anchor="e" gap={7} />
-        <At text="$e_i$" at={on(iu, iv, ir / 2)} anchor="w" gap={7} tone={ML_TONE.residual} />
-        <At text="$\hat{y} = \mathbf{w}^T \mathbf{x} + b$" at={on(4, 3)} anchor="w" gap={10} tone="blue" />
+        <Text size="note" text="$\hat{y}_i$" at={on(iu, iv)} anchor="e" offset={7} tone="blue" />
+        <Text size="note" text="$y_i$" at={on(iu, iv, ir)} anchor="e" offset={7} />
+        <Text size="note" text="$e_i$" at={on(iu, iv, ir / 2)} anchor="w" offset={7} tone={ML_TONE.residual} />
+        <Text size="note" text="$\hat{y} = \mathbf{w}^T \mathbf{x} + b$" at={on(4, 3)} anchor="w" offset={10} tone="blue" />
       </Canvas>
     </Diagram>
   );

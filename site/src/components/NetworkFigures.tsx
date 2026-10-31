@@ -1,4 +1,4 @@
-import { Cells, Col, Edge, FONT, Group, Node, Space, Table, Tag, Text, type EdgeProps, type TableRow, type Tone, TAG } from "@/components/figure";
+import { Cells, Col, Edge, FONT, Group, Node, Space, Table, Tag, Text, type EdgeProps, type TableRow, type Tone, TAG, LINE_H } from "@/components/figure";
 import type { ReactNode } from "react";
 
 /** Advanced Networks hues, one meaning each across the course. No orange anywhere. */
@@ -47,7 +47,7 @@ export const ROUTER_SIZE = 42;
 /** Height of a numbered router's badge, which rests on top of the box like a tab. */
 export const ROUTER_BADGE = TAG.h;
 /** Height a device's name adds under its box: a 4px gap and one line of note text. */
-export const DEVICE_NAME = 4 + Math.round(FONT.note * 1.4);
+export const DEVICE_NAME = 4 + LINE_H.note;
 
 /** A device's box with its name centred underneath, as every router and switch is named; the name's id is `${id}.name`, so a tether can start below it. */
 const Named = ({ id, name, children }: { id: string; name?: string; children: ReactNode }) =>
@@ -56,7 +56,7 @@ const Named = ({ id, name, children }: { id: string; name?: string; children: Re
   ) : (
     <Col gap={0} align="center">
       {children}
-      <Space h={DEVICE_NAME - Math.round(FONT.note * 1.4)} />
+      <Space h={DEVICE_NAME - LINE_H.note} />
       <Text id={`${id}.name`} text={name} size="note" weight={600} />
     </Col>
   );

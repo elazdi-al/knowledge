@@ -1,8 +1,7 @@
-import { FONT, measure, Path, STROKE, Text, type PathProps, type TextProps } from "@/components/figure";
+import { Line, Text } from "@/components/figure";
 
 /**
- * Plot vocabulary over the figure engine: a data box mapped to the pixels of a `Canvas`, sampled curves, labels anchored
- * to a point, and arrows. Everything it returns is engine markers, so plots share the look of every other figure.
+ * Plot vocabulary over the figure engine: a data box mapped to the pixels of a `Canvas`, and sampled curves. Everything it returns is engine markers, so plots share the look of every other figure.
  */
 
 export type Pt = [number, number];
@@ -22,51 +21,15 @@ export const curve = (area: Area, f: (v: number) => number, [a, b]: Pt, n = 96):
     return area.p([v, f(v)]);
   });
 
-/** Compass side of a label that touches its point: `w` puts the text to the right of the point, `n` below it. */
-export type Anchor = "c" | "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
-
-const TEXT_PX = { title: FONT.title, label: FONT.label, note: FONT.note } as const;
-
-/** A `Text` whose `anchor` side sits `gap` px from the pixel point `at`. */
-export function At({ at: [x, y], anchor = "c", gap = 4, size = "note", ...props }: Omit<TextProps, "x" | "y"> & { at: Pt; anchor?: Anchor; gap?: number }) {
-  const px = TEXT_PX[size];
-  const w = measure(props.text, px, { weight: props.weight ?? (size === "title" ? 600 : 400) });
-  const h = Math.round(px * 1.4);
-  const dx = anchor.includes("w") ? gap : anchor.includes("e") ? -w - gap : -w / 2;
-  const dy = anchor.startsWith("n") ? gap : anchor.startsWith("s") ? -h - gap : -h / 2;
-  return <Text size={size} {...props} at={[x + dx, y + dy]} anchor="nw" />;
-}
-
-/** Open chevron at `tip` for a line arriving from `from`, the shape the engine draws on edges. */
-function head(from: Pt, tip: Pt): Pt[] {
-  const angle = Math.atan2(tip[1] - from[1], tip[0] - from[0]);
-  const leg = (a: number): Pt => [tip[0] - STROKE.head * Math.cos(angle + a), tip[1] - STROKE.head * Math.sin(angle + a)];
-  return [leg(-0.62), tip, leg(0.62)];
-}
-
-/**
- * A straight arrow between two pixel points; `head="both"` makes it a dimension line. Drawn as paths rather than an
- * edge, so it paints in source order instead of over every item.
- */
-export function Arrow({ from, to, head: heads = "end", ...line }: { from: Pt; to: Pt; head?: "end" | "both" | "none" } & Omit<PathProps, "points" | "closed">) {
-  return (
-    <>
-      <Path points={[from, to]} {...line} />
-      {heads !== "none" && <Path points={head(from, to)} {...line} dashed={false} />}
-      {heads === "both" && <Path points={head(to, from)} {...line} dashed={false} />}
-    </>
-  );
-}
-
 /** Horizontal and vertical axes spanning data ranges `x` and `y` through the data point `origin`, labelled at their tips. */
 export function Axes({ area, x, y, origin = [0, 0], labels }: { area: Area; x: Pt; y: Pt; origin?: Pt; labels: [string, string] }) {
   const tipX = area.p([x[1], origin[1]]), tipY = area.p([origin[0], y[1]]);
   return (
     <>
-      <Arrow from={area.p([x[0], origin[1]])} to={tipX} />
-      <Arrow from={area.p([origin[0], y[0]])} to={tipY} />
-      <At text={labels[0]} at={tipX} anchor="w" gap={6} muted />
-      <At text={labels[1]} at={tipY} anchor="s" gap={6} muted />
+      <Line head="end" from={area.p([x[0], origin[1]])} to={tipX} />
+      <Line head="end" from={area.p([origin[0], y[0]])} to={tipY} />
+      <Text size="note" text={labels[0]} at={tipX} anchor="w" offset={6} muted />
+      <Text size="note" text={labels[1]} at={tipY} anchor="s" offset={6} muted />
     </>
   );
 }

@@ -2,6 +2,7 @@
  * Data shapes for the figure engine. A Scene is the compiled tree of marks; a Frame is the laid-out result, plain JSON:
  * what to draw (`ops`), where everything is (`boxes`, `routes`) and what is wrong with it (`diagnostics`).
  */
+import type { ReactNode } from "react";
 import type { Diagnostic } from "./diagnostics";
 import type { RoutedEdge } from "./route";
 
@@ -69,6 +70,7 @@ export interface Style {
   strokeDasharray?: string;
   strokeLinecap?: "round";
   strokeLinejoin?: "round";
+  opacity?: number;
 }
 
 /** One drawing instruction, a JSON subset of SVG. Attribute order is output order. */
@@ -79,7 +81,9 @@ export type Op =
   | { el: "line"; x1: number; x2: number; y1: number; y2: number; style?: Style }
   | { el: "polygon"; points: string; style?: Style }
   | { el: "path"; d: string; style?: Style }
-  | { el: "g"; clipPath?: string; style?: Style; kids: Op[] }
+  | { el: "g"; clipPath?: string; style?: Style; transform?: string; kids: Op[] }
+  /** escape hatch: SVG elements from `<Svg>`, placed at x, y; the one op that is not plain JSON */
+  | { el: "raw"; x: number; y: number; node: ReactNode }
   | { el: "clipPath"; id: string; kids: Op[] }
   | ({ el: "text" } & TextOp);
 
@@ -169,6 +173,10 @@ export interface MarkDef<P, D> {
   /** the addressable pieces of a leaf, at `rect` */
   parts?(b: Block<D>, rect: Rect): Part[];
   paint?(it: Placed<D>, ctx: PaintCtx): Op[];
+  /** drawn after layout, from the boxes of the ids in `refs`; takes no room, and the frame grows to fit it */
+  overlay?(data: D, box: (id: string) => Box): { ops: Op[]; bounds: Rect };
+  /** ids an overlay needs */
+  refs?(data: D): string[];
   /** report on a placed item */
   check?(it: Placed<D>): Diagnostic[];
   /** painted and opaque: edge labels avoid it */
@@ -196,9 +204,17 @@ export interface Box {
   invisible?: boolean;
 }
 
+/** A compiled overlay mark. */
+export interface Overlay {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  def: MarkDef<any, any>;
+  data: unknown;
+}
+
 export interface Scene {
   root: AnyBlock;
   edges: EdgeSpec[];
+  overlays: Overlay[];
   diagnostics: Diagnostic[];
 }
 

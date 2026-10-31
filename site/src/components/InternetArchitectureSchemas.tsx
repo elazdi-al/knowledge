@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
+import { Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Text, type Tone, type FigureProps, LINE_H } from "@/components/figure";
 import { DEVICE_NAME, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch } from "@/components/NetworkFigures";
 import { AddressBits, FrameHeaders, ProtocolStack, TimeSpace } from "@/components/PacketFigures";
 
@@ -16,7 +16,7 @@ export function DomainNameSchema(props: FigureProps) {
   const name = NAME.map((p) => p.label).join(".");
   const px = FONT.title - 0.5;
   const adv = measure("m", px, { mono: true });
-  const UNDER = Math.round(FONT.title * 1.4) + 4;
+  const UNDER = LINE_H.title + 4;
   const ROW = 20;
   const labelX = name.length * adv + 20;
   let start = 0;

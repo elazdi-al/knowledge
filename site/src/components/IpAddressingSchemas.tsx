@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow, type FigureProps, tableColumnWidths, GROUP } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow, type FigureProps, tableColumnWidths, GROUP, LINE_H } from "@/components/figure";
 import { ForwardingTable, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch, type Route } from "@/components/NetworkFigures";
 import { FrameHeaders, HeaderFormat, type Field } from "@/components/PacketFigures";
 
@@ -332,7 +332,7 @@ export function NatTranslationSchema(props: FigureProps) {
   // each side's two strips hold the same addresses, so they share a width
   const wL = tableW(strips.o1), wR = tableW(strips.o2);
   const GAP = 14, ARROW = 44, PKT_H = 2 * 26;
-  const head = Math.round(FONT.note * 1.4) + GAP;
+  const head = LINE_H.note + GAP;
   const xNat = wL + ARROW, xR = xNat + ROUTER_SIZE + ARROW;
   const mid = head + PKT_H + GAP / 2;
   // outbound above the NAT's centre, inbound below: four straight arrows, each meeting an outline

@@ -2,9 +2,9 @@
 import { mark, type Marker } from "../mark";
 import type { EdgeSpec, EdgeState, Op, Point, RouteMode, Side, Style, Tone } from "../model";
 import { SIDES, TONES } from "../model";
-import { ink, shownTone, solid, styled, V } from "../paint";
+import { chevron, ink, polyline, shownTone, solid, styled, V } from "../paint";
 import type { Pt, RoutedEdge } from "../route";
-import { STROKE, TEXT, r2 } from "../theme";
+import { STROKE, TEXT } from "../theme";
 
 export interface EdgeProps {
   id?: string;
@@ -71,12 +71,7 @@ export const Edge: Marker<EdgeProps> = mark<EdgeProps, Omit<EdgeSpec, "via">>({
   },
 });
 
-function chevron(p: Pt, angle: number, s: number): string {
-  const a = 0.62;
-  const l = { x: p.x - s * Math.cos(angle - a), y: p.y - s * Math.sin(angle - a) };
-  const rr = { x: p.x - s * Math.cos(angle + a), y: p.y - s * Math.sin(angle + a) };
-  return `M${r2(l.x)},${r2(l.y)} L${r2(p.x)},${r2(p.y)} L${r2(rr.x)},${r2(rr.y)}`;
-}
+const headAt = ({ x, y }: Pt, angle: number, size: number) => polyline(chevron([x, y], angle, size));
 
 export function edgeOp(e: RoutedEdge): Op {
   const { spec } = e;
@@ -89,8 +84,8 @@ export function edgeOp(e: RoutedEdge): Op {
     el: "g",
     kids: [
       { el: "path", d: e.d, style: { ...stroke, strokeDasharray: spec.dashed ? STROKE.dash : undefined } },
-      ...(spec.head !== "none" ? [{ el: "path" as const, d: chevron(e.pts[e.pts.length - 1], e.endAngle, head), style: stroke }] : []),
-      ...(spec.head === "both" ? [{ el: "path" as const, d: chevron(e.pts[0], e.startAngle, head), style: stroke }] : []),
+      ...(spec.head !== "none" ? [{ el: "path" as const, d: headAt(e.pts[e.pts.length - 1], e.endAngle, head), style: stroke }] : []),
+      ...(spec.head === "both" ? [{ el: "path" as const, d: headAt(e.pts[0], e.startAngle, head), style: stroke }] : []),
       ...(spec.label && e.label
         ? [{ el: "text" as const, x: e.label.x, y: e.label.y, ...styled(spec.label, TEXT.edgeLabel), fill: spec.state === "ghost" ? V("faint") : tone ? ink(tone) : V("text"), halo: true }]
         : []),

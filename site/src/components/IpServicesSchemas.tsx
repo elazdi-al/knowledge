@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type FigureProps, labelPillW, GROUP, TAG } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type FigureProps, labelPillW, GROUP, TAG, LINE_H } from "@/components/figure";
 import { DEVICE_NAME, Host, Link, NET_TONE, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
 
@@ -132,7 +132,7 @@ export function IceSchema(props: FigureProps) {
     { name: "server reflexive", via: [1, 3], result: "answers, kept", state: "active" as const },
     { name: "relayed", via: [1, 2, 3], result: "answers, longer path", muted: true },
   ];
-  const textH = Math.round(FONT.label * 1.4);
+  const textH = LINE_H.label;
   const labelW = Math.max(...pairs.map((p) => measure(p.name, FONT.label))) + 28;
   const pitch = 72;
   const col = (k: number) => labelW + 28 + NODE.minW / 2 + k * pitch;

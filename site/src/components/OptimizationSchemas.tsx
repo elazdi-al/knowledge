@@ -1,5 +1,5 @@
-import { Col, Diagram, Dot, Canvas, Path, Poly, Row, Text } from "@/components/figure";
-import { Arrow, At, Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
+import { Col, Diagram, Dot, Canvas, Path, Poly, Row, Text, Line } from "@/components/figure";
+import { Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
 
 /** Points of the ellipse with half-axes `rx`, `ry` around `c`, in data units. */
 const ellipse = (c: Pt, rx: number, ry: number, n = 72): Pt[] =>
@@ -73,8 +73,8 @@ export function SgdNoiseSchema() {
         <Axes area={a} x={[0, T + 4]} y={Y} origin={[0, Y[0]]} labels={["step $t$", "$\\log L$"]} />
         <Path points={sgd.map((v, t) => p(t, v))} tone="purple" />
         <Path points={gd.map((v, t) => p(t, v))} tone="blue" thick />
-        <At text="SGD" at={p(30, Math.max(...sgd.slice(26, 34)))} anchor="s" gap={8} tone="purple" weight={500} />
-        <At text="gradient descent" at={p(48, gd[48])} anchor="n" gap={5} tone="blue" weight={500} />
+        <Text size="note" text="SGD" at={p(30, Math.max(...sgd.slice(26, 34)))} anchor="s" offset={8} tone="purple" weight={500} />
+        <Text size="note" text="gradient descent" at={p(48, gd[48])} anchor="n" offset={5} tone="blue" weight={500} />
       </Canvas>
     </Diagram>
   );
@@ -133,9 +133,9 @@ export function SubgradientSchema() {
         ))}
         <Path points={[a.p([-2.05, 2.05]), a.p([0, 0]), a.p([2.05, 2.05])]} state="strong" />
         <Dot at={a.p([0, 0])} tone="blue" r={3.5} />
-        <At text="slope $-1$" at={a.p([-1.7, 1.7])} anchor="ne" gap={6} muted />
-        <At text="slope $1$" at={a.p([1.7, 1.7])} anchor="nw" gap={6} muted />
-        <At text="$g \in [-1, 1]$" at={a.p([1.6, 1.6 * slopes[2]])} anchor="w" gap={6} tone="blue" />
+        <Text size="note" text="slope $-1$" at={a.p([-1.7, 1.7])} anchor="ne" offset={6} muted />
+        <Text size="note" text="slope $1$" at={a.p([1.7, 1.7])} anchor="nw" offset={6} muted />
+        <Text size="note" text="$g \in [-1, 1]$" at={a.p([1.6, 1.6 * slopes[2]])} anchor="w" offset={6} tone="blue" />
       </Canvas>
     </Diagram>
   );
@@ -167,15 +167,15 @@ export function ProjectionSchema() {
       <Canvas>
         {[0.4, 0.8, 1.2].map((r) => <Path key={r} points={ellipse(center, r * Math.SQRT2, r).map(a.p)} closed thin state="ghost" />)}
         <Poly points={C.map(a.p)} tone="blue" outline />
-        <Arrow from={a.p(theta)} to={short(a.p(theta), a.p(stepped))} state="strong" />
-        <Arrow from={a.p(stepped)} to={short(a.p(stepped), a.p(projected))} tone="blue" dashed />
+        <Line head="end" from={a.p(theta)} to={short(a.p(theta), a.p(stepped))} state="strong" />
+        <Line head="end" from={a.p(stepped)} to={short(a.p(stepped), a.p(projected))} tone="blue" dashed />
         <Dot at={a.p(theta)} />
         <Dot at={a.p(stepped)} />
         <Dot at={a.p(projected)} tone="blue" r={3.5} />
-        <At text="$C$" at={a.p([0.95, 2.15])} tone="blue" />
-        <At text="$\theta^{(t)}$" at={a.p(theta)} anchor="n" gap={7} />
-        <At text="$\theta'$" at={a.p(stepped)} anchor="w" gap={7} />
-        <At text="$P_C(\theta')$" at={a.p(projected)} anchor="sw" gap={8} tone="blue" />
+        <Text size="note" text="$C$" at={a.p([0.95, 2.15])} tone="blue" offset={4} />
+        <Text size="note" text="$\theta^{(t)}$" at={a.p(theta)} anchor="n" offset={7} />
+        <Text size="note" text="$\theta'$" at={a.p(stepped)} anchor="w" offset={7} />
+        <Text size="note" text="$P_C(\theta')$" at={a.p(projected)} anchor="sw" offset={8} tone="blue" />
       </Canvas>
     </Diagram>
   );

@@ -1,4 +1,4 @@
-import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Table, Text, type FigureProps, FONT, NODE } from "@/components/figure";
+import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Table, Text, type FigureProps, FONT, NODE, LINE_H } from "@/components/figure";
 import { ScheduleGrid, type TxId } from "@/components/ScheduleGrid";
 import { TX_TONE } from "@/components/tones";
 
@@ -74,7 +74,7 @@ const LOCK_CURVES: { title: string; marker: string; counts: number[]; phases: [s
 ];
 /** pitch per lock event, height per held lock, lead before the first event, gap beside axis words */
 const PLOT = { pitch: 20, unit: 12, lead: 10, gap: 4, headroom: 12 };
-const NOTE_H = Math.round(FONT.note * 1.4);
+const NOTE_H = LINE_H.note;
 const noteW = (s: string) => measure(s, FONT.note);
 
 /** Texts centred on x positions (in the row's coordinates), left to right. */
