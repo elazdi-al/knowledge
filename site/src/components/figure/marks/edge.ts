@@ -1,6 +1,6 @@
 /** A line between two marks: its marker and how a routed one is drawn. */
 import { mark, type Marker } from "../mark";
-import type { EdgeSpec, EdgeState, Op, RouteMode, Side, Style, Tone } from "../model";
+import type { EdgeSpec, EdgeState, Op, Point, RouteMode, Side, Style, Tone } from "../model";
 import { SIDES, TONES } from "../model";
 import { ink, shownTone, solid, styled, V } from "../paint";
 import type { Pt, RoutedEdge } from "../route";
@@ -8,8 +8,13 @@ import { STROKE, TEXT, r2 } from "../theme";
 
 export interface EdgeProps {
   id?: string;
-  from: string;
-  to: string;
+  /** a mark's id, or inside a `Canvas` a point */
+  from: string | Point;
+  to: string | Point;
+  /** inside a `Canvas`: points the line passes through, joined by rounded corners */
+  via?: Point[];
+  /** `below` draws it under every item */
+  layer?: "above" | "below";
   label?: string;
   dashed?: boolean;
   /** 2.5px stroke with a matching head (ER total participation) */
@@ -24,12 +29,14 @@ export interface EdgeProps {
   state?: EdgeState;
 }
 
-export const Edge: Marker<EdgeProps> = mark<EdgeProps, EdgeSpec>({
+export const Edge: Marker<EdgeProps> = mark<EdgeProps, Omit<EdgeSpec, "via">>({
   kind: "edge",
   props: {
     id: true,
     from: true,
     to: true,
+    via: true,
+    layer: ["above", "below"],
     label: true,
     dashed: true,
     thick: true,
@@ -48,6 +55,7 @@ export const Edge: Marker<EdgeProps> = mark<EdgeProps, EdgeSpec>({
       id: p.id ?? `e:${from}>${to}`,
       from,
       to,
+      layer: p.layer ?? "above",
       label: p.label,
       dashed: p.dashed === true,
       thick: p.thick === true || undefined,

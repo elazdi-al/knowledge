@@ -14,6 +14,7 @@ const cases: [string, DiagnosticCode, ReactNode][] = [
   ["bad shape", "prop/invalid", <Node {...any({ shape: "hexagon" })} />],
   ["bad route", "prop/invalid", <><Node id="a" /><Edge from="a" to="a" {...any({ route: "elbow" })} /></>],
   ["unknown prop", "prop/invalid", <Node {...any({ label: "A" })} />],
+  ["point end outside a canvas", "edge/point-outside-canvas", <><Node id="a" /><Edge from="a" to={[10, 10]} /></>],
   ["position outside a canvas", "prop/ignored", <Row><Node at={[1, 1]} /></Row>],
   ["edge to a layout box", "edge/invisible-endpoint", <><Col id="c"><Node id="a" /></Col><Node id="b" /><Edge from="c" to="b" /></>],
   ["figure too wide", "frame/too-wide", <Node title={"long title ".repeat(12)} />],
@@ -29,4 +30,9 @@ const typo = layoutScene(toScene(<><Node id="handler" /><Edge from="handler" to=
 assert.equal(typo.hint, 'Did you mean "handler"?');
 const clean = layoutScene(toScene(<Canvas><Node id="a" title="a" at={[0, 0]} anchor="nw" /><Node id="b" title="b" at={[100, 0]} anchor="nw" /><Edge from="a" to="b" /></Canvas>));
 assert.deepEqual(clean.diagnostics, []);
+const line = layoutScene(toScene(<Canvas><Node id="a" title="a" at={[0, 0]} anchor="nw" /><Edge from="a" to={[200, 16]} label="out" /><Edge from={[0, 100]} to={[200, 100]} via={[[100, 60]]} layer="below" /></Canvas>));
+assert.deepEqual(line.diagnostics, []);
+assert.equal(line.routes[0].pts.at(-1)!.x - line.boxes.find((b) => b.id === "a")!.rect.x, 200);
+assert.equal(line.routes[1].pts.length, 3);
+assert.equal(line.ops[0].el, "g", "a below edge is drawn first");
 console.log(`${cases.length} diagnostics behave`);

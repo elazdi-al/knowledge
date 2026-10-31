@@ -2,8 +2,9 @@
 import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
 import { suggest, type Diagnostic } from "./diagnostics";
 import { partIds, type Common } from "./mark";
-import { Edge } from "./marks/edge";
+import { Edge, type EdgeProps } from "./marks/edge";
 import { Col } from "./marks/layout";
+import { Space } from "./marks/shapes";
 import type { AnyBlock, EdgeSpec, MarkDef, Point, Scene, State } from "./model";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,22 +76,44 @@ function checkProps(t: TNode, parentKind: string, ctx: Ctx) {
   }
 }
 
-function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean, parentKind: string): AnyBlock | null {
+/** An edge's point ends and waypoints become hidden zero-size children of the canvas, so they size it like anything else and routing sees only ids. */
+function resolveEdge(t: TNode, ctx: Ctx, pathId: string, state: State, parentKind: string): AnyBlock[] {
+  const { from, to, via = [] } = t.props as Pick<EdgeProps, "from" | "to" | "via">;
+  const points = [from, to, ...via].filter((e) => Array.isArray(e));
+  if (points.length && parentKind !== "canvas") {
+    ctx.diagnostics.push({ code: "edge/point-outside-canvas", severity: "error", message: `An edge in <${parentKind}> ends on a point or has via points.`, hint: "Points are coordinates of a <Canvas>; put the edge inside one, or end it on an id." });
+    return [];
+  }
+  const anchors: AnyBlock[] = [];
+  const idOf = (end: string | Point, role: string) => {
+    if (!Array.isArray(end)) return String(end);
+    const id = `${pathId}.${role}`;
+    register(id, state, ctx);
+    anchors.push({ id, state, at: end, def: Space.def as unknown as AnyBlock["def"], data: { w: 0, h: 0 }, children: [] });
+    return id;
+  };
+  ctx.edges.push({
+    ...t.def.data(t.props),
+    from: idOf(from, "from"),
+    to: idOf(to, "to"),
+    via: via.length ? via.map((p, i) => idOf(p, `via${i}`)) : undefined,
+  });
+  return anchors;
+}
+
+function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean, parentKind: string): AnyBlock[] {
   checkProps(t, parentKind, ctx);
   const p = t.props as Pick<Common, "id" | "state" | "tone" | "at" | "anchor" | "offset">;
-  if (t.def === (Edge.def as unknown)) {
-    ctx.edges.push(t.def.data(t.props));
-    return null;
-  }
+  if (t.def === (Edge.def as unknown)) return resolveEdge(t, ctx, pathId, inheritGhost ? "ghost" : "default", parentKind);
   const id = typeof p.id === "string" ? p.id : pathId;
   const state: State = inheritGhost ? "ghost" : (p.state ?? "default");
   register(id, state, ctx);
-  const children = t.children.map((c, i) => resolve(c, ctx, `${id}.${i}`, state === "ghost", t.def.kind)).filter((b): b is AnyBlock => b !== null);
+  const children = t.children.flatMap((c, i) => resolve(c, ctx, `${id}.${i}`, state === "ghost", t.def.kind));
   const data = t.def.data(t.props);
   const origin: Point | undefined = t.def.origin?.(t.props, data);
   const block: AnyBlock = { id, state, tone: p.tone, at: origin ?? p.at, anchor: origin ? "nw" : p.anchor, offset: p.offset, def: t.def as AnyBlock["def"], data, children };
   for (const part of partIds(block)) register(part, state, ctx);
-  return block;
+  return [block];
 }
 
 const ROOT = "root";
@@ -103,9 +126,7 @@ function register(id: string, state: State, ctx: Ctx) {
 /** Compile the children of a `<Diagram>` into a scene. An edge to a missing id is an error; edges touching a ghost are ghosts. */
 export function toScene(children: ReactNode): Scene {
   const ctx: Ctx = { edges: [], states: new Map([[ROOT, "default"]]), diagnostics: [] };
-  const kids = collect(children)
-    .map((n, i) => resolve(n, ctx, `${ROOT}.${i}`, false, "col"))
-    .filter((b): b is AnyBlock => b !== null);
+  const kids = collect(children).flatMap((n, i) => resolve(n, ctx, `${ROOT}.${i}`, false, "col"));
   const root: AnyBlock = { id: ROOT, state: "default", def: Col.def as unknown as AnyBlock["def"], data: Col.def.data({}), children: kids };
   const known = [...ctx.states.keys()].filter((id) => id !== ROOT);
   const seen = new Set<string>();

@@ -105,7 +105,8 @@ export function layoutScene(scene: Scene, uid = "fig"): Frame {
     }
     return undefined;
   };
-  const ops = [...ctx.items.flatMap((it) => it.def.paint?.(it, { uid, ground }) ?? []), ...fit.routes.map(edgeOp)];
+  const edgesIn = (layer: EdgeSpec["layer"]) => fit.routes.filter((r) => r.spec.layer === layer).map(edgeOp);
+  const ops = [...edgesIn("below"), ...ctx.items.flatMap((it) => it.def.paint?.(it, { uid, ground }) ?? []), ...edgesIn("above")];
   const frame: Frame = { ...fit, ops, boxes, diagnostics: scene.diagnostics };
   frame.diagnostics = [...scene.diagnostics, ...lint(frame, ctx.items)];
   return frame;

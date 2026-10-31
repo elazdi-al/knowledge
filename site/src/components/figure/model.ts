@@ -53,6 +53,10 @@ export interface EdgeSpec {
   fromSide?: Side;
   toSide?: Side;
   loop?: Side;
+  /** ids of the zero-size anchors it passes through */
+  via?: string[];
+  /** drawn over every item, or under them */
+  layer: "above" | "below";
   tone?: Tone;
   state: EdgeState;
 }

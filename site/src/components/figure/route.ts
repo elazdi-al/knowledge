@@ -281,6 +281,14 @@ function buildPath(spec: EdgeSpec, a: Rect, b: Rect, pa: Port, pb: Port, shapes:
   };
 }
 
+/** Through its waypoints, with rounded corners; the ends meet the shapes on the line toward the nearest waypoint. */
+function viaPath(spec: EdgeSpec, a: Rect, b: Rect, rects: Record<string, Rect>, shapes: Record<string, Shape>): Omit<RoutedEdge, "spec" | "label"> {
+  const mid = spec.via!.map((id) => centre(rects[id]));
+  const p0 = outline(shapes[spec.from], a, mid[0]), p1 = outline(shapes[spec.to], b, mid[mid.length - 1]);
+  const pts = [p0, ...mid, p1];
+  return { d: roundedPath(pts, RADIUS.corner), pts, startAngle: angleOf(pts[1], p0), endAngle: angleOf(pts[pts.length - 2], p1) };
+}
+
 function selfLoop(spec: EdgeSpec, r: Rect, shape: Shape | undefined): Omit<RoutedEdge, "spec" | "label"> {
   const side = spec.loop ?? "top";
   const n = NORMAL[side];
@@ -321,7 +329,7 @@ function routeEdges(rects: Record<string, Rect>, edges: EdgeSpec[], shapes: Reco
       pending.push(null);
       return;
     }
-    if (spec.from === spec.to) {
+    if (spec.from === spec.to || spec.via) {
       pending.push({ spec, a, b, pa: { side: "top", u: 0 }, pb: { side: "top", u: 0 } });
       return;
     }
@@ -362,9 +370,9 @@ function routeEdges(rects: Record<string, Rect>, edges: EdgeSpec[], shapes: Reco
   const fan = (key: string) => (groups.get(key)?.length ?? 0) > 1;
   return pending.flatMap((e) => {
     if (!e) return [];
-    const base = e.spec.from === e.spec.to ? selfLoop(e.spec, e.a, shapes[e.spec.from]) : buildPath(e.spec, e.a, e.b, e.pa, e.pb, shapes);
+    const base = e.spec.via ? viaPath(e.spec, e.a, e.b, rects, shapes) : e.spec.from === e.spec.to ? selfLoop(e.spec, e.a, shapes[e.spec.from]) : buildPath(e.spec, e.a, e.b, e.pa, e.pb, shapes);
     let label: Pt | undefined;
-    if (e.spec.label && e.spec.from === e.spec.to) label = loopLabel(e.spec, base.pts);
+    if (e.spec.label && e.spec.from === e.spec.to && !e.spec.via) label = loopLabel(e.spec, base.pts);
     else if (e.spec.label) {
       // sit away from the end where edges converge, so fan labels never stack
       const out = fan(`${e.spec.from}:${e.pa.side}`), inn = fan(`${e.spec.to}:${e.pb.side}`);

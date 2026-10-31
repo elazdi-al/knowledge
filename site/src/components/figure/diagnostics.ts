@@ -1,6 +1,7 @@
 /** What the engine found wrong with a figure. Data, so scripts and agents can read it; `Diagram` decides what to do with it. */
 export type DiagnosticCode =
   | "edge/unknown-endpoint"
+  | "edge/point-outside-canvas"
   | "edge/invisible-endpoint"
   | "edge/crosses-shape"
   | "edge/label-overlap"
