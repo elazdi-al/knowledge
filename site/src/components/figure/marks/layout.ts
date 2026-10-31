@@ -221,13 +221,21 @@ const boxesAt = (at: { x: number; y: number }[], kids: Size[]): Arranged => {
 
 export type CanvasProps = Common & WithChildren;
 
-/** Children placed by coordinates: `at`, with `anchor` and `offset`; without `at`, a child's top-left is the canvas's origin. */
+/** Children placed by coordinates: `at`, with `anchor` and `offset`; without `at`, a child's top-left is the canvas's origin. Its box is the union of its children, so everything in it takes real room. */
 export const Canvas: Marker<CanvasProps> = mark<CanvasProps, null>({
   kind: "canvas",
   overlapping: true,
   props: { ...COMMON, children: true },
   data: () => null,
-  arrange: (b, kids) => boxesAt(b.children.map((c, i) => (c.at ? anchored(c.at, kids[i], c.anchor, c.offset) : { x: 0, y: 0 })), kids),
+  arrange(b, kids) {
+    const placed = boxesAt(b.children.map((c, i) => (c.at ? anchored(c.at, kids[i], c.anchor, c.offset) : { x: 0, y: 0 })), kids);
+    const minX = Math.min(...placed.rects.map((r) => r.x), Infinity), minY = Math.min(...placed.rects.map((r) => r.y), Infinity);
+    if (!placed.rects.length) return placed;
+    return {
+      size: { w: placed.size.w - minX, h: placed.size.h - minY },
+      rects: placed.rects.map((r) => ({ ...r, x: r.x - minX, y: r.y - minY })),
+    };
+  },
 });
 
 export interface GraphProps extends Common, WithChildren {

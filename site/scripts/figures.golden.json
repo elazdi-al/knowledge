@@ -5,11 +5,11 @@
   "90998ca39354eb81",
   "28fb7b9bf56ad308",
   "5d46278428b4795d",
-  "ec87880d05ec8f7d",
+  "38f68cb41cee8683",
   "5e78b313010a8c47",
-  "f463ea01fdcb466e",
+  "77c2ec6a1b53cb60",
   "bc5297cc6009cd94",
-  "5ff5d979e81b5dbb"
+  "746320d4ec26878b"
  ],
  "advanced-networks/l2.mdx": [
   "cbf223b37eb85200",
@@ -17,14 +17,14 @@
   "d6d75b5049672634",
   "ace5efea817e2b30",
   "79c46c1933d3558f",
-  "aae094e96673902d",
+  "ffdcfdf02b054529",
   "b28c144d47d345bb",
   "eceb3c30bb418cfe",
   "c29d709c97ad5083"
  ],
  "advanced-networks/l3.mdx": [
-  "89b7d0a20cb0a043",
-  "bd453e3facda114b",
+  "acff9615f52748c4",
+  "30db6d6e25c70443",
   "1c8d1bd8a546e18e",
   "75f0447f80ff7bd3",
   "14a8d204ff84560c",
@@ -37,25 +37,25 @@
  ],
  "advanced-networks/l4.mdx": [
   "13dfe3215209c27b",
-  "6a6bd7f362f57e18",
-  "6f9393e2f802ea66",
+  "01d2aba04f619224",
+  "15ee852f4c023362",
   "329093c1eca29308",
   "44aa41592bfe9f08",
-  "29f4a2b433c87e6a",
-  "7f41354f8b015afe",
-  "7a8a1dbd1bcd4c98",
-  "f582fd4632d78749",
+  "a5d542814818504e",
+  "6822196ca899a8b9",
+  "0d2ffe453d02d4b8",
+  "a3333f7dd58926c9",
   "e336445ffd77eafc"
  ],
  "advanced-networks/l5.mdx": [
-  "fc9b855dfee2e1bb",
-  "a1d3993de146406f",
-  "a36d2db78beec607",
-  "84bf6cec51473168",
+  "7e888a8720a719a6",
+  "4973fcda8219daf6",
+  "e914ba8a54033b59",
+  "3c946184c44296bc",
   "0df770816843064c",
   "b17f7954ea41736e",
   "c5476480fbf7c2b0",
-  "dcfa6de214ca6f93",
+  "54cb293291fa055c",
   "534330d4d4622a70"
  ],
  "data-intensive-systems/l1.mdx": [
@@ -174,19 +174,19 @@
  ],
  "data-intensive-systems/sql-1.mdx": [],
  "machine-learning/l1.mdx": [
-  "d48fa2a78e2a16fd",
-  "738131cfe14b2867",
-  "26eedbbfed6db7f5",
+  "47885187ddde788c",
+  "5d33d690e5b5dc9f",
+  "7485f27c8635a40c",
   "a0bc64beb95710ae"
  ],
  "machine-learning/l2.mdx": [
-  "8012777c6cfd20ff",
-  "d1978cefb8c6cc6e",
-  "4a31bc4df185850d",
+  "3ee35617316b6cc8",
+  "44346b3092fc17c3",
+  "27e6bf3280c29a41",
   "485670bbd0f911ca",
-  "84ea41984c783644",
+  "583c0b0af3e1ffcd",
   "7f7ac590fd71bec2",
-  "6c99a6af45db9590"
+  "40aef62b379a4b02"
  ],
  "theory-of-computation/l1.mdx": [
   "dc5bb2d8c3d4c96a",

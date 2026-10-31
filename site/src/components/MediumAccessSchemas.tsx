@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Dot, Edge, FONT, Canvas, Group, measure, Node, NODE, Path, Row, Text, type EdgeState, type FigureProps } from "@/components/figure";
+import { Col, Diagram, Dot, Edge, FONT, Canvas, Group, measure, Node, NODE, Path, Row, Space, Text, type EdgeState, type FigureProps } from "@/components/figure";
 import { Link, NET_TONE, Switch } from "@/components/NetworkFigures";
 import { SequenceChart, TimeSpace } from "@/components/PacketFigures";
 
@@ -289,7 +289,11 @@ function tapped(panel: string, name: string, c: Pt, tap: Pt, spoke = false) {
 const panel = (name: string, drawing: ReactNode[]) => (
   <Col gap={12} align="center">
     <Text text={name} weight={500} />
-    <Canvas>{drawing}</Canvas>
+    <Canvas>
+      {/* the panels share one coordinate frame, so their drawings line up across the row */}
+      <Space at={[0, 0]} />
+      {drawing}
+    </Canvas>
   </Col>
 );
 
