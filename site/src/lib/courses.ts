@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/figure";
+import type { Tone } from "figure";
 
 /** The homepage tab that holds every archived course. */
 export const ARCHIVE = "archive";

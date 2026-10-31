@@ -1,7 +1,7 @@
 // Renders every example in the figure library's README, and fails on any diagnostic.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
-const README = "src/components/figure/README.md";
-const LIB = "@/components/figure";
+const README = "../packages/figure/README.md";
+const LIB = "figure";
 const blocks = [...readFileSync(README, "utf8").matchAll(/```tsx\n([\s\S]*?)```/g)].map((m) => m[1].trim());
 const examples = blocks.map((block, i) => {
   const split = block.lastIndexOf("\n\n");

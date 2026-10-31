@@ -4,7 +4,6 @@
  */
 import katex from "katex";
 import { useId, type ReactNode } from "react";
-import { cn } from "@/lib/cn";
 import { toScene } from "./compile";
 import { splitMath } from "./label";
 import { layoutScene } from "./layout";
@@ -13,6 +12,8 @@ import { narrowTree } from "./marks/layout";
 import { FrameSvg } from "./svg";
 
 /** Caption HTML with its `$...$` set by KaTeX, like the prose math. */
+const classes = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
+
 const captionHtml = (caption: string) =>
   splitMath(caption)
     .map((part, i) => (i % 2 ? katex.renderToString(part) : part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\\\$/g, "$")))
@@ -47,9 +48,9 @@ export function Diagram({ caption, title, className, children, narrowChildren }:
   const narrow = narrowScene ? layoutScene(narrowScene, `${uid}n`) : null;
   if (narrow) reportDiagnostics(narrow, `${label} (narrow)`);
   return (
-    <figure className={cn("diagram", className)}>
+    <figure className={classes("diagram", className)}>
       {title && <p className="diagram__title">{title}</p>}
-      <div className={cn("diagram__canvas", narrow && "diagram__canvas--wide")}>
+      <div className={classes("diagram__canvas", !!narrow && "diagram__canvas--wide")}>
         <FrameSvg frame={frame} label={label} labelledBy={caption && `${uid}-caption`} uid={uid} />
       </div>
       {narrow && (

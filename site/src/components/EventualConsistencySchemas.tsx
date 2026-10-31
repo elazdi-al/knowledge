@@ -1,4 +1,4 @@
-import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text, type FigureProps } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text, type FigureProps } from "figure";
 import { TONE } from "@/components/tones";
 
 const REPLICAS = ["R1", "R2", "R3", "R4"];

@@ -1,4 +1,4 @@
-import { Col, Diagram, Edge, Group, Node, Row, type Tone } from "@/components/figure";
+import { Col, Diagram, Edge, Group, Node, Row, type Tone } from "figure";
 import { TONE } from "@/components/tones";
 
 /**

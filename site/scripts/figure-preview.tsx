@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Diagram, formatDiagnostic, layoutScene, toScene, type Box } from "@/components/figure";
+import { Diagram, formatDiagnostic, layoutScene, toScene, type Box } from "figure";
 
 const [file] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 if (!file) throw new Error("usage: figure:preview path/to/figure.tsx [--dark]");
@@ -36,7 +36,7 @@ console.warn = () => {};
 const figure = renderToStaticMarkup(<Diagram>{element}</Diagram>);
 const out = process.env.OUT ?? "/tmp/figure-preview";
 mkdirSync(out, { recursive: true });
-const tokens = readFileSync(new URL("../src/app/diagram-tokens.css", import.meta.url), "utf8");
+const tokens = readFileSync(new URL("../../packages/figure/tokens.css", import.meta.url), "utf8");
 const page = join(out, `${name}.html`);
 writeFileSync(page, `<!doctype html><html class="${dark ? "dark" : ""}"><head><meta charset="utf-8"><style>${tokens} body{margin:16px;background:${dark ? "#111110" : "#fff"};font-family:Inter,system-ui,sans-serif} .diagram{margin:0;width:fit-content} .diagram__caption{font-size:14px;color:gray}</style></head><body>${figure}</body></html>`);
 

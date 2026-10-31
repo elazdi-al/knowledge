@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "./diagram-tokens.css";
+@import "figure/tokens.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

@@ -1,3 +1,4 @@
+import { dirname } from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -5,8 +6,10 @@ const nextConfig: NextConfig = {
   output: "export",
   // MathJax resolves its default font through package `imports`, which Turbopack cannot follow; Node can.
   serverExternalPackages: ["@mathjax/src"],
+  transpilePackages: ["figure"],
   turbopack: {
-    root: process.cwd(),
+    // the workspace root, so Turbopack can read packages/figure
+    root: dirname(process.cwd()),
   },
 };
 

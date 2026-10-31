@@ -1,7 +1,7 @@
 // Each entry is a mistake an author can make and the code the engine must answer it with.
 import assert from "node:assert/strict";
 import type { ReactNode } from "react";
-import { Brace, Curve, Plot, Scatter, Tree, Canvas, Cells, Circle, Col, Edge, Fit, Graph, layoutScene, Legend, Line, Node, Row, Svg, Text, toScene, type DiagnosticCode, type Op } from "@/components/figure";
+import { Brace, Curve, Plot, Scatter, Tree, Canvas, Cells, Circle, Col, Edge, Fit, Graph, layoutScene, Legend, Line, Node, Row, Svg, Text, toScene, type DiagnosticCode, type Op } from "figure";
 
 const any = (props: object): object => props;
 const cases: [string, DiagnosticCode, ReactNode][] = [

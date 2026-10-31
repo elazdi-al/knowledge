@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { Diagram, Edge, Grid, Group, layoutScene, Node, Row, Space, Text, toScene, type Side } from "@/components/figure";
+import { Diagram, Edge, Grid, Group, layoutScene, Node, Row, Space, Text, toScene, type Side } from "figure";
 import { TONE } from "@/components/tones";
 
 export interface ERNode {

@@ -1,4 +1,4 @@
-import { Diagram, Edge, FONT, Canvas, measure, Node, NODE, Row, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE, LINE_H } from "@/components/figure";
+import { Diagram, Edge, FONT, Canvas, measure, Node, NODE, Row, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE, LINE_H } from "figure";
 
 /** Width of a `Text` drawn at `size`; mono text draws half a pixel smaller. */
 const textW = (text: string, size: "label" | "note", mono = false) => {

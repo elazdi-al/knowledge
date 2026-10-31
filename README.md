@@ -26,6 +26,9 @@ bun run typecheck
 bun run verify <note.mdx>   # render one note; fails on MDX errors and unknown components
 bun run check:figures       # fails on a registered figure that no note uses
 bun run check:math          # fails if a math delimiter stops converting or rendering
+bun run check:golden        # fails when a figure's SVG changes; --update after reviewing
+bun run check:diagnostics   # the figure library's mistakes and capabilities
+bun run check:readme        # renders every example in the library's README
 ```
 
 Set the CTF password with `wrangler secret put CTF_PASSWORD`, or in `.dev.vars`
@@ -59,10 +62,9 @@ Each course is a homepage tab, named by the shared title prefix. Three cases dif
 ## Figures
 
 `site/src/mdx-components.tsx` registers every component, so notes import nothing.
-Figures use the library in `site/src/components/figure/`. Its
-[README](site/src/components/figure/README.md) says which tool fits and how to check a
-figure with `bun run figure:preview`. Colors are the `--dg-*` tokens in
-`site/src/app/diagram-tokens.css`.
+Figures use the library in `packages/figure/`. Its [README](packages/figure/README.md)
+says which tool fits and how to check a figure with `bun run figure:preview`. Colors are
+the `--dg-*` tokens in `packages/figure/tokens.css`.
 
 From `site/`, `bun scripts/shoot-figures.tsx [course/slug ...]` screenshots figures
 to `/tmp/figures`. It needs `bun run dev` and Playwright's Chromium.

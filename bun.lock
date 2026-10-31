@@ -4,16 +4,35 @@
   "workspaces": {
     "": {
       "name": "knowledge-site",
+    },
+    "packages/figure": {
+      "name": "figure",
+      "version": "0.0.0",
       "dependencies": {
-        "@base-ui/react": "^1.5.0",
         "@dagrejs/dagre": "^3.1.3",
-        "@highlighters/core": "^1.1.2",
         "@mathjax/mathjax-tex-font": "^4.1.3",
         "@mathjax/src": "^4.1.3",
+        "katex": "^0.16.47",
+      },
+      "devDependencies": {
+        "@types/react": "19.2.14\n19.2.14",
+        "react": "19.2.6",
+      },
+      "peerDependencies": {
+        "react": ">=19",
+      },
+    },
+    "site": {
+      "name": "knowledge-site",
+      "version": "0.1.0",
+      "dependencies": {
+        "@base-ui/react": "^1.5.0",
+        "@highlighters/core": "^1.1.2",
         "@mdx-js/mdx": "^3.1.1",
         "@types/mdx": "^2.0.13",
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",
+        "figure": "workspace:*",
         "gray-matter": "^4.0.3",
         "katex": "^0.16.47",
         "next": "16.2.6",
@@ -41,10 +60,6 @@
         "wrangler": "^4.93.0",
       },
     },
-  },
-  "overrides": {
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
   },
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
@@ -441,6 +456,8 @@
 
     "fault": ["fault@2.0.1", "", { "dependencies": { "format": "^0.2.0" } }, "sha512-WtySTkS4OKev5JtpHXnib4Gxiurzh5NCGvWrFaZ34m6JehfTUhKZvn9njTfw48t6JumVQOmrKqpmGcdwxnhqBQ=="],
 
+    "figure": ["figure@workspace:packages/figure"],
+
     "format": ["format@0.2.2", "", {}, "sha512-wzsgA6WOq+09wrU1tsJ09udeR/YZRaeArL9e1wPbFg3GG2yDnC2ldKpxs4xunpFF9DgqCqOIra3bc1HWrJ37Ww=="],
 
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
@@ -508,6 +525,8 @@
     "kind-of": ["kind-of@6.0.3", "", {}, "sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw=="],
 
     "kleur": ["kleur@4.1.5", "", {}, "sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ=="],
+
+    "knowledge-site": ["knowledge-site@workspace:site"],
 
     "lightningcss": ["lightningcss@1.32.0", "", { "dependencies": { "detect-libc": "2.1.2" }, "optionalDependencies": { "lightningcss-android-arm64": "1.32.0", "lightningcss-darwin-arm64": "1.32.0", "lightningcss-darwin-x64": "1.32.0", "lightningcss-freebsd-x64": "1.32.0", "lightningcss-linux-arm-gnueabihf": "1.32.0", "lightningcss-linux-arm64-gnu": "1.32.0", "lightningcss-linux-arm64-musl": "1.32.0", "lightningcss-linux-x64-gnu": "1.32.0", "lightningcss-linux-x64-musl": "1.32.0", "lightningcss-win32-arm64-msvc": "1.32.0", "lightningcss-win32-x64-msvc": "1.32.0" } }, "sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ=="],
 

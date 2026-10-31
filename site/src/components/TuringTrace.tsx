@@ -1,4 +1,4 @@
-import { Cells, Diagram, FONT, Grid, measure, Node, NODE, Text, type Tone } from "@/components/figure";
+import { Cells, Diagram, FONT, Grid, measure, Node, NODE, Text, type Tone } from "figure";
 import { TONE } from "@/components/tones";
 
 export interface TraceRow {

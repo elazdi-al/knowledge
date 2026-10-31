@@ -1,4 +1,4 @@
-import { Diagram, Group, Node } from "@/components/figure";
+import { Diagram, Group, Node } from "figure";
 
 interface Props {
   title?: string;

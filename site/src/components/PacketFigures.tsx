@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Edge, FONT, Canvas, Group, measure, Node, NODE, Poly, Row, Space, Text, type Tone, labelPillW } from "@/components/figure";
-import { SequenceChart, TimeSpace, headWidth } from "@/components/figure";
+import { Cells, Col, Edge, FONT, Canvas, Group, measure, Node, NODE, Poly, Row, Space, Text, type Tone, labelPillW } from "figure";
+import { SequenceChart, TimeSpace, headWidth } from "figure";
 import { NET_TONE } from "@/components/NetworkFigures";
 
 export type Layer = "application" | "transport" | "network" | "link" | "physical";

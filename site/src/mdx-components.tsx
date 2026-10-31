@@ -22,7 +22,7 @@ import {
   DynamoSiblingsSchema,
   QuorumOverlapSchema,
 } from "@/components/EventualConsistencySchemas";
-import { figureComponents } from "@/components/figure";
+import { figureComponents } from "figure";
 import { HashDiagram } from "@/components/HashDiagram";
 import { IdeaBreak } from "@/components/IdeaBreak";
 import { IndexMap } from "@/components/IndexMap";

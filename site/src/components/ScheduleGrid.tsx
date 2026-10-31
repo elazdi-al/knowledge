@@ -1,4 +1,4 @@
-import { Grid, Node, Space, Tag, type State } from "@/components/figure";
+import { Grid, Node, Space, Tag, type State } from "figure";
 import { TX_TONE } from "@/components/tones";
 
 export type TxId = 1 | 2 | 3;

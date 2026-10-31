@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Grid, Group, measure, Node, Row, Space, Text, type State, type Tone, nodeTitleW, GROUP, NODE } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Grid, Group, measure, Node, Row, Space, Text, type State, type Tone, nodeTitleW, GROUP, NODE } from "figure";
 import { TONE } from "@/components/tones";
 
 /** A page cell's role, mapped onto the family state and tone grammar:

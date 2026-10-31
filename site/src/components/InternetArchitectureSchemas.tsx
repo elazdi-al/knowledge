@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Text, type Tone, type FigureProps, LINE_H } from "@/components/figure";
+import { Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Text, type Tone, type FigureProps, LINE_H } from "figure";
 import { DEVICE_NAME, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch } from "@/components/NetworkFigures";
-import { TimeSpace } from "@/components/figure";
+import { TimeSpace } from "figure";
 import { AddressBits, FrameHeaders, ProtocolStack } from "@/components/PacketFigures";
 
 // --- names -------------------------------------------------------------------------------------------------------

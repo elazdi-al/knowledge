@@ -1,4 +1,4 @@
-import { Col, Diagram, Edge, Node, Row, type Tone } from "@/components/figure";
+import { Col, Diagram, Edge, Node, Row, type Tone } from "figure";
 import { TONE } from "@/components/tones";
 
 /** Built-in relational-algebra operator glyphs. Pass `glyph` for anything else. */

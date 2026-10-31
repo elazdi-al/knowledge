@@ -1,4 +1,4 @@
-import { Col, Diagram, Edge, Group, Node, Row, Text, type FigureProps } from "@/components/figure";
+import { Col, Diagram, Edge, Group, Node, Row, Text, type FigureProps } from "figure";
 
 const notes = (lines: string[]) => lines.map((t) => <Text key={t} text={t} size="note" muted />);
 

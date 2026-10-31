@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow, type FigureProps, tableColumnWidths, GROUP, LINE_H } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow, type FigureProps, tableColumnWidths, GROUP, LINE_H } from "figure";
 import { ForwardingTable, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch, type Route } from "@/components/NetworkFigures";
 import { FrameHeaders, HeaderFormat, type Field } from "@/components/PacketFigures";
 

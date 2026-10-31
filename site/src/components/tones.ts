@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/figure";
+import type { Tone } from "figure";
 
 /**
  * What each category hue means in the course figures, one entry per concept, so a concept keeps its hue in every

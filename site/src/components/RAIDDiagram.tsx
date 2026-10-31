@@ -1,4 +1,4 @@
-import { Diagram, Dots, Edge, Group, Node, Row } from "@/components/figure";
+import { Diagram, Dots, Edge, Group, Node, Row } from "figure";
 import { TONE } from "@/components/tones";
 
 export type RAIDMode = "striping" | "mirroring" | "parity";

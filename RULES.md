@@ -110,7 +110,7 @@ The page is narrow (36rem), so a plain newline in the source does not break the 
 - Place it right after the sentence that refers to it. Label parts on the figure, with the prose's exact terms.
 - The prose says what the figure cannot show (why it works, what to notice). Never narrate a figure.
 - One meaning per color across a course, and never color alone: pair it with a label, shape or dash.
-- Draw figures with the library in `site/src/components/figure/`; its `README.md` says which tool fits. `Split` and `Pane` set a figure beside its table when that helps scanning.
+- Draw figures with the library in `packages/figure/`; its `README.md` says which tool fits. `Split` and `Pane` set a figure beside its table when that helps scanning.
 
 ## Math
 

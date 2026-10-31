@@ -1,4 +1,4 @@
-import { Col, Diagram, Dots, Edge, FONT, Grid, measure, Node, Row, Space, Text } from "@/components/figure";
+import { Col, Diagram, Dots, Edge, FONT, Grid, measure, Node, Row, Space, Text } from "figure";
 
 export interface SortRun {
   /** Stable id, referenced by the next pass's `from` lists. */

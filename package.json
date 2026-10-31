@@ -1,0 +1,8 @@
+{
+  "name": "knowledge",
+  "private": true,
+  "workspaces": [
+    "site",
+    "packages/*"
+  ]
+}

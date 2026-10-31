@@ -1,4 +1,4 @@
-// Moves figure source to the Canvas API: Free becomes Canvas, and x/y on a mark become at + anchor="nw".
+// Moves figure source to the library's current API: imports from "figure", Free becomes Canvas, and x/y on a mark become at + anchor="nw".
 // Usage: bun scripts/migrate-canvas.ts [files]. Without files, every .tsx in src/components. Safe to rerun.
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import ts from "typescript";
@@ -38,9 +38,10 @@ for (const file of files) {
     ts.forEachChild(n, visit);
   };
   visit(sf);
-  if (!edits.length) continue;
   let out = source;
   for (const e of edits.sort((a, b) => b.start - a.start)) out = out.slice(0, e.start) + e.text + out.slice(e.end);
+  out = out.replace(/"@\/components\/figure(\/\w+)?"/g, '"figure"');
+  if (out === source) continue;
   writeFileSync(file, out);
   console.log(`${file}: ${edits.length} edits`);
 }

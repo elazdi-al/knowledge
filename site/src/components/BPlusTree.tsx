@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Fit, measure, Row, Space, Text, labelPillW, LABEL_CLEAR, LINE_H } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Fit, measure, Row, Space, Text, labelPillW, LABEL_CLEAR, LINE_H } from "figure";
 
 export interface BPlusNode {
   /** Stable id referenced by links / promote / leafOrder. */

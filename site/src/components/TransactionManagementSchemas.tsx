@@ -1,4 +1,4 @@
-import { Col, Diagram, Edge, Grid, Group, Node, Row, Table, Text, type FigureProps } from "@/components/figure";
+import { Col, Diagram, Edge, Grid, Group, Node, Row, Table, Text, type FigureProps } from "figure";
 import { ScheduleGrid, type ScheduleOp, type TxId } from "@/components/ScheduleGrid";
 import { TX_TONE } from "@/components/tones";
 

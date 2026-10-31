@@ -1,4 +1,4 @@
-import { Cells, Col, Diagram, Edge, Node, Row, Space, type CellItem, CELL } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, Node, Row, Space, type CellItem, CELL } from "figure";
 
 export type TapeCell =
   | string

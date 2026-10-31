@@ -10,7 +10,7 @@ Write the figure in a `.tsx` file, then check it:
 bun run figure:preview path/to/figure.tsx   # diagnostics, every box's position, and a PNG
 ```
 
-The file exports the figure as a component, as `export default`. Read the diagnostics first. An error throws in the build; a warning fails `check:figures`. Each one names the problem and usually the fix, such as `Did you mean "handler"?`.
+Run it from `site/`. The file exports the figure as a component, as `export default`. Read the diagnostics first. An error throws in the build; a warning fails `check:figures`. Each one names the problem and usually the fix, such as `Did you mean "handler"?`.
 
 ## Which tool
 
@@ -195,5 +195,7 @@ Follow these when you draw:
 | `frame/too-wide` | warning | wider than the content column |
 
 ## Reference
+
+Import everything from `figure`. `figure/marks`, `figure/kits` and `figure/core` hold the same names by tier, `core` being what a custom mark is made of. An app needs `figure/tokens.css` in its CSS for the colours.
 
 Props are documented on their types; your editor shows them. `layoutScene(toScene(children))` returns a frame, plain data: `{ w, h, ops, boxes, routes, diagnostics }`. Use `measure` and `LINE_H` when you must reason about text yourself.

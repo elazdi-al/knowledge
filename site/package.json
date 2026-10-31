@@ -15,18 +15,17 @@
     "check:golden": "bun scripts/check-golden.tsx",
     "check:diagnostics": "bun scripts/check-diagnostics.tsx",
     "check:readme": "bun scripts/check-readme.tsx",
-    "figure:preview": "bun scripts/figure-preview.tsx"
+    "figure:preview": "bun scripts/figure-preview.tsx",
+    "check:figure-boundary": "bun scripts/check-figure-boundary.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
-    "@dagrejs/dagre": "^3.1.3",
     "@highlighters/core": "^1.1.2",
-    "@mathjax/mathjax-tex-font": "^4.1.3",
-    "@mathjax/src": "^4.1.3",
     "@mdx-js/mdx": "^3.1.1",
     "@types/mdx": "^2.0.13",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "figure": "workspace:*",
     "gray-matter": "^4.0.3",
     "katex": "^0.16.47",
     "next": "16.2.6",

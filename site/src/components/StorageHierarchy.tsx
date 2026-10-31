@@ -1,4 +1,4 @@
-import { Diagram, Edge, Group, Node, Row, Text } from "@/components/figure";
+import { Diagram, Edge, Group, Node, Row, Text } from "figure";
 
 export interface StorageItem {
   /** Box label, e.g. "File A", "Page 0", "id". */

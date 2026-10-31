@@ -1,4 +1,4 @@
-import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Text, type FigureProps, FONT, NODE } from "@/components/figure";
+import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Text, type FigureProps, FONT, NODE } from "figure";
 import { TONE } from "@/components/tones";
 
 const STAGES: [string, string?][] = [
