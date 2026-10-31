@@ -4,6 +4,7 @@
  */
 
 import type { Diagnostic } from "./diagnostics";
+import type { RoutedEdge } from "./route";
 
 export type Tone = "blue" | "teal" | "green" | "purple" | "red";
 export const TONES: readonly Tone[] = ["blue", "teal", "green", "purple", "red"];
@@ -183,6 +184,6 @@ export interface Frame {
   w: number;
   h: number;
   items: Item[];
-  edges: EdgeSpec[];
+  routes: RoutedEdge[];
   diagnostics: Diagnostic[];
 }

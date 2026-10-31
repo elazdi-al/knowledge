@@ -9,7 +9,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { cellSize, chipW, nodeTitleStyle, nodeTitleW, tableColumnWidths } from "./layout";
 import { measureStyle } from "./measure";
 import type { Frame, Item, Rect, State, TableCell, Tone } from "./model";
-import { routeItems, type Pt, type RoutedEdge } from "./route";
+import type { Pt, RoutedEdge } from "./route";
 import { Label, styled } from "./text";
 import { CELL, FONT, GROUP, NODE, RADIUS, STROKE, TABLE, TEXT, r2 } from "./theme";
 
@@ -611,7 +611,7 @@ export function FrameSvg({ frame, label, labelledBy, uid }: FrameSvgProps) {
         </pattern>
       </defs>
       {frame.items.map(draw)}
-      {routeItems(frame.items, frame.edges).map(edgeNode)}
+      {frame.routes.map(edgeNode)}
     </svg>
   );
 }

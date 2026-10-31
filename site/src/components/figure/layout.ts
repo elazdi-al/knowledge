@@ -9,6 +9,7 @@ import {
   isContainer,
   partIds,
   type Block,
+  type Container,
   type EdgeSpec,
   type Frame,
   type Item,
@@ -152,8 +153,6 @@ function graphEdgesFor(b: Extract<Block, { kind: "graph" }>, scene: Scene) {
 interface Ctx {
   scene: Scene;
   sizes: Map<Block, Size>;
-  gaps: Map<Block, number[]>;
-  graphs: Map<Block, Map<string, { x: number; y: number }>>;
   items: Item[];
 }
 
@@ -166,11 +165,9 @@ function idsUnder(b: Block, out = new Set<string>()): Set<string> {
 
 /** Gap after each child of a stack: the author's gap, grown to `EDGE_GAP` for an edge between adjacent children, and so a labelled edge's label has `LABEL_CLEAR` around it. */
 function gapsOf(b: Extract<Block, { kind: "row" | "col" | "group" }>, ctx: Ctx): number[] {
-  const cached = ctx.gaps.get(b);
-  if (cached) return cached;
   const horizontal = (b.kind === "group" ? b.dir : b.kind) === "row";
   const sets = b.children.map((c) => idsUnder(c));
-  const gaps = sets.slice(1).map((next, i) => {
+  return sets.slice(1).map((next, i) => {
     const prev = sets[i];
     let g = b.gap;
     for (const e of ctx.scene.edges) {
@@ -178,8 +175,6 @@ function gapsOf(b: Extract<Block, { kind: "row" | "col" | "group" }>, ctx: Ctx):
     }
     return g;
   });
-  ctx.gaps.set(b, gaps);
-  return gaps;
 }
 
 /** Room an edge needs between the two items it joins along a horizontal or vertical gap: a readable arrow, or its label (which sits on the line) with clearance. Undirected connectors (tree links) keep the author's gap. */
@@ -187,62 +182,95 @@ const edgeGap = (e: EdgeSpec, horizontal: boolean) =>
   e.label ? Math.max(EDGE_GAP, (horizontal ? labelPillW(e.label) : EDGE_LABEL.h) + LABEL_CLEAR) : e.head === "none" ? 0 : EDGE_GAP;
 
 function size(b: Block, ctx: Ctx): Size {
-  const cached = ctx.sizes.get(b);
-  if (cached) return cached;
-  let s: Size;
-  if (!isContainer(b)) s = leafSize(b);
-  else {
-    const kids = b.children.map((c) => size(c, ctx));
-    switch (b.kind) {
-      case "row":
-      case "col": {
-        const main = kids.reduce((a, k) => a + (b.kind === "row" ? k.w : k.h), 0) + gapsOf(b, ctx).reduce((a, g) => a + g, 0);
-        const cross = Math.max(0, ...kids.map((k) => (b.kind === "row" ? k.h : k.w)));
-        s = b.kind === "row" ? { w: main + 2 * b.pad, h: cross + 2 * b.pad } : { w: cross + 2 * b.pad, h: main + 2 * b.pad };
-        break;
-      }
-      case "grid": {
-        const { colW, rowH, colGap, rowGap } = gridTracks(b, kids, ctx);
-        const sum = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
-        s = { w: sum(colW) + sum(colGap), h: sum(rowH) + sum(rowGap) };
-        break;
-      }
-      case "group": {
-        const main = kids.reduce((a, k) => a + (b.dir === "row" ? k.w : k.h), 0) + gapsOf(b, ctx).reduce((a, g) => a + g, 0);
-        const cross = Math.max(0, ...kids.map((k) => (b.dir === "row" ? k.h : k.w)));
-        const inner = b.dir === "row" ? { w: main, h: cross } : { w: cross, h: main };
-        const titleW = b.title ? measureStyle(b.title, TEXT.groupTitle) : 0;
-        s = {
-          w: Math.max(inner.w, titleW) + 2 * b.pad,
-          h: inner.h + 2 * b.pad + (b.title ? GROUP.titleBand : 0),
-        };
-        break;
-      }
-      case "graph": {
-        const pos = layoutGraph(
-          b.children.map((c, i) => ({ id: c.id, w: kids[i].w, h: kids[i].h })),
-          graphEdgesFor(b, ctx.scene),
-          b.dir,
-          b.gap,
-          b.rankGap,
-        );
-        ctx.graphs.set(b, pos);
-        s = {
-          w: Math.max(0, ...b.children.map((c, i) => (pos.get(c.id)?.x ?? 0) + kids[i].w)),
-          h: Math.max(0, ...b.children.map((c, i) => (pos.get(c.id)?.y ?? 0) + kids[i].h)),
-        };
-        break;
-      }
-      case "free":
-        s = {
-          w: Math.max(0, ...b.children.map((c, i) => (c.x ?? 0) + kids[i].w)),
-          h: Math.max(0, ...b.children.map((c, i) => (c.y ?? 0) + kids[i].h)),
-        };
-        break;
-    }
+  let s = ctx.sizes.get(b);
+  if (!s) {
+    s = isContainer(b) ? arrange(b, b.children.map((c) => size(c, ctx)), ctx).size : leafSize(b);
+    ctx.sizes.set(b, s);
   }
-  ctx.sizes.set(b, s);
   return s;
+}
+
+interface Arranged {
+  size: Size;
+  /** child boxes, relative to this block's box */
+  rects: Rect[];
+}
+
+/** One layout per container. Called without `given` to measure, and with the final size to place, since a parent may stretch it. */
+function arrange(b: Container, kids: Size[], ctx: Ctx, given?: Size): Arranged {
+  switch (b.kind) {
+    case "row":
+    case "col":
+    case "group":
+      return arrangeStack(b, kids, ctx, given);
+    case "grid":
+      return arrangeGrid(b, kids, ctx);
+    case "graph": {
+      const pos = layoutGraph(
+        b.children.map((c, i) => ({ id: c.id, w: kids[i].w, h: kids[i].h })),
+        graphEdgesFor(b, ctx.scene),
+        b.dir,
+        b.gap,
+        b.rankGap,
+      );
+      return boxesAt(b.children.map((c) => pos.get(c.id) ?? { x: 0, y: 0 }), kids);
+    }
+    case "free":
+      return boxesAt(b.children.map((c) => ({ x: c.x ?? 0, y: c.y ?? 0 })), kids);
+  }
+}
+
+const boxesAt = (at: { x: number; y: number }[], kids: Size[]): Arranged => {
+  const rects = at.map((p, i) => ({ x: p.x, y: p.y, w: kids[i].w, h: kids[i].h }));
+  return { size: { w: Math.max(0, ...rects.map((r) => r.x + r.w)), h: Math.max(0, ...rects.map((r) => r.y + r.h)) }, rects };
+};
+
+const sum = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
+
+function arrangeStack(b: Extract<Block, { kind: "row" | "col" | "group" }>, kids: Size[], ctx: Ctx, given?: Size): Arranged {
+  const dir = b.kind === "group" ? b.dir : b.kind;
+  const main = (k: Size) => (dir === "row" ? k.w : k.h);
+  const cross = (k: Size) => (dir === "row" ? k.h : k.w);
+  const band = b.kind === "group" && b.title ? GROUP.titleBand : 0;
+  const titleW = b.kind === "group" && b.title ? measureStyle(b.title, TEXT.groupTitle) : 0;
+  const gaps = gapsOf(b, ctx);
+  const mainTotal = sum(kids.map(main)) + sum(gaps);
+  const crossMax = Math.max(0, ...kids.map(cross));
+  const inner = dir === "row" ? { w: mainTotal, h: crossMax } : { w: crossMax, h: mainTotal };
+  const size = { w: Math.max(inner.w, titleW) + 2 * b.pad, h: inner.h + 2 * b.pad + band };
+  const box = given ?? size;
+  const availCross = dir === "row" ? box.h - 2 * b.pad - band : box.w - 2 * b.pad;
+  const stretch = b.align === "stretch";
+  let cursor = 0;
+  const rects = kids.map((k, i) => {
+    const off = stretch ? 0 : alignOffset(b.align, availCross, cross(k));
+    const at = cursor;
+    cursor += main(k) + (gaps[i] ?? 0);
+    return dir === "row"
+      ? { x: b.pad + at, y: b.pad + band + off, w: k.w, h: stretch ? availCross : k.h }
+      : { x: b.pad + off, y: b.pad + band + at, w: stretch ? availCross : k.w, h: k.h };
+  });
+  return { size, rects };
+}
+
+function arrangeGrid(b: Extract<Block, { kind: "grid" }>, kids: Size[], ctx: Ctx): Arranged {
+  const { colW, rowH, colGap, rowGap } = gridTracks(b, kids, ctx);
+  const starts = (tracks: number[], gaps: number[]) => {
+    let acc = 0;
+    return tracks.map((t, i) => {
+      const at = acc;
+      acc += t + (gaps[i] ?? 0);
+      return at;
+    });
+  };
+  const colX = starts(colW, colGap), rowY = starts(rowH, rowGap);
+  const rects = kids.map((k, i) => {
+    const ci = i % colW.length, ri = Math.floor(i / colW.length);
+    return b.align === "stretch"
+      ? { x: colX[ci], y: rowY[ri], w: colW[ci], h: rowH[ri] }
+      : { x: colX[ci] + alignOffset(b.align, colW[ci], k.w), y: rowY[ri] + (rowH[ri] - k.h) / 2, w: k.w, h: k.h };
+  });
+  return { size: { w: sum(colW) + sum(colGap), h: sum(rowH) + sum(rowGap) }, rects };
 }
 
 /** Track sizes of a grid, and the gap after each track: the author's gap, grown by `edgeGap` for an edge between cells adjacent across it. */
@@ -318,90 +346,21 @@ function place(b: Block, rect: Rect, parent: string | undefined, ctx: Ctx) {
   }
   if (!isContainer(b)) return;
 
-  const kids = b.children.map((c) => size(c, ctx));
-  switch (b.kind) {
-    case "row":
-    case "col":
-    case "group": {
-      const dir = b.kind === "group" ? b.dir : b.kind;
-      const pad = b.pad;
-      const x0 = rect.x + pad;
-      const y0 = rect.y + pad + (b.kind === "group" && b.title ? GROUP.titleBand : 0);
-      const availCross = dir === "row" ? rect.h - 2 * pad - (b.kind === "group" && b.title ? GROUP.titleBand : 0) : rect.w - 2 * pad;
-      const gaps = gapsOf(b, ctx);
-      let cursor = 0;
-      b.children.forEach((c, i) => {
-        const k = kids[i];
-        const stretch = b.align === "stretch";
-        const cw = dir === "row" ? k.w : stretch ? availCross : k.w;
-        const ch = dir === "row" ? (stretch ? availCross : k.h) : k.h;
-        const off = stretch ? 0 : alignOffset(b.align, availCross, dir === "row" ? k.h : k.w);
-        const r = dir === "row" ? { x: x0 + cursor, y: y0 + off, w: cw, h: ch } : { x: x0 + off, y: y0 + cursor, w: cw, h: ch };
-        place(c, r, b.id, ctx);
-        cursor += (dir === "row" ? k.w : k.h) + (gaps[i] ?? 0);
-      });
-      break;
-    }
-    case "grid": {
-      const { colW, rowH, colGap, rowGap } = gridTracks(b, kids, ctx);
-      const cols = colW.length;
-      const colX: number[] = [];
-      let acc = rect.x;
-      colW.forEach((w, i) => {
-        colX[i] = acc;
-        acc += w + (colGap[i] ?? 0);
-      });
-      const rowY: number[] = [];
-      acc = rect.y;
-      rowH.forEach((h, i) => {
-        rowY[i] = acc;
-        acc += h + (rowGap[i] ?? 0);
-      });
-      b.children.forEach((c, i) => {
-        const k = kids[i];
-        const ci = i % cols, ri = Math.floor(i / cols);
-        const stretch = b.align === "stretch";
-        const r = stretch
-          ? { x: colX[ci], y: rowY[ri], w: colW[ci], h: rowH[ri] }
-          : {
-              x: colX[ci] + alignOffset(b.align, colW[ci], k.w),
-              y: rowY[ri] + (rowH[ri] - k.h) / 2,
-              w: k.w,
-              h: k.h,
-            };
-        place(c, r, b.id, ctx);
-      });
-      break;
-    }
-    case "graph": {
-      const pos = ctx.graphs.get(b)!;
-      b.children.forEach((c, i) => {
-        const p = pos.get(c.id) ?? { x: 0, y: 0 };
-        place(c, { x: rect.x + p.x, y: rect.y + p.y, w: kids[i].w, h: kids[i].h }, b.id, ctx);
-      });
-      break;
-    }
-    case "free":
-      b.children.forEach((c, i) => {
-        place(c, { x: rect.x + (c.x ?? 0), y: rect.y + (c.y ?? 0), w: kids[i].w, h: kids[i].h }, b.id, ctx);
-      });
-      break;
-  }
+  const { rects } = arrange(b, b.children.map((c) => size(c, ctx)), ctx, rect);
+  b.children.forEach((c, i) => {
+    const r = rects[i];
+    place(c, { x: rect.x + r.x, y: rect.y + r.y, w: r.w, h: r.h }, b.id, ctx);
+  });
 }
 
 export function layoutScene(scene: Scene): Frame {
-  const ctx: Ctx = { scene, sizes: new Map(), gaps: new Map(), graphs: new Map(), items: [] };
+  const ctx: Ctx = { scene, sizes: new Map(), items: [] };
   const s = size(scene.root, ctx);
   place(scene.root, { x: MARGIN, y: MARGIN, w: s.w, h: s.h }, undefined, ctx);
   const rects = Object.fromEntries(ctx.items.map((i) => [i.id, i.rect]));
-  const frame: Frame = {
-    w: s.w + 2 * MARGIN,
-    h: s.h + 2 * MARGIN,
-    items: ctx.items,
-    edges: treeEdges(scene.root, scene.edges, rects),
-    diagnostics: scene.diagnostics,
-  };
-  growToFit(frame);
+  const edges = treeEdges(scene.root, scene.edges, rects);
+  const fit = growToFit(ctx.items, edges, s);
+  const frame: Frame = { ...fit, items: ctx.items, diagnostics: scene.diagnostics };
   frame.diagnostics = [...scene.diagnostics, ...lint(frame)];
   return frame;
 }
@@ -425,33 +384,35 @@ function treeEdges(root: Block, edges: EdgeSpec[], rects: Record<string, Rect>):
 
 /**
  * Arcs, loops and same-side curves bow past the items, loop labels sit beyond them, and a `Free` child may sit at a
- * negative offset (a label left of a plot); keep every item, path and pill in the viewBox.
+ * negative offset (a label left of a plot); keep every item, path and pill in the viewBox. Moves the items if it must,
+ * and returns the frame size and the final routes.
  */
-function growToFit(frame: Frame) {
-  let minX = MARGIN, minY = MARGIN, maxX = frame.w - MARGIN, maxY = frame.h - MARGIN;
+function growToFit(items: Item[], edges: EdgeSpec[], content: Size) {
+  let minX = MARGIN, minY = MARGIN, maxX = content.w + MARGIN, maxY = content.h + MARGIN;
   const extend = (x0: number, y0: number, x1: number, y1: number) => {
     minX = Math.min(minX, x0);
     minY = Math.min(minY, y0);
     maxX = Math.max(maxX, x1);
     maxY = Math.max(maxY, y1);
   };
-  for (const { rect: r } of frame.items) extend(r.x, r.y, r.x + r.w, r.y + r.h);
-  for (const r of routeItems(frame.items, frame.edges)) {
+  for (const { rect: r } of items) extend(r.x, r.y, r.x + r.w, r.y + r.h);
+  let routes = routeItems(items, edges);
+  for (const r of routes) {
     for (const p of r.pts) extend(p.x - 4, p.y - 4, p.x + 4, p.y + 4);
     if (r.label && r.spec.label) {
       const hw = labelPillW(r.spec.label) / 2, hh = EDGE_LABEL.h / 2;
       extend(r.label.x - hw, r.label.y - hh, r.label.x + hw, r.label.y + hh);
     }
   }
-  const dx = MARGIN - minX, dy = MARGIN - minY;
+  const dx = Math.max(0, MARGIN - minX), dy = Math.max(0, MARGIN - minY);
   if (dx > 0 || dy > 0) {
-    for (const it of frame.items) {
-      it.rect.x += Math.max(0, dx);
-      it.rect.y += Math.max(0, dy);
+    for (const it of items) {
+      it.rect.x += dx;
+      it.rect.y += dy;
     }
+    routes = routeItems(items, edges);
   }
-  frame.w = maxX + Math.max(0, dx) + MARGIN;
-  frame.h = maxY + Math.max(0, dy) + MARGIN;
+  return { w: maxX + dx + MARGIN, h: maxY + dy + MARGIN, routes };
 }
 
 const overlaps = (a: Rect, b: Rect, slack = 0.5) =>
@@ -481,7 +442,7 @@ function lint(frame: Frame): Diagnostic[] {
   const rects = Object.fromEntries(frame.items.map((i) => [i.id, i.rect]));
   const byId = new Map(frame.items.map((i) => [i.id, i]));
   // a line must end on something drawn: layout boxes are invisible, and a sized Space is empty room
-  for (const e of frame.edges) {
+  for (const { spec: e } of frame.routes) {
     for (const id of [e.from, e.to]) {
       const it = byId.get(id);
       if (it && (["row", "col", "grid", "graph", "free"].includes(it.kind) || (it.kind === "space" && (it.rect.w > 0 || it.rect.h > 0))))
@@ -490,7 +451,7 @@ function lint(frame: Frame): Diagnostic[] {
   }
   const solids = frame.items.filter((i) => isSolid(i.kind));
   const obstacles = frame.items.filter((i) => i.kind === "node" || i.kind === "cells" || i.kind === "table" || i.kind === "tag");
-  const routes = routeItems(frame.items, frame.edges);
+  const routes = frame.routes;
   const pillOf = (r: (typeof routes)[number]) => {
     const lw = labelPillW(r.spec.label ?? "");
     return { x: r.label!.x - lw / 2, y: r.label!.y - EDGE_LABEL.h / 2, w: lw, h: EDGE_LABEL.h };
