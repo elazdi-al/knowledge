@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { ReactNode } from "react";
 import { Cells, Col, Edge, Free, Graph, layoutScene, Node, Row, toScene, type DiagnosticCode } from "@/components/figure";
 
-const any = (props: object) => props as never;
+const any = (props: object): object => props;
 const cases: [string, DiagnosticCode, ReactNode][] = [
   ["typo in edge id", "edge/unknown-endpoint", <><Node id="a" /><Edge from="a" to="bb" /></>],
   ["typo in part id", "edge/unknown-endpoint", <><Node id="a" /><Cells id="b" items={[1, 2]} /><Edge from="a" to="b.7" /></>],

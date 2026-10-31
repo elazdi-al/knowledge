@@ -1,13 +1,7 @@
-import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Table, Text } from "@/components/figure";
+import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Table, Text, type FigureProps } from "@/components/figure";
 import { FONT, NODE } from "@/components/figure/theme";
 import { ScheduleGrid, type TxId } from "@/components/ScheduleGrid";
 import { TX_TONE } from "@/components/tones";
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 const txCircle = (id: string, tx: TxId) => <Node id={id} shape="circle" title={`$T_${tx}$`} tone={TX_TONE[tx]} />;
 
@@ -30,9 +24,9 @@ const PRECEDENCE: { title: string; ops: [TxId, string][]; edges: [TxId, TxId, st
   },
 ];
 
-export function ConflictSerializabilitySchema({ title, caption, className }: FigureProps) {
+export function ConflictSerializabilitySchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "A precedence graph turns conflict-order constraints into a cycle test."} className={className}>
+    <Diagram caption="A precedence graph turns conflict-order constraints into a cycle test." {...props}>
       <Row wrap gap={12} align="stretch">
         {PRECEDENCE.map((p, k) => (
           <Group key={p.title} title={p.title} gap={14} align="stretch">
@@ -176,13 +170,9 @@ function LockPlot({ id, counts, phases, marker }: { id: string; counts: number[]
 }
 
 /** Lock count is a step function, so the outline is exact; the marker splits the phases. */
-export function LockPhaseSchema({ title, caption, className }: FigureProps) {
+export function LockPhaseSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "2PL forbids new locks after release; strict 2PL delays release until the transaction ends."}
-      className={className}
-    >
+    <Diagram caption="2PL forbids new locks after release; strict 2PL delays release until the transaction ends." {...props}>
       <Row wrap gap={12} align="stretch">
         {LOCK_CURVES.map((c, k) => (
           <Group key={c.title} title={c.title} gap={12}>
@@ -196,14 +186,14 @@ export function LockPhaseSchema({ title, caption, className }: FigureProps) {
 }
 
 /** Each blocked request adds one wait-for edge, numbered in request order; the third closes the cycle. */
-export function WaitForGraphSchema({ title, caption, className }: FigureProps) {
+export function WaitForGraphSchema(props: FigureProps) {
   const waits: { from: TxId; to: TxId; text: string; lock: string }[] = [
     { from: 1, to: 2, text: "S($B$) waits", lock: "S($B$)" },
     { from: 2, to: 3, text: "X($C$) waits", lock: "X($C$)" },
     { from: 3, to: 1, text: "X($A$) waits", lock: "X($A$)" },
   ];
   return (
-    <Diagram title={title} caption={caption ?? "A deadlock appears as a cycle in the wait-for graph."} className={className}>
+    <Diagram caption="A deadlock appears as a cycle in the wait-for graph." {...props}>
       <Row wrap gap={16} align="stretch">
         <Group title="Blocked lock requests" gap={6}>
           <ScheduleGrid
@@ -242,13 +232,9 @@ const SCHEMES = [
   { title: "Wound-wait", rule: "young waits for old", note: "wait edges go from younger to older", oldWaits: false },
 ];
 
-export function DeadlockPreventionSchema({ title, caption, className }: FigureProps) {
+export function DeadlockPreventionSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Timestamp schemes force waiting in one priority direction, so cycles cannot form."}
-      className={className}
-    >
+    <Diagram caption="Timestamp schemes force waiting in one priority direction, so cycles cannot form." {...props}>
       <Row wrap gap={12} align="stretch">
         {SCHEMES.map((s, k) => (
           <Group key={s.title} title={s.title} gap={14}>
@@ -317,16 +303,16 @@ function Level({ level }: { level: LockLevel }) {
   );
 }
 
-export function LockGranularitySchema({ title, caption, className }: FigureProps) {
+export function LockGranularitySchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "A lock hierarchy lets the DBMS choose the object size protected by each lock."} className={className}>
+    <Diagram caption="A lock hierarchy lets the DBMS choose the object size protected by each lock." {...props}>
       <Level level={HIERARCHY} />
     </Diagram>
   );
 }
 
 /** Intention locks go on the parent before the explicit lock on the child; IS and IX coexist on Table R. */
-export function MultiGranularityLockingSchema({ title, caption, className }: FigureProps) {
+export function MultiGranularityLockingSchema(props: FigureProps) {
   const locks: [string, string, TxId, string][] = [
     ["t1", "R", 1, "IS"],
     ["t1", "A", 1, "S"],
@@ -334,7 +320,7 @@ export function MultiGranularityLockingSchema({ title, caption, className }: Fig
     ["t2", "B", 2, "X"],
   ];
   return (
-    <Diagram title={title} caption={caption ?? "Intention locks on ancestors advertise lower-level explicit locks."} className={className}>
+    <Diagram caption="Intention locks on ancestors advertise lower-level explicit locks." {...props}>
       <Col gap={14}>
         <Row wrap gap={16} align="stretch">
           <Group title="Two-level hierarchy">

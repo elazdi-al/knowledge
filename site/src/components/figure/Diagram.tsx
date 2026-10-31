@@ -17,12 +17,16 @@ const captionHtml = (caption: string) =>
     .map((part, i) => (i % 2 ? katex.renderToString(part) : part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\\\$/g, "$")))
     .join("");
 
-export interface DiagramProps {
+/** What every figure component takes, so a note can override its defaults: `<Diagram caption="default" {...props}>`. */
+export interface FigureProps {
   /** muted caption below the figure, with `$...$` TeX; also the accessible label */
   caption?: string;
   /** short heading above the figure */
   title?: string;
   className?: string;
+}
+
+export interface DiagramProps extends FigureProps {
   children?: ReactNode;
   /** Optional mobile composition when wrapping alone would obscure a relationship. */
   narrowChildren?: ReactNode;

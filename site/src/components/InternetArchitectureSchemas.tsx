@@ -1,13 +1,7 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Text, type Tone } from "@/components/figure";
+import { Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
 import { DEVICE_NAME, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch } from "@/components/NetworkFigures";
 import { AddressBits, FrameHeaders, ProtocolStack, TimeSpace } from "@/components/PacketFigures";
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 // --- names -------------------------------------------------------------------------------------------------------
 
@@ -18,7 +12,7 @@ const NAME = [
   { label: "ch", role: "top-level domain" },
 ];
 
-export function DomainNameSchema({ title, caption, className }: FigureProps) {
+export function DomainNameSchema(props: FigureProps) {
   const name = NAME.map((p) => p.label).join(".");
   const px = FONT.title - 0.5;
   const adv = measure("m", px, { mono: true });
@@ -28,11 +22,7 @@ export function DomainNameSchema({ title, caption, className }: FigureProps) {
   const at = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
   let start = 0;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "The three labels of ssc.epfl.ch, read from the right."}
-      className={className}
-    >
+    <Diagram caption="The three labels of ssc.epfl.ch, read from the right." {...props}>
       <Free>
         <Text text={name} size="title" weight={500} mono x={0} y={0} />
         {NAME.map((p, k) => {
@@ -91,16 +81,12 @@ const OnLine = ({ mid = ROUTER_BADGE + ROUTER_SIZE / 2, children }: { mid?: numb
   </Col>
 );
 
-export function SubnetChainSchema({ title, caption, className }: FigureProps) {
+export function SubnetChainSchema(props: FigureProps) {
   const r = NET_TONE.router;
   const a = 48, b = 80, gap = 16;
   const w12 = addrW("10.10.1.2"), w21 = addrW("10.10.2.1");
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Three Ethernet LANs in a row. Every address on a LAN starts with the LAN's prefix, and each router has one interface, with its own address, on each LAN it joins."}
-      className={className}
-    >
+    <Diagram caption="Three Ethernet LANs in a row. Every address on a LAN starts with the LAN's prefix, and each router has one interface, with its own address, on each LAN it joins." {...props}>
       <Row gap={JOIN} align="start">
         <Lan title="10.10.3.0/24">
           <Node id="a" title="A" sub="?" x={0} y={0} w={a} />
@@ -134,16 +120,12 @@ const Point = ({ id, n, x }: { id: string; n: number; x: number }) => <Node id={
 /** Height of a switch: its 10px port strip plus 6px padding each side. */
 const SWITCH_H = 22;
 
-export function GatewayPathSchema({ title, caption, className }: FigureProps) {
+export function GatewayPathSchema(props: FigureProps) {
   const server = 96, sw = server + 32, p1 = sw + 72 + 32;
   // room for the switch's name under the line, in both LANs so they stay level
   const h = LINE + SWITCH_H / 2 + DEVICE_NAME;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "The web server on LAN B sends to Eliane's phone on LAN A through the gateway router. Point 1 lies on LAN B, between the switch and the gateway. Point 2 lies on LAN A, between the gateway and the phone."}
-      className={className}
-    >
+    <Diagram caption="The web server on LAN B sends to Eliane's phone on LAN A through the gateway router. Point 1 lies on LAN B, between the switch and the gateway. Point 2 lies on LAN A, between the gateway and the phone." {...props}>
       <Row gap={JOIN} align="start">
         <Lan title="LAN B (Ethernet)" h={h}>
           <Node id="srv" title="Web server" x={0} y={LINE - NODE.h / 2} w={server} />
@@ -172,7 +154,7 @@ export function GatewayPathSchema({ title, caption, className }: FigureProps) {
 
 // --- encapsulation -----------------------------------------------------------------------------------------------
 
-export function EncapsulationSchema({ title, caption, className }: FigureProps) {
+export function EncapsulationSchema(props: FigureProps) {
   const layer = (unit: string, header: string, holds: string, tone: Tone, inner: ReactNode) => (
     <Group title={unit} tone={tone} dir="row" gap={4} pad={8} align="stretch">
       <Node title={header} sub={holds} tone={tone} />
@@ -180,11 +162,7 @@ export function EncapsulationSchema({ title, caption, className }: FigureProps) 
     </Group>
   );
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Encapsulation: the TCP segment is the payload of the IP packet, which is the payload of the MAC frame. Each header carries the addresses its layer works with."}
-      className={className}
-    >
+    <Diagram caption="Encapsulation: the TCP segment is the payload of the IP packet, which is the payload of the MAC frame. Each header carries the addresses its layer works with." {...props}>
       {layer(
         "MAC frame",
         "MAC header",
@@ -216,13 +194,9 @@ export function PathStacksSchema({ title, caption, className }: FigureProps) {
   );
 }
 
-export function FrameAddressesSchema({ title, caption, className }: FigureProps) {
+export function FrameAddressesSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "The frame's headers at point 1 (top) and point 2 (bottom). The gateway writes a new MAC header. The IP header crosses unchanged."}
-      className={className}
-    >
+    <Diagram caption="The frame's headers at point 1 (top) and point 2 (bottom). The gateway writes a new MAC header. The IP header crosses unchanged." {...props}>
       <FrameHeaders
         frames={[
           { n: 1, mac: ["Web server", "Gateway"], ip: ["Web server", "Eliane"] },
@@ -235,13 +209,9 @@ export function FrameAddressesSchema({ title, caption, className }: FigureProps)
 
 // --- addresses ---------------------------------------------------------------------------------------------------
 
-export function AddressPrefixSchema({ title, caption, className }: FigureProps) {
+export function AddressPrefixSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "128.178.71.34/24 (top) and its mask 255.255.255.0 in binary (bottom). The mask's 1s cover the first 24 bits, the prefix every device of the LAN shares."}
-      className={className}
-    >
+    <Diagram caption="128.178.71.34/24 (top) and its mask 255.255.255.0 in binary (bottom). The mask's 1s cover the first 24 bits, the prefix every device of the LAN shares." {...props}>
       <AddressBits cidr="128.178.71.34/24" mask />
     </Diagram>
   );
@@ -249,13 +219,9 @@ export function AddressPrefixSchema({ title, caption, className }: FigureProps) 
 
 // --- delays ------------------------------------------------------------------------------------------------------
 
-export function StoreForwardSchema({ title, caption, className }: FigureProps) {
+export function StoreForwardSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Time runs down. S starts sending only once the last bit from A has arrived, so the two transmission delays add up."}
-      className={className}
-    >
+    <Diagram caption="Time runs down. S starts sending only once the last bit from A has arrived, so the two transmission delays add up." {...props}>
       <TimeSpace
         lanes={["A", "S", "B"]}
         prop={0}
@@ -277,7 +243,7 @@ const PACKETS = [0, 1, 2, 3];
 /** Axis spacing that fits the two panels side by side. */
 const PITCH = 92;
 
-export function PacketSwitchingSchema({ title, caption, className }: FigureProps) {
+export function PacketSwitchingSchema(props: FigureProps) {
   const lanes = ["A", "R", "B"];
   const panel = (name: string, body: ReactNode) => (
     <Col gap={10} align="start">
@@ -286,14 +252,7 @@ export function PacketSwitchingSchema({ title, caption, className }: FigureProps
     </Col>
   );
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "A 4-packet message from A to B through router R, both panels on one time scale, time running down. Each band is one transmission (1 ms per packet), and its slope is the propagation (0.5 ms per link). Relaying the whole message takes 9 ms. Packet switching pipelines the two links and takes 6 ms."
-      }
-      className={className}
-    >
+    <Diagram caption="A 4-packet message from A to B through router R, both panels on one time scale, time running down. Each band is one transmission (1 ms per packet), and its slope is the propagation (0.5 ms per link). Relaying the whole message takes 9 ms. Packet switching pipelines the two links and takes 6 ms." {...props}>
       <Row wrap gap={40} align="start">
         {panel(
           "Entire message relay",
@@ -332,13 +291,9 @@ export function PacketSwitchingSchema({ title, caption, className }: FigureProps
 
 // --- throughput --------------------------------------------------------------------------------------------------
 
-export function StopAndGoSchema({ title, caption, className }: FigureProps) {
+export function StopAndGoSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "One Stop & Go cycle, time running down: A transmits the packet for T, the last bit reaches B after D, B transmits the ack for T', and its last bit reaches A after another D. Only then may A send again."}
-      className={className}
-    >
+    <Diagram caption={"One Stop & Go cycle, time running down: A transmits the packet for T, the last bit reaches B after D, B transmits the ack for T', and its last bit reaches A after another D. Only then may A send again."} {...props}>
       <TimeSpace
         lanes={["A", "B"]}
         prop={1}

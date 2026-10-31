@@ -1,27 +1,12 @@
-import { Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text, type Tone } from "@/components/figure";
+import { Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
 import { TONE } from "@/components/tones";
 
 const notes = (lines: string[]) => lines.map((t) => <Text key={t} text={t} size="note" muted />);
 const down = (from: string, to: string) => <Edge key={to} from={from} to={to} fromSide="bottom" toSide="top" route="ortho" />;
 
-export function NpCompletenessChainSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
+export function NpCompletenessChainSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "Each arrow means a polynomial-time reduction from the source problem to the target problem."
-      }
-      className={className}
-    >
+    <Diagram caption="Each arrow means a polynomial-time reduction from the source problem to the target problem." {...props}>
       <Col gap={24}>
         <Col gap={36}>
           <Node id="sat" title="SAT" state="strong" />
@@ -77,15 +62,7 @@ const CONFLICTS: Array<[string, string]> = [
   ["k3n3", "k4p3"],
 ];
 
-export function SatToIndsetReductionSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
+export function SatToIndsetReductionSchema(props: FigureProps) {
   const D = 40;
   const literal = (l: (typeof CLAUSES)[number][number]) => (
     <Node key={l.id} id={l.id} shape="circle" w={D} title={l.label} state={l.chosen ? "active" : undefined} />
@@ -106,14 +83,7 @@ export function SatToIndsetReductionSchema({
     );
   const cliques = CLAUSES.flatMap((ls) => ls.flatMap((a, i) => ls.slice(i + 1).map((b) => [a.id, b.id] as const)));
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "SAT reduces to INDSET by turning clauses into cliques and contradictions into conflict edges."
-      }
-      className={className}
-    >
+    <Diagram caption="SAT reduces to INDSET by turning clauses into cliques and contradictions into conflict edges." {...props}>
       <Col gap={14}>
         <Group title="example construction">
           <Grid cols={2} gap={48} align="center">
@@ -140,24 +110,9 @@ const DFA_D = 44;
 const state = (id: string, label: string, double = false, tone?: Tone) => <Node id={id} shape="circle" w={DFA_D} title={label} double={double} tone={tone} />;
 const hole = <Space w={DFA_D} h={DFA_D} />;
 
-export function DfaToPathReductionSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
+export function DfaToPathReductionSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "DFA nonemptiness becomes reachability: an accepting state is reachable iff the target is reachable."
-      }
-      className={className}
-    >
+    <Diagram caption="DFA nonemptiness becomes reachability: an accepting state is reachable iff the target is reachable." {...props}>
       <Col gap={14}>
         <Row wrap gap={24} align="start">
           <Group id="dfa" title="DFA $D$" gap={14}>
@@ -199,14 +154,7 @@ export function DfaToPathReductionSchema({
   );
 }
 
-export function ReductionPipelineSchema({
-  title,
-  caption,
-  solver = "$M_B$",
-  solverNote = "decider for $B$",
-  result = "machine for $A$",
-  className,
-}: {
+export function ReductionPipelineSchema({ solver = "$M_B$", solverNote = "decider for $B$", result = "machine for $A$", ...props }: {
   title?: string;
   caption?: string;
   solver?: string;
@@ -215,7 +163,7 @@ export function ReductionPipelineSchema({
   className?: string;
 }) {
   return (
-    <Diagram title={title} caption={caption ?? "Use the reduction first, then run the machine for $B$."} className={className}>
+    <Diagram caption="Use the reduction first, then run the machine for $B$." {...props}>
       <Col gap={10}>
         <Group title={result}>
           <Row wrap gap={36}>
@@ -234,24 +182,9 @@ export function ReductionPipelineSchema({
   );
 }
 
-export function RegTmReductionSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
+export function RegTmReductionSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "The reduction builds $M'$ so its language is either all strings or the known non-regular language $B$."
-      }
-      className={className}
-    >
+    <Diagram caption="The reduction builds $M'$ so its language is either all strings or the known non-regular language $B$." {...props}>
       <Col gap={20}>
         <Row wrap gap={36}>
           <Node id="mw" title="<M,w>" mono />

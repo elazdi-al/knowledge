@@ -1,15 +1,9 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Tag, Text } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type FigureProps } from "@/components/figure";
 import { labelPillW } from "@/components/figure/route";
 import { GROUP, TAG } from "@/components/figure/theme";
 import { DEVICE_NAME, Host, Link, NET_TONE, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 /** One lane spacing for the setup row and both charts, so each device sits on its lifelines: the widest label, GetExternalIPAddress, plus SequenceChart's clearance. */
 const NAT_PITCH = labelPillW("GetExternalIPAddress") + 40;
@@ -33,9 +27,9 @@ function NatRow({ stun }: { stun?: boolean }) {
 }
 
 /** UPnP: A asks its own NAT to open a port and to name its public address. */
-export function UpnpSchema({ title, caption, className }: FigureProps) {
+export function UpnpSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "A asks its own NAT to open a port and to name its public address."} className={className}>
+    <Diagram caption="A asks its own NAT to open a port and to name its public address." {...props}>
       <Col gap={10} align="start">
         <NatRow />
         <Space h={14} />
@@ -59,9 +53,9 @@ export function UpnpSchema({ title, caption, className }: FigureProps) {
 }
 
 /** STUN: a server outside reports the IP:port that the NAT rewrote the request to. */
-export function StunSchema({ title, caption, className }: FigureProps) {
+export function StunSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "S reports the IP:port that NAT A rewrote the request to."} className={className}>
+    <Diagram caption="S reports the IP:port that NAT A rewrote the request to." {...props}>
       <Col gap={10} align="start">
         <NatRow stun />
         <Space h={14} />
@@ -85,18 +79,14 @@ export function StunSchema({ title, caption, className }: FigureProps) {
 }
 
 /** Two peers behind port-restricted cone NATs: the first packets die at the far NAT but open the near one. */
-export function HolePunchingSchema({ title, caption, className }: FigureProps) {
+export function HolePunchingSchema(props: FigureProps) {
   const filter = (nat: string, peer: string) => (
     <Group title={`NAT ${nat} filter`} gap={0} pad={10}>
       <Table rows={[["203.0.113.9:3478 (S)"], { cells: [peer], state: "active" }]} />
     </Group>
   );
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Hole punching: each first packet is dropped by the far NAT, yet it opens its own NAT's filter for the peer, so the retransmissions get through."}
-      className={className}
-    >
+    <Diagram caption="Hole punching: each first packet is dropped by the far NAT, yet it opens its own NAT's filter for the peer, so the retransmissions get through." {...props}>
       <Col gap={20}>
         <SequenceChart
           id="hp"
@@ -119,13 +109,9 @@ export function HolePunchingSchema({ title, caption, className }: FigureProps) {
 }
 
 /** Two peers behind symmetric NATs talk through a TURN relay: each NAT only ever sees traffic with T. */
-export function TurnRelaySchema({ title, caption, className }: FigureProps) {
+export function TurnRelaySchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "TURN: A borrows a public address on the relay T. Every packet of the call crosses T, so each NAT only sees replies from the address its own host contacted."}
-      className={className}
-    >
+    <Diagram caption="TURN: A borrows a public address on the relay T. Every packet of the call crosses T, so each NAT only sees replies from the address its own host contacted." {...props}>
       <SequenceChart
         id="turn"
         lanes={["A", "T", "B"]}
@@ -142,7 +128,7 @@ export function TurnRelaySchema({ title, caption, className }: FigureProps) {
 }
 
 /** ICE on two port-restricted cone NATs: one pair of each kind, its path drawn through the boxes it crosses, checked from the most direct down. */
-export function IceSchema({ title, caption, className }: FigureProps) {
+export function IceSchema(props: FigureProps) {
   const pairs = [
     { name: "host", via: [] as number[], result: "no answer", tone: NET_TONE.drop },
     { name: "server reflexive", via: [1, 3], result: "answers, kept", state: "active" as const },
@@ -172,11 +158,7 @@ export function IceSchema({ title, caption, className }: FigureProps) {
     stops.slice(1).forEach((k, j) => edges.push(<Link key={`e${i}.${j}`} from={`ice${i}.${stops[j]}`} to={`ice${i}.${k}`} route="straight" tone={p.tone} state={p.state} />));
   });
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "ICE between two port-restricted cone NATs. The host pair gets no answer, because A and B sit in different LANs. Both other pairs answer, and ICE keeps the more direct one."}
-      className={className}
-    >
+    <Diagram caption="ICE between two port-restricted cone NATs. The host pair gets no answer, because A and B sit in different LANs. Both other pairs answer, and ICE keeps the more direct one." {...props}>
       <Free>{items}</Free>
       {edges}
     </Diagram>
@@ -184,13 +166,9 @@ export function IceSchema({ title, caption, className }: FigureProps) {
 }
 
 /** DNS64 invents the AAAA record, NAT64 turns the IPv6 packet into an IPv4 one. */
-export function Nat64Schema({ title, caption, className }: FigureProps) {
+export function Nat64Schema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "An IPv6-only client reaches an IPv4-only server: DNS64 synthesizes the AAAA record, and the NAT64 box translates the packet in both directions."}
-      className={className}
-    >
+    <Diagram caption="An IPv6-only client reaches an IPv4-only server: DNS64 synthesizes the AAAA record, and the NAT64 box translates the packet in both directions." {...props}>
       <SequenceChart
         id="n64"
         lanes={["client6", "DNS64", "NAT64", "server4"]}
@@ -208,13 +186,9 @@ export function Nat64Schema({ title, caption, className }: FigureProps) {
 }
 
 /** Stateful DHCP when the server sits behind the gateway. */
-export function DhcpRelaySchema({ title, caption, className }: FigureProps) {
+export function DhcpRelaySchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Stateful DHCP through a relay: the client broadcasts, the gateway relays to the server, and the exchange commits in two phases."}
-      className={className}
-    >
+    <Diagram caption="Stateful DHCP through a relay: the client broadcasts, the gateway relays to the server, and the exchange commits in two phases." {...props}>
       <SequenceChart
         id="dhcp"
         lanes={["Client", "Relay", "Server"]}
@@ -233,13 +207,9 @@ export function DhcpRelaySchema({ title, caption, className }: FigureProps) {
 const SUBNETS = ["cc00", "cc01", "cc02", "cc03", "cc04", "cc05", "cc06", "cc07", "cc08", "cc09", "cc0a", "cc0b", "cc0c", "cc0d", "cc0e", "cc0f"];
 
 /** The ISP delegates a /60 to the home router, which advertises one /64 of it on the home LAN. */
-export function PrefixDelegationSchema({ title, caption, className }: FigureProps) {
+export function PrefixDelegationSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Prefix delegation: the ISP's DHCP server hands R0 a /60. R0 advertises one /64 of it, 2004:aaaa:bbbb:cc02::/64, on the home LAN, where the hosts configure themselves by SLAAC."}
-      className={className}
-    >
+    <Diagram caption="Prefix delegation: the ISP's DHCP server hands R0 a /60. R0 advertises one /64 of it, 2004:aaaa:bbbb:cc02::/64, on the home LAN, where the hosts configure themselves by SLAAC." {...props}>
       <Col gap={28}>
         <Row gap={150} align="start">
           <Node id="isp" title="ISP DHCP server" sub="delegating router" />
@@ -269,13 +239,9 @@ export function PrefixDelegationSchema({ title, caption, className }: FigureProp
 }
 
 /** Each probe lives one hop longer; the router where it expires reports back. */
-export function TracerouteSchema({ title, caption, className }: FigureProps) {
+export function TracerouteSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Traceroute: the probe with TTL n expires at the n-th router, whose ICMP error reveals that router's address."}
-      className={className}
-    >
+    <Diagram caption="Traceroute: the probe with TTL n expires at the n-th router, whose ICMP error reveals that router's address." {...props}>
       <SequenceChart
         id="tr"
         lanes={["Source", "R1", "R2", "Destination"]}
@@ -318,16 +284,12 @@ function ByteRow({ id, name, value, hex, col = 0, copied, carried = [], y }: { i
 }
 
 /** NS destination: the last 24 bits of B's address give the solicited-node group, whose last 32 bits give the multicast MAC. */
-export function SolicitedNodeSchema({ title, caption, className }: FigureProps) {
+export function SolicitedNodeSchema(props: FigureProps) {
   const row = (r: number) => r * (22 + CELL + STRIP_GAP);
   const top = (r: number) => row(r) + 22;
   const bottom = (r: number) => top(r) + CELL;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Where an NS for B goes. The last 24 bits of B's address complete the solicited-node prefix ff02::1:ff00:0/104. The multicast MAC is 33:33 followed by the last 32 bits of that group."}
-      className={className}
-    >
+    <Diagram caption="Where an NS for B goes. The last 24 bits of B's address complete the solicited-node prefix ff02::1:ff00:0/104. The multicast MAC is 33:33 followed by the last 32 bits of that group." {...props}>
       <Free>
         {ByteRow({ id: "tgt", name: "B's address", value: "2001:620:618:1a6:1:80b2:f66:1", hex: "20010620061801a6000180b20f660001", copied: [13, 14, 15], y: row(0) })}
         {ByteRow({ id: "sn", name: "Solicited node", value: "ff02::1:ff66:1", hex: "ff0200000000000000000001ff660001", copied: [13, 14, 15], carried: [12], y: row(1) })}
@@ -344,13 +306,9 @@ export function SolicitedNodeSchema({ title, caption, className }: FigureProps) 
 }
 
 /** M1 must leave subnet p, so it resolves its gateway's address p.1, not M3's. */
-export function GatewayResolutionSchema({ title, caption, className }: FigureProps) {
+export function GatewayResolutionSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Two subnets joined by one router, whose interfaces are p.1 (MAC address M9) on subnet p and q.1 (MAC address M8) on subnet q."}
-      className={className}
-    >
+    <Diagram caption="Two subnets joined by one router, whose interfaces are p.1 (MAC address M9) on subnet p and q.1 (MAC address M8) on subnet q." {...props}>
       <Row gap={110} align="center">
         <Subnet prefix="subnet p">
           <Host id="m1" name="M1" addr="p.h1" />

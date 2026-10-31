@@ -1,11 +1,5 @@
-import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Text, type FigureProps } from "@/components/figure";
 import { TONE } from "@/components/tones";
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 const REPLICAS = ["R1", "R2", "R3", "R4"];
 const WRITE_QUORUM = [0, 1];
@@ -15,9 +9,9 @@ const QUORUMS = [
 ];
 const QUORUM_CELL = 40;
 
-export function QuorumOverlapSchema({ title, caption, className }: FigureProps) {
+export function QuorumOverlapSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "When $R + W > N$, every read quorum intersects every completed write quorum."} className={className}>
+    <Diagram caption="When $R + W > N$, every read quorum intersects every completed write quorum." {...props}>
       <Col gap={12}>
         <Row wrap gap={12} align="stretch">
           {QUORUMS.map((q) => (
@@ -46,14 +40,10 @@ export function QuorumOverlapSchema({ title, caption, className }: FigureProps) 
 }
 
 /** One stage, so each replica keeps its place: writers on the left, the reader on the right, numbered edges in the order the versions travel. */
-export function DynamoSiblingsSchema({ title, caption, className }: FigureProps) {
+export function DynamoSiblingsSchema(props: FigureProps) {
   const replica = (id: string, name: string) => <Node id={id} shape="cylinder" title={name} sub="$x_0=5$" />;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Dynamo-style systems preserve conflicting versions as siblings and ask the application to reconcile them."}
-      className={className}
-    >
+    <Diagram caption="Dynamo-style systems preserve conflicting versions as siblings and ask the application to reconcile them." {...props}>
       <Col gap={16}>
         <Grid cols={3} colGap={88} rowGap={56}>
           <Space />
@@ -148,13 +138,9 @@ function Lanes({ id, slots, lanes, causal }: { id: string; slots: number; lanes:
   );
 }
 
-export function CausalConsistencySchema({ title, caption, className }: FigureProps) {
+export function CausalConsistencySchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Causal consistency preserves cause-before-effect order, while concurrent writes may be observed in different orders."}
-      className={className}
-    >
+    <Diagram caption="Causal consistency preserves cause-before-effect order, while concurrent writes may be observed in different orders." {...props}>
       <Row wrap gap={12} align="stretch">
         {CAUSAL.map((c, k) => (
           <Group key={c.title} title={c.title} gap={16}>

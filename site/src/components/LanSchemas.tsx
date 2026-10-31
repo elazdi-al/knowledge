@@ -1,13 +1,7 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Path, Row, Space, Text, type Tone } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Path, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
 import { Link, NET_TONE, Router, ROUTER_SIZE } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 /** A zero-size anchor that edges attach to. */
 const at = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
@@ -52,13 +46,9 @@ const SRC: Field = { name: "Source", size: "6 B", tone: MAC };
 const TYPE: Field = { name: "Ethertype", size: "2 B", tone: MAC };
 const FCS: Field = { name: "FCS", size: "4 B", tone: MAC };
 
-export function EthernetFrameSchema({ title, caption, className }: FigureProps) {
+export function EthernetFrameSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "An Ethernet v2 frame in transmission order, not to scale. The MAC header and the FCS are blue. The preamble and the SFD come before the frame and do not count in its size."}
-      className={className}
-    >
+    <Diagram caption="An Ethernet v2 frame in transmission order, not to scale. The MAC header and the FCS are blue. The preamble and the SFD come before the frame and do not count in its size." {...props}>
       <FrameStrip
         id="eth"
         fields={[{ name: "Preamble", size: "7 B" }, { name: "SFD", size: "1 B" }, DST, SRC, TYPE, { name: "Payload", size: "46–1500 B" }, FCS]}
@@ -71,14 +61,10 @@ export function EthernetFrameSchema({ title, caption, className }: FigureProps) 
   );
 }
 
-export function MacsecFrameSchema({ title, caption, className }: FigureProps) {
+export function MacsecFrameSchema(props: FigureProps) {
   const payload = measure("incl. Ethertype, VLAN tag", FONT.note) + 2 * NODE.padX;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "A MACsec frame. Its Ethertype is 0x88e5, and the original Ethertype moves into the encrypted payload."}
-      className={className}
-    >
+    <Diagram caption="A MACsec frame. Its Ethertype is 0x88e5, and the original Ethertype moves into the encrypted payload." {...props}>
       <FrameStrip
         id="macsec"
         fields={[DST, SRC, TYPE, { name: "SecTAG", size: "16 B", tone: MAC }, { name: "Payload", size: "incl. Ethertype, VLAN tag", w: payload }, { name: "ICV", size: "16 B", tone: MAC }, FCS]}
@@ -93,7 +79,7 @@ export function MacsecFrameSchema({ title, caption, className }: FigureProps) {
 
 // --- MAC addresses -----------------------------------------------------------------------------------------------
 
-export function MacAddressSchema({ title, caption, className }: FigureProps) {
+export function MacAddressSchema(props: FigureProps) {
   const BYTE = 56, GAP = 6, BIT = 28, H = NODE.h;
   const bytes = ["08", "00", "20", "71", "0d", "d4"];
   const bx = (i: number) => i * (BYTE + GAP);
@@ -108,11 +94,7 @@ export function MacAddressSchema({ title, caption, className }: FigureProps) {
     <Edge key={k} from={`mac.${k}a`} to={`mac.${k}b`} route="straight" head="both" label={label} />,
   ];
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "The MAC address 08:00:20:71:0d:d4. Its first byte, 0x08, is written below in binary, most significant bit first. Its last bit is the I/G bit and the one before it is the U/L bit. Both are 0: one interface, numbered by its manufacturer."}
-      className={className}
-    >
+    <Diagram caption="The MAC address 08:00:20:71:0d:d4. Its first byte, 0x08, is written below in binary, most significant bit first. Its last bit is the I/G bit and the one before it is the U/L bit. Both are 0: one interface, numbered by its manufacturer." {...props}>
       <Free>
         {span("oui", 0, 2, "OUI")}
         {span("ser", 3, 5, "serial number")}
@@ -141,7 +123,7 @@ const VlanHost = ({ id, vlan, cx, cy }: { id: string; vlan: number; cx: number; 
   <Node id={id} title={id} sub={`VLAN ${vlan}`} x={cx - HOST_W / 2} y={cy - NODE.hSub / 2} w={HOST_W} />
 );
 
-export function VlanTrunkSchema({ title, caption, className }: FigureProps) {
+export function VlanTrunkSchema(props: FigureProps) {
   const hosts: [string, number, string, number][] = [
     ["A", 2, "S1", 50],
     ["C", 3, "S1", 190],
@@ -149,11 +131,7 @@ export function VlanTrunkSchema({ title, caption, className }: FigureProps) {
     ["D", 3, "S2", 470],
   ];
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Two switches carry VLANs 2 and 3. Each host port belongs to one VLAN and carries untagged frames. The trunk link between S1 and S2 carries both VLANs, so each of its frames holds a VLAN tag."}
-      className={className}
-    >
+    <Diagram caption="Two switches carry VLANs 2 and 3. Each host port belongs to one VLAN and carries untagged frames. The trunk link between S1 and S2 carries both VLANs, so each of its frames holds a VLAN tag." {...props}>
       <Col gap={28} align="center">
         <Free>
           <Sw id="S1" cx={120} cy={NODE.h / 2} />
@@ -175,7 +153,7 @@ export function VlanTrunkSchema({ title, caption, className }: FigureProps) {
   );
 }
 
-export function VlanRouterSchema({ title, caption, className }: FigureProps) {
+export function VlanRouterSchema(props: FigureProps) {
   const cy = NODE.h / 2 + 8;
   const hosts: [string, number, number][] = [
     ["A", 2, 130],
@@ -184,11 +162,7 @@ export function VlanRouterSchema({ title, caption, className }: FigureProps) {
     ["D", 3, 460],
   ];
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "VLAN 2 (A, Y) and VLAN 3 (C, D) share switch S1. Router R joins S1 through a trunk link and is the gateway of both VLANs."}
-      className={className}
-    >
+    <Diagram caption="VLAN 2 (A, Y) and VLAN 3 (C, D) share switch S1. Router R joins S1 through a trunk link and is the gateway of both VLANs." {...props}>
       <Free>
         <Router id="R" label="R" x={90} y={cy - ROUTER_SIZE / 2} />
         <Sw id="S1" cx={295} cy={cy} />
@@ -223,7 +197,7 @@ const device = (id: string) => id.replace(/\.\d$/, "");
 const chain = (ids: string[], labels: Record<number, string> = {}) =>
   ids.slice(1).map((to, i) => (device(ids[i]) === device(to) ? null : <Link key={`${ids[i]}-${to}`} from={ids[i]} to={to} label={labels[i]} route="straight" />));
 
-export function BridgedPathSchema({ title, caption, className }: FigureProps) {
+export function BridgedPathSchema(props: FigureProps) {
   const panel = (k: string, name: string, middle: ReactNode, ids: string[], wifi: Record<number, string>) => (
     <Col key={k} gap={10} align="start">
       <Text text={name} weight={500} />
@@ -237,11 +211,7 @@ export function BridgedPathSchema({ title, caption, className }: FigureProps) {
     </Col>
   );
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "The web server reaches Elaine's phone through one bridged network. Unlabelled links are Ethernet. Top: a bridge with interfaces M2 and M3 talks to a WiFi base station over WiFi. Bottom: an access point with Ethernet interface M2."}
-      className={className}
-    >
+    <Diagram caption="The web server reaches Elaine's phone through one bridged network. Unlabelled links are Ethernet. Top: a bridge with interfaces M2 and M3 talks to a WiFi base station over WiFi. Bottom: an access point with Ethernet interface M2." {...props}>
       <Col gap={28} align="start">
         {panel(
           "ext",
@@ -270,14 +240,10 @@ export function BridgedPathSchema({ title, caption, className }: FigureProps) {
   );
 }
 
-export function MeshWifiSchema({ title, caption, className }: FigureProps) {
+export function MeshWifiSchema(props: FigureProps) {
   const ids = ["A", "p1", "M1", "M2", "p2", "M3", "M4", "B"];
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "A frame from A to B over mesh WiFi. Base stations M1 and M4 serve the hosts; relays M2 and M3 join them. Every link is WiFi."}
-      className={className}
-    >
+    <Diagram caption="A frame from A to B over mesh WiFi. Base stations M1 and M4 serve the hosts; relays M2 and M3 join them. Every link is WiFi." {...props}>
       <Row gap={24} align="center">
         {ids.map((id) =>
           id.startsWith("p") ? <Point key={id} id={id} n={Number(id[1])} /> : <Node key={id} id={id} title={id} shape={id.startsWith("M") ? "box" : "circle"} />,
@@ -290,13 +256,9 @@ export function MeshWifiSchema({ title, caption, className }: FigureProps) {
 
 // --- security ----------------------------------------------------------------------------------------------------
 
-export function Dot1xSchema({ title, caption, className }: FigureProps) {
+export function Dot1xSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "IEEE 802.1X admission, time running down. The base station relays the TLS messages (chevrons) but cannot read them. Only the server checks the credentials."}
-      className={className}
-    >
+    <Diagram caption="IEEE 802.1X admission, time running down. The base station relays the TLS messages (chevrons) but cannot read them. Only the server checks the credentials." {...props}>
       <SequenceChart
         id="dot1x"
         lanes={["Host", "Base station", "RADIUS server"]}
@@ -314,13 +276,9 @@ export function Dot1xSchema({ title, caption, className }: FigureProps) {
   );
 }
 
-export function BartLisaSchema({ title, caption, className }: FigureProps) {
+export function BartLisaSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Lisa plugs into the Ethernet port M2 of Bart's PC. Bart's PC reaches the EPFL base station over WiFi, from its interface M1."}
-      className={className}
-    >
+    <Diagram caption="Lisa plugs into the Ethernet port M2 of Bart's PC. Bart's PC reaches the EPFL base station over WiFi, from its interface M1." {...props}>
       <Row gap={24} align="center">
         <Node id="lisa" title="Lisa" sub="M3" />
         <TwoPorts id="bart" name="Bart's PC" ports={["M2", "M1"]} />

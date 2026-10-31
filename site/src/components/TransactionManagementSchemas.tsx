@@ -1,12 +1,6 @@
-import { Col, Diagram, Edge, Grid, Group, Node, Row, Table, Text } from "@/components/figure";
+import { Col, Diagram, Edge, Grid, Group, Node, Row, Table, Text, type FigureProps } from "@/components/figure";
 import { ScheduleGrid, type ScheduleOp, type TxId } from "@/components/ScheduleGrid";
 import { TX_TONE } from "@/components/tones";
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 const txChip = (tx: TxId) => ({ text: `$T_${tx}$`, tone: TX_TONE[tx], mono: false });
 
@@ -20,9 +14,9 @@ const LOG: { tx: TxId; op: string }[] = [
 ];
 
 /** Each record points back to the previous record of its transaction: T1 on the right, T2 on the left, so the chains never cross. */
-export function TransactionLogSchema({ title, caption, className }: FigureProps) {
+export function TransactionLogSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "A log is append-only; prev-pointers link each transaction's records."} className={className}>
+    <Diagram caption="A log is append-only; prev-pointers link each transaction's records." {...props}>
       <Col gap={14} align="stretch">
         <Group title="Append-only log" gap={10}>
           <Text text="prev-pointers chain records from the same transaction" size="note" muted />
@@ -44,9 +38,9 @@ export function TransactionLogSchema({ title, caption, className }: FigureProps)
 }
 
 /** Both rules order writes: the log record before the page, and the forced log flush before the commit returns. */
-export function WalRulesSchema({ title, caption, className }: FigureProps) {
+export function WalRulesSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "Write-ahead logging requires log-before-page and log-before-commit."} className={className}>
+    <Diagram caption="Write-ahead logging requires log-before-page and log-before-commit." {...props}>
       <Row wrap gap={12} align="stretch">
         <Group title="Rule 1: log before page" gap={14}>
           <Grid cols={3} colGap={16} rowGap={56} align="stretch">
@@ -97,9 +91,9 @@ const SCHEDULES: { title: string; ops: [TxId, string][]; result: string; bad?: b
   },
 ];
 
-export function ScheduleEquivalenceSchema({ title, caption, className }: FigureProps) {
+export function ScheduleEquivalenceSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "A valid interleaving has the same effect as some serial schedule."} className={className}>
+    <Diagram caption="A valid interleaving has the same effect as some serial schedule." {...props}>
       <Row wrap gap={8} align="start">
         {SCHEDULES.map((s) => (
           <Group key={s.title} title={s.title} gap={12} pad={12} align="stretch">
@@ -118,9 +112,9 @@ const PHASES = [
   { title: "3. Undo", lines: ["walk log backward", "restore before-images", "remove in-flight effects"] },
 ];
 
-export function RecoveryPhasesSchema({ title, caption, className }: FigureProps) {
+export function RecoveryPhasesSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "Crash recovery scans, replays committed work, and undoes in-flight work."} className={className}>
+    <Diagram caption="Crash recovery scans, replays committed work, and undoes in-flight work." {...props}>
       <Col gap={16}>
         <Row wrap gap={36} align="stretch">
           {PHASES.map((p, i) => (

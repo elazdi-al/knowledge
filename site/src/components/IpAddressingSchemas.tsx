@@ -1,17 +1,11 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow, type FigureProps } from "@/components/figure";
 import { tableColumnWidths } from "@/components/figure/layout";
 import { GROUP } from "@/components/figure/theme";
 import { ForwardingTable, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch, type Route } from "@/components/NetworkFigures";
 import { FrameHeaders, HeaderFormat, type Field } from "@/components/PacketFigures";
 
 /** Advanced Networks, Lecture 2 figures: forwarding, IPv4 and IPv6 addresses, NAT. */
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 /** A zero-size anchor that edges attach to. */
 const at = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
@@ -49,16 +43,9 @@ const Star = ({ sw, label, hosts, flip = false }: { sw: string; label: string; h
 /** The centre line of a `Star`, measured from the top of its subnet's outline. */
 const STAR_MID = GROUP.pad + GROUP.titleBand + NODE.h + 14;
 
-export function SubnetRuleSchema({ title, caption, className }: FigureProps) {
+export function SubnetRuleSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "Inside a subnet, hosts reach each other through the switch or the base station, never through the gateway. W's packet to E (blue) crosses the gateway, whose two interfaces sit in different subnets."
-      }
-      className={className}
-    >
+    <Diagram caption="Inside a subnet, hosts reach each other through the switch or the base station, never through the gateway. W's packet to E (blue) crosses the gateway, whose two interfaces sit in different subnets." {...props}>
       <Row gap={100} align="start">
         <Group title="Ethernet, 10.10.2.0/24" dashed>
           <Star sw="sw" label="Switch" hosts={["W", "P"]} />
@@ -81,15 +68,11 @@ export function SubnetRuleSchema({ title, caption, className }: FigureProps) {
   );
 }
 
-export function LanCaptureSchema({ title, caption, className }: FigureProps) {
+export function LanCaptureSchema(props: FigureProps) {
   const line = NODE.h / 2;
   const pt = NODE.minW + 28, swX = pt + 22 + 28, pX = swX + SWITCH_W + 28;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "The frame at point 1. Inside one subnet, P is both the next hop and the destination, so both headers name P. The switch appears in neither."}
-      className={className}
-    >
+    <Diagram caption="The frame at point 1. Inside one subnet, P is both the next hop and the destination, so both headers name P. The switch appears in neither." {...props}>
       <Col gap={20} align="center">
         <Group title="Ethernet, 10.10.2.0/24" dashed>
           <Free>
@@ -122,7 +105,7 @@ const LPM_LIT: Record<number, number[]> = { 1: [1, 4, 5], 2: [3, 4, 1], 3: [] };
 /** The host above each router. */
 const LPM_HOSTS: Record<number, [name: string, addr: string]> = { 1: ["Alice", "129.132.66.46"], 2: ["Bob", "128.178.71.202"], 3: ["Bart", "128.178.156.23"] };
 
-export function LongestPrefixMatchSchema({ title, caption, className }: FigureProps) {
+export function LongestPrefixMatchSchema(props: FigureProps) {
   const mono = (t: string) => measure(t, FONT.mono, { mono: true }) + 16;
   // every table here holds a `direct` entry, the widest next hop
   const colW = (n: number) => Math.max(ROUTER_SIZE, Math.max(...LPM_TABLES[n].map(([p]) => mono(p))) + mono("direct"));
@@ -133,11 +116,7 @@ export function LongestPrefixMatchSchema({ title, caption, className }: FigurePr
   const hostW = Math.max(...Object.values(LPM_HOSTS).map(([, a]) => measure(a, FONT.note))) + 2 * NODE.padX;
   const top = NODE.hSub + DROP + ROUTER_BADGE;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Alice's packet to Bob takes the thick links, and each router uses its outlined entry. A chip names the next-hop router, and direct marks an attached subnet."}
-      className={className}
-    >
+    <Diagram caption="Alice's packet to Bob takes the thick links, and each router uses its outlined entry. A chip names the next-hop router, and direct marks an attached subnet." {...props}>
       <Free>
         {[1, 2, 3].map((n) => [
           <Node key={`h${n}`} id={`h${n}`} title={LPM_HOSTS[n][0]} sub={LPM_HOSTS[n][1]} x={xs[n] - hostW / 2} y={0} w={hostW} />,
@@ -210,16 +189,9 @@ function BitRows({ prefix, rows, prefixLabel, hostLabel }: { prefix: number; row
   );
 }
 
-export function SubnetBitsSchema({ title, caption, className }: FigureProps) {
+export function SubnetBitsSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "Both choices for H match the north interface on all 23 prefix bits. Choice B differs only in a host bit (outlined). The south interface differs in three prefix bits (blue)."
-      }
-      className={className}
-    >
+    <Diagram caption="Both choices for H match the north interface on all 23 prefix bits. Choice B differs only in a host bit (outlined). The south interface differs in three prefix bits (blue)." {...props}>
       <BitRows
         prefix={23}
         prefixLabel="prefix: 23 bits"
@@ -247,21 +219,17 @@ const IPV4: Field[] = [
   ["Destination Address", 32],
 ];
 
-export function Ipv4HeaderSchema({ title, caption, className }: FigureProps) {
+export function Ipv4HeaderSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "The IPv4 header: five rows of 32 bits, 20 bytes before any options. Tinted: the addresses and the Protocol field."} className={className}>
+    <Diagram caption="The IPv4 header: five rows of 32 bits, 20 bytes before any options. Tinted: the addresses and the Protocol field." {...props}>
       <HeaderFormat fields={IPV4} highlight={["Protocol", "Source Address", "Destination Address"]} />
     </Diagram>
   );
 }
 
-export function Ipv6HeaderSchema({ title, caption, className }: FigureProps) {
+export function Ipv6HeaderSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "The IPv6 header: 40 bytes, of which 32 are the two addresses. Tinted: the addresses and Next Header, the counterpart of IPv4's Protocol."}
-      className={className}
-    >
+    <Diagram caption="The IPv6 header: 40 bytes, of which 32 are the two addresses. Tinted: the addresses and Next Header, the counterpart of IPv4's Protocol." {...props}>
       <HeaderFormat fields="ipv6" highlight={["Next Header", "Source Address", "Destination Address"]} />
     </Diagram>
   );
@@ -283,16 +251,12 @@ function Caption({ x, y, lines, align = "start" }: { x: number; y: number; lines
   );
 }
 
-export function EpflForwardingSchema({ title, caption, className }: FigureProps) {
+export function EpflForwardingSchema(props: FigureProps) {
   const cx = 250, half = ROUTER_SIZE / 2, spread = 120;
   // the backbone LAN joining ed0-swi, ed2-in and ed2-el runs at yB
   const y0 = 12 + ROUTER_BADGE, y1 = 112 + ROUTER_BADGE, yB = y1 + ROUTER_SIZE + 64, y2 = yB - half;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Router ed0-swi and its IPv4 forwarding table: each entry names a destination prefix, the next-hop router, and the interface toward it."}
-      className={className}
-    >
+    <Diagram caption="Router ed0-swi and its IPv4 forwarding table: each entry names a destination prefix, the next-hop router, and the interface toward it." {...props}>
       <Free>
         <Router id="sw" n={1} x={cx - half} y={y0} />
         <Caption x={cx - half - 12} y={y0 - 2} align="end" lines={["sw-la-01", "128.178.47.3", "toward the Internet"]} />
@@ -331,7 +295,7 @@ const SEGS: { label: string; segs: Seg[] }[] = [
   { label: "private", segs: [["fd", 8], ["24:ec43:12ca", 40], [":1a6", 16], [":a00:20ff:fe78:30f9", 64]] },
 ];
 
-export function Ipv6AddressSchema({ title, caption, className }: FigureProps) {
+export function Ipv6AddressSchema(props: FigureProps) {
   const x0 = Math.max(...SEGS.map((s) => measure(s.label, FONT.note))) + 12;
   const bx = (bit: number) => x0 + bit * K;
   const rowY = (r: number) => 70 + r * 44;
@@ -345,14 +309,7 @@ export function Ipv6AddressSchema({ title, caption, className }: FigureProps) {
     });
   });
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "Two EPFL addresses with subnet ID 1a6. The global one nests inside EPFL's /48, itself inside SWITCH's /32; the private one starts with fd and 40 random bits."
-      }
-      className={className}
-    >
+    <Diagram caption="Two EPFL addresses with subnet ID 1a6. The global one nests inside EPFL's /48, itself inside SWITCH's /32; the private one starts with fd and 40 random bits." {...props}>
       <Free>
         {dim("sw", bx(0), bx(32) - 2, 8, "SWITCH /32")}
         {dim("epfl", bx(0), bx(48) - 2, 28, "EPFL /48")}
@@ -374,7 +331,7 @@ const pkt = (src: string, dst: string, rewritten: "src" | "dst"): TableRow[] => 
 ];
 const tableW = (rows: TableRow[]) => tableColumnWidths(undefined, rows, true).reduce((a, w) => a + w, 0);
 
-export function NatTranslationSchema({ title, caption, className }: FigureProps) {
+export function NatTranslationSchema(props: FigureProps) {
   const LAN = "192.168.10.11:1029", WAN = "130.104.228.200:3441", DNS = "1.2.3.4:53";
   const strips = { o1: pkt(LAN, DNS, "src"), i2: pkt(DNS, LAN, "dst"), o2: pkt(WAN, DNS, "src"), i1: pkt(DNS, WAN, "dst") };
   // each side's two strips hold the same addresses, so they share a width
@@ -387,14 +344,7 @@ export function NatTranslationSchema({ title, caption, className }: FigureProps)
   const yOut = mid - 20, yIn = mid + 20;
   const heading = (t: string, x0: number, w: number) => <Text text={t} size="note" muted x={x0 + (w - measure(t, FONT.note)) / 2} y={0} />;
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "Outbound, the NAT rewrites the source and records the mapping. Inbound, it finds that mapping by exact match and rewrites the destination back."
-      }
-      className={className}
-    >
+    <Diagram caption="Outbound, the NAT rewrites the source and records the mapping. Inbound, it finds that mapping by exact match and rewrites the destination back." {...props}>
       <Col gap={GAP}>
         <Free>
           {heading("LAN side, private", 0, wL)}

@@ -1,7 +1,7 @@
 import { Diagram } from "./Diagram";
 import { Cells, Col, Dot, Dots, Edge, Free, Graph, Grid, Group, Node, Path, Poly, Row, Space, Table, Tag, Text } from "./primitives";
 
-export { Diagram, type DiagramProps } from "./Diagram";
+export { Diagram, type DiagramProps, type FigureProps } from "./Diagram";
 export {
   Cells,
   Col,

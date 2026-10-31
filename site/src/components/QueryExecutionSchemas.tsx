@@ -1,12 +1,6 @@
-import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Text } from "@/components/figure";
+import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Text, type FigureProps } from "@/components/figure";
 import { FONT, NODE } from "@/components/figure/theme";
 import { TONE } from "@/components/tones";
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 const STAGES: [string, string?][] = [
   ["Parse and rewrite query", "expression tree"],
@@ -17,9 +11,9 @@ const STAGES: [string, string?][] = [
 const CHAIN = ["sql", ...STAGES.map((_, i) => `stage${i}`), "disk"];
 const CHAIN_LABELS = [undefined, ...STAGES.map(([, out]) => out)];
 
-export function QueryProcessingFlow({ title, caption, className }: FigureProps) {
+export function QueryProcessingFlow(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "Query compilation pipeline."} className={className}>
+    <Diagram caption="Query compilation pipeline." {...props}>
       <Col gap={20}>
         <Node id="sql" title="SQL query" shape="pill" tone={TONE.query} />
         <Col gap={20} align="stretch">
@@ -36,9 +30,9 @@ export function QueryProcessingFlow({ title, caption, className }: FigureProps) 
   );
 }
 
-export function OptimizerArchitectureSchema({ title, caption, className }: FigureProps) {
+export function OptimizerArchitectureSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "Cost-based optimizer architecture."} className={className}>
+    <Diagram caption="Cost-based optimizer architecture." {...props}>
       <Col gap={28}>
         <Row gap={40}>
           <Node id="sql" title="SQL query" shape="pill" tone={TONE.query} />
@@ -71,7 +65,7 @@ export function OptimizerArchitectureSchema({ title, caption, className }: Figur
 }
 
 /** Read a page, hash each tuple to an output buffer, flush full buffers to their partitions. */
-export function HashProjectionSchema({ title, caption, className }: FigureProps) {
+export function HashProjectionSchema(props: FigureProps) {
   const outs = [
     { id: "o1", part: "p1", label: "1" },
     { id: "o2", part: "p2", label: "2" },
@@ -90,7 +84,7 @@ export function HashProjectionSchema({ title, caption, className }: FigureProps)
     </Col>
   );
   return (
-    <Diagram title={title} caption={caption ?? "Hash projection partitions by $h_1$."} className={className}>
+    <Diagram caption="Hash projection partitions by $h_1$." {...props}>
       <Row gap={36}>
         <Node id="R" shape="cylinder" title="Original relation" />
         <Row gap={36} align="end">
@@ -119,9 +113,9 @@ export function HashProjectionSchema({ title, caption, className }: FigureProps)
 }
 
 /** Build before probe: R_i becomes the hash table, then S_i streams through it and matches flow out. */
-export function GraceProbeSchema({ title, caption, className }: FigureProps) {
+export function GraceProbeSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "Grace hash join, probe phase."} className={className}>
+    <Diagram caption="Grace hash join, probe phase." {...props}>
       <Row gap={36}>
         <Group title="Partitions">
           <Col gap={8} align="stretch">
@@ -207,9 +201,9 @@ function Histogram({ title, sub, buckets }: (typeof HISTOGRAMS)[number]) {
   );
 }
 
-export function HistogramBucketSchema({ title, caption, className }: FigureProps) {
+export function HistogramBucketSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption} className={className}>
+    <Diagram {...props}>
       <Row wrap gap={56} align="start">
         {HISTOGRAMS.map((h) => (
           <Histogram key={h.title} {...h} />
@@ -248,13 +242,9 @@ function Plan({ id, tree, kept, root = true }: { id: string; tree: JoinTree; kep
   );
 }
 
-export function LeftDeepPlanSchema({ title, caption, className }: FigureProps) {
+export function LeftDeepPlanSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "System R keeps left-deep join trees and prunes right-deep and bushy trees."}
-      className={className}
-    >
+    <Diagram caption="System R keeps left-deep join trees and prunes right-deep and bushy trees." {...props}>
       <Row wrap gap={12} align="stretch">
         {PLANS.map((p, i) => (
           <Group key={p.title} title={p.title} gap={16} state={p.kept ? undefined : "ghost"}>
@@ -296,12 +286,7 @@ const EXEC_FLOW: Record<ExecMode, [string, string, string][]> = {
 const DEPTH: Record<string, number> = { client: 0, proj: 1, join: 2, scanR: 3, selS: 3, scanS: 4 };
 
 /** Numbered edges trace one request down the plan's spine and the tuples back up; a link used both ways bows into two arcs. Scan R hangs off the spine (mirrored by a spacer) and feeds the join from the side. */
-export function ExecutionModelSchema({
-  mode,
-  title,
-  caption,
-  className,
-}: {
+export function ExecutionModelSchema({ mode, ...props }: {
   mode: "iterator" | "materialized";
   title?: string;
   caption?: string;
@@ -310,11 +295,7 @@ export function ExecutionModelSchema({
   const flow = EXEC_FLOW[mode];
   const both = (from: string, to: string) => flow.some(([f, t]) => f === to && t === from);
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? (mode === "iterator" ? "Iterator model: one tuple at a time." : "Materialization model: full outputs.")}
-      className={className}
-    >
+    <Diagram caption={(mode === "iterator" ? "Iterator model: one tuple at a time." : "Materialization model: full outputs.")} {...props}>
       <Col gap={40}>
         <Node id="client" title="client" shape="pill" />
         <Node id="proj" title="Project" sub="R.id, S.cdate" tone={TONE.projection} />

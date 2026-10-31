@@ -1,22 +1,10 @@
-import { Col, Diagram, Edge, Group, Node, Row, Text } from "@/components/figure";
+import { Col, Diagram, Edge, Group, Node, Row, Text, type FigureProps } from "@/components/figure";
 
 const notes = (lines: string[]) => lines.map((t) => <Text key={t} text={t} size="note" muted />);
 
-export function VerifierSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
+export function VerifierSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "A verifier checks a proposed certificate; it does not have to find one."}
-      className={className}
-    >
+    <Diagram caption="A verifier checks a proposed certificate; it does not have to find one." {...props}>
       <Col gap={6}>
         <Group title="Verification view of a language">
           <Row wrap gap={36}>
@@ -96,24 +84,9 @@ function Hexagon({ p }: { p: string }) {
   );
 }
 
-export function GraphCertificateSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
+export function GraphCertificateSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "Certificates can be concrete structures: a vertex bijection for GI, or a vertex subset for INDSET."
-      }
-      className={className}
-    >
+    <Diagram caption="Certificates can be concrete structures: a vertex bijection for GI, or a vertex subset for INDSET." {...props}>
       <Col gap={16}>
         <Group title="GI certificate">
           <Row wrap gap={32}>
@@ -140,21 +113,9 @@ export function GraphCertificateSchema({
   );
 }
 
-export function PnpContainmentSchema({
-  title,
-  caption,
-  className,
-}: {
-  title?: string;
-  caption?: string;
-  className?: string;
-}) {
+export function PnpContainmentSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "$P$ is contained in $NP$. Whether the containment is strict is the P versus NP problem."}
-      className={className}
-    >
+    <Diagram caption="$P$ is contained in $NP$. Whether the containment is strict is the P versus NP problem." {...props}>
       <Col gap={12}>
         <Row wrap gap={16} align="stretch">
           <Group title="possible: $P=NP$">

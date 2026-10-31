@@ -1,28 +1,15 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Dot, Edge, FONT, Free, Group, measure, Node, NODE, Path, Row, Text, type EdgeState } from "@/components/figure";
+import { Col, Diagram, Dot, Edge, FONT, Free, Group, measure, Node, NODE, Path, Row, Text, type EdgeState, type FigureProps } from "@/components/figure";
 import { Link, NET_TONE, Switch } from "@/components/NetworkFigures";
 import { SequenceChart, TimeSpace } from "@/components/PacketFigures";
-
-interface FigureProps {
-  title?: string;
-  caption?: string;
-  className?: string;
-}
 
 /** A's frames in the link hue, B's in the rival hue, jam signals in the drop hue. */
 const A = NET_TONE.link, B = NET_TONE.rival, JAM = NET_TONE.drop;
 
 /** CSMA/CD with T = 1: B starts at 0.9, both detect the collision and jam, B's shorter back-off wins the retry. */
-export function CsmaCdSchema({ title, caption, className }: FigureProps) {
+export function CsmaCdSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "CSMA/CD, time running down. B starts just before A's first bit arrives. Both detect the collision, jam (red) and back off, A for $\\Delta t_1$ and B for $\\Delta t_2$. B retries first; A then senses B's frame and defers."
-      }
-      className={className}
-    >
+    <Diagram caption={"CSMA/CD, time running down. B starts just before A's first bit arrives. Both detect the collision, jam (red) and back off, A for $\\Delta t_1$ and B for $\\Delta t_2$. B retries first; A then senses B's frame and defers."} {...props}>
       <TimeSpace
         lanes={["A", "B"]}
         prop={1}
@@ -45,7 +32,7 @@ export function CsmaCdSchema({ title, caption, className }: FigureProps) {
 }
 
 /** Same collision, two frame lengths: only the longer frame is still on the wire at A when B's first bit returns. */
-export function MinFrameSizeSchema({ title, caption, className }: FigureProps) {
+export function MinFrameSizeSchema(props: FigureProps) {
   const panel = (id: string, name: string, tx: number) => (
     <Col gap={10} align="start">
       <Text text={name} weight={500} />
@@ -64,14 +51,7 @@ export function MinFrameSizeSchema({ title, caption, className }: FigureProps) {
     </Col>
   );
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "A's frame (blue) meets B's (teal); $L/b$ is A's transmission time. Left: A stops before B's first bit arrives and never detects the collision. Right: A is still sending and detects it."
-      }
-      className={className}
-    >
+    <Diagram caption="A's frame (blue) meets B's (teal); $L/b$ is A's transmission time. Left: A stops before B's first bit arrives and never detects the collision. Right: A is still sending and detects it." {...props}>
       <Row wrap gap={48} align="start">
         {panel("short", "Frame too short", 1.2)}
         {panel("long", "Frame long enough", 2.4)}
@@ -81,13 +61,9 @@ export function MinFrameSizeSchema({ title, caption, className }: FigureProps) {
 }
 
 /** RTS/CTS: the CTS silences the hidden station C, which never hears A. */
-export function RtsCtsSchema({ title, caption, className }: FigureProps) {
+export function RtsCtsSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "RTS/CTS on a WiFi network. A and C both hear the base station B, but not each other. The CTS reaches both, so the hidden station C stays silent while A sends."}
-      className={className}
-    >
+    <Diagram caption="RTS/CTS on a WiFi network. A and C both hear the base station B, but not each other. The CTS reaches both, so the hidden station C stays silent while A sends." {...props}>
       <SequenceChart
         id="rts"
         lanes={["A", "B", "C"]}
@@ -145,9 +121,9 @@ const wires = (list: Wire[], panel?: string) =>
   ));
 
 /** Four switches, six hosts, nine full-duplex links. */
-export function SwitchedLanSchema({ title, caption, className }: FigureProps) {
+export function SwitchedLanSchema(props: FigureProps) {
   return (
-    <Diagram title={title} caption={caption ?? "A switched Ethernet LAN: four switches (boxes) and six hosts (circles), joined by nine full-duplex links."} className={className}>
+    <Diagram caption="A switched Ethernet LAN: four switches (boxes) and six hosts (circles), joined by nine full-duplex links." {...props}>
       <Topology
         switches={[
           ["Sw1", 150, 100],
@@ -180,16 +156,12 @@ export function SwitchedLanSchema({ title, caption, className }: FigureProps) {
 }
 
 /** Three switches in a loop, A's flood drawn in A's hue: each arrow is labelled with the step of the prose that sends it. */
-export function SwitchLoopSchema({ title, caption, className }: FigureProps) {
+export function SwitchLoopSchema(props: FigureProps) {
   const flood = (from: string, to: string, label?: string, head: "end" | "both" = "end") => (
     <Edge key={`${from}-${to}`} from={from} to={to} label={label} head={head} tone={A} route="straight" />
   );
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "A frame from A on a loop of three switches. S1 floods it to S2 and S3 (1), and S2 and S3 flood their copies to each other (2). S3 thus receives the same frame from S1 and from S2."}
-      className={className}
-    >
+    <Diagram caption="A frame from A on a loop of three switches. S1 floods it to S2 and S3 (1), and S2 and S3 flood their copies to each other (2). S3 thus receives the same frame from S1 and from S2." {...props}>
       <Topology
         switches={[
           ["S3", 290, 30],
@@ -207,16 +179,9 @@ export function SwitchLoopSchema({ title, caption, className }: FigureProps) {
 }
 
 /** The loop of `SwitchLoopSchema` after STP, root on top so the tree hangs from it: the dashed S2–S3 base is blocked. */
-export function LoopTreeSchema({ title, caption, className }: FigureProps) {
+export function LoopTreeSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "The same loop after STP, with equal link costs. S1 has the smallest ID and is the root. S2 and S3 keep their direct links to S1 (blue), and STP blocks link S2–S3 (dashed). A frame from A now reaches each switch once."
-      }
-      className={className}
-    >
+    <Diagram caption="The same loop after STP, with equal link costs. S1 has the smallest ID and is the root. S2 and S3 keep their direct links to S1 (blue), and STP blocks link S2–S3 (dashed). A frame from A now reaches each switch once." {...props}>
       <Topology
         switches={[
           ["S1", 290, 40, "root"],
@@ -236,16 +201,9 @@ export function LoopTreeSchema({ title, caption, className }: FigureProps) {
 }
 
 /** Six switches with link costs; S1 is the root, and the two dashed links stay off the tree. */
-export function SpanningTreeSchema({ title, caption, className }: FigureProps) {
+export function SpanningTreeSchema(props: FigureProps) {
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "Six switches, each link labelled with its cost. S1 has the smallest ID and is the root. The solid blue links form the spanning tree; STP deactivates the two dashed links. Host A sits on S5 and host B on S4."
-      }
-      className={className}
-    >
+    <Diagram caption="Six switches, each link labelled with its cost. S1 has the smallest ID and is the root. The solid blue links form the spanning tree; STP deactivates the two dashed links. Host A sits on S5 and host B on S4." {...props}>
       <Topology
         switches={[
           ["S1", 230, 50, "root"],
@@ -276,7 +234,7 @@ export function SpanningTreeSchema({ title, caption, className }: FigureProps) {
 }
 
 /** Example 6's square, stood on its corner so link S1–S3 runs straight down, before and after that link fails: S3 moves onto S2, and S3–S4 stays off the tree. */
-export function LinkFailureSchema({ title, caption, className }: FigureProps) {
+export function LinkFailureSchema(props: FigureProps) {
   const square = (panel: string, name: string, links: Wire[]) => (
     <Col gap={12} align="center">
       <Text text={name} weight={500} />
@@ -293,14 +251,7 @@ export function LinkFailureSchema({ title, caption, className }: FigureProps) {
     </Col>
   );
   return (
-    <Diagram
-      title={title}
-      caption={
-        caption ??
-        "Example 6, each link labelled with its cost. Blue links form the spanning tree and dashed grey links are inactive. When link S1–S3 fails (red), S3 reaches the root S1 through S2 at cost 2, so link S2–S3 joins the tree."
-      }
-      className={className}
-    >
+    <Diagram caption="Example 6, each link labelled with its cost. Blue links form the spanning tree and dashed grey links are inactive. When link S1–S3 fails (red), S3 reaches the root S1 through S2 at cost 2, so link S2–S3 joins the tree." {...props}>
       <Row wrap gap={56} align="start">
         {square("before", "Before", [
           ["S1", "S2", "1", "active"],
@@ -343,14 +294,10 @@ const panel = (name: string, drawing: ReactNode[]) => (
 );
 
 /** Four hosts on one medium, wired three ways; all three drawings share the centre line y = 94. */
-export function SharedMediumSchema({ title, caption, className }: FigureProps) {
+export function SharedMediumSchema(props: FigureProps) {
   const ring: Pt[] = Array.from({ length: 96 }, (_, i) => [94 + 46 * Math.sin((i * Math.PI) / 48), 94 - 46 * Math.cos((i * Math.PI) / 48)]);
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "Four hosts share one medium (blue): a bus, a ring, or a star around a hub."}
-      className={className}
-    >
+    <Diagram caption="Four hosts share one medium (blue): a bus, a ring, or a star around a hub." {...props}>
       <Row wrap gap={48} align="start">
         {panel("Bus", [
           <Path key="bus" points={[[4, 94], [208, 94]]} thick tone={NET_TONE.link} />,
@@ -379,14 +326,10 @@ export function SharedMediumSchema({ title, caption, className }: FigureProps) {
 }
 
 /** One frame, three networks: the hosts cannot tell a coaxial cable, a hub and a switch apart. All drawings share the centre line y = 60. */
-export function TransparentSwitchSchema({ title, caption, className }: FigureProps) {
+export function TransparentSwitchSchema(props: FigureProps) {
   const field = measure("destination", FONT.note) + 2 * NODE.padX;
   return (
-    <Diagram
-      title={title}
-      caption={caption ?? "A sends B the same Ethernet frame on a coaxial cable, a hub and a switch. Blue is one shared medium; the switch gives each host its own link."}
-      className={className}
-    >
+    <Diagram caption="A sends B the same Ethernet frame on a coaxial cable, a hub and a switch. Blue is one shared medium; the switch gives each host its own link." {...props}>
       <Col gap={32} align="center">
         <Row wrap gap={48} align="start">
           {panel("Coaxial cable", [
