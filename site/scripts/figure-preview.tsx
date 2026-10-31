@@ -50,6 +50,6 @@ if (!shell) {
   console.log(`no PNG: run \`bunx playwright install chromium-headless-shell\`. HTML at ${page}`);
 } else {
   const png = join(out, `${name}.png`);
-  spawnSync(shell, ["--headless", "--hide-scrollbars", "--disable-web-security", `--window-size=${Math.ceil(Math.max(frame.w, 200)) + 32},${Math.ceil(frame.h) + 140}`, `--screenshot=${png}`, `file://${page}`]);
+  spawnSync(shell, ["--headless", "--hide-scrollbars", "--disable-web-security", `--window-size=${Math.ceil(Math.max(frame.w, 200)) + 32},${Math.ceil(frame.h) + 40}`, `--screenshot=${png}`, `file://${page}`]);
   console.log(`PNG at ${png}`);
 }

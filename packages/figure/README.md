@@ -151,9 +151,7 @@ Components you write yourself are plain functions returning marks; call them fre
 
 ## Text
 
-Labels may hold TeX, `$A \cap B$`. `\n` breaks a line in `Text` and in a `Node` title, and `maxWidth` wraps both at spaces; edge labels are one line. Text is the `text` prop or the children on `Text`, `text` on `Tag`, `title` and `sub` on `Node`, `title` on `Group`, `label` on `Edge`, and `label` and `sub` on a cell.
-
-`Text` takes `size` (`title`, `label`, `note`), `muted`, `mono`, `weight`, `align`, and `rotate` in degrees.
+Labels may hold TeX, `$A \cap B$`. `\n` breaks a line in `Text` and in a `Node` title, and `maxWidth` wraps both at spaces; edge labels are one line. Text is the `text` prop or the children on `Text`, `text` on `Tag`, `title` and `sub` on `Node`, `title` on `Group`, `label` on `Edge`, and `label` and `sub` on a cell. `Text` takes `size` (`title`, `label`, `note`), `muted`, `mono`, `weight`, `align`, and `rotate` in degrees.
 
 ## Meaning
 
