@@ -1,6 +1,5 @@
 import { Fragment } from "react";
-import { Cells, Col, Diagram, Dots, Edge, FONT, Grid, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type CellInput, type CellItem } from "@/components/figure";
-import { CELL, GROUP } from "@/components/figure/theme";
+import { Cells, Col, Diagram, Dots, Edge, FONT, Grid, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type CellInput, type CellItem, CELL, GROUP } from "@/components/figure";
 import { TONE } from "@/components/tones";
 
 /**

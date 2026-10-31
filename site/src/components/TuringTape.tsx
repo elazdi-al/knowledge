@@ -1,5 +1,4 @@
-import { Cells, Col, Diagram, Edge, Node, Row, Space, type CellItem } from "@/components/figure";
-import { CELL } from "@/components/figure/theme";
+import { Cells, Col, Diagram, Edge, Node, Row, Space, type CellItem, CELL } from "@/components/figure";
 
 export type TapeCell =
   | string

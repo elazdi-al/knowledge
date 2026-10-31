@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type FigureProps } from "@/components/figure";
-import { labelPillW } from "@/components/figure/route";
-import { GROUP, TAG } from "@/components/figure/theme";
+import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type FigureProps, labelPillW, GROUP, TAG } from "@/components/figure";
 import { DEVICE_NAME, Host, Link, NET_TONE, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
 

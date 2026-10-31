@@ -1,6 +1,4 @@
-import { Col, Diagram, Edge, Grid, Node, Row, Space, Text, type State } from "@/components/figure";
-import { nodeTitleW } from "@/components/figure/layout";
-import { NODE } from "@/components/figure/theme";
+import { Col, Diagram, Edge, Grid, Node, Row, Space, Text, type State, nodeTitleW, NODE } from "@/components/figure";
 
 export interface ClockFrame {
   /** Stable id; also referenced by `hand` and used as the default label. */

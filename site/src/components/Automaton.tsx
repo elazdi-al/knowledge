@@ -1,5 +1,4 @@
-import { Col, Diagram, Edge, Free, Node, Row, Space, type Side } from "@/components/figure";
-import { nodeTitleW } from "@/components/figure/layout";
+import { Col, Diagram, Edge, Free, Node, Row, Space, type Side, nodeTitleW } from "@/components/figure";
 import { TONE } from "@/components/tones";
 
 /**

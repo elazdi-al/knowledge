@@ -1,5 +1,4 @@
-import { Cells, Col, Edge, FONT, Group, Node, Space, Table, Tag, Text, type EdgeProps, type TableRow, type Tone } from "@/components/figure";
-import { TAG } from "@/components/figure/theme";
+import { Cells, Col, Edge, FONT, Group, Node, Space, Table, Tag, Text, type EdgeProps, type TableRow, type Tone, TAG } from "@/components/figure";
 import type { ReactNode } from "react";
 
 /** Advanced Networks hues, one meaning each across the course. No orange anywhere. */

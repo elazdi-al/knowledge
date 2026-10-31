@@ -222,8 +222,8 @@ export function ERDiagram({ entities = [], relationships = [], isa = [], attribu
     if (!hug.size) return build();
     const probe = layoutScene(toScene(build()));
     const colW = cols.map(() => 0);
-    probe.items.filter((it) => it.parent === gid).forEach((it, i) => (colW[i % cols.length] = Math.max(colW[i % cols.length], it.rect.w)));
-    const w = (id: string) => probe.items.find((it) => it.id === id)?.rect.w ?? 0;
+    probe.boxes.filter((it) => it.parent === gid).forEach((it, i) => (colW[i % cols.length] = Math.max(colW[i % cols.length], it.rect.w)));
+    const w = (id: string) => probe.boxes.find((it) => it.id === id)?.rect.w ?? 0;
     return build(colW, w);
   }
 

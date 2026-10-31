@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Edge, FONT, Free, Group, measure, Node, NODE, Poly, Row, Space, Text, type Tone } from "@/components/figure";
-import { labelPillW } from "@/components/figure/route";
+import { Cells, Col, Edge, FONT, Free, Group, measure, Node, NODE, Poly, Row, Space, Text, type Tone, labelPillW } from "@/components/figure";
 import { NET_TONE } from "@/components/NetworkFigures";
 
 export type Layer = "application" | "transport" | "network" | "link" | "physical";

@@ -1,6 +1,4 @@
-import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Table, Text, type Tone } from "@/components/figure";
-import { labelPillW } from "@/components/figure/route";
-import { LABEL_CLEAR } from "@/components/figure/theme";
+import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Table, Text, type Tone, labelPillW, LABEL_CLEAR } from "@/components/figure";
 import { TONE } from "@/components/tones";
 
 /** Visual state shared across page boxes and slot cells.

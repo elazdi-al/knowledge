@@ -1,5 +1,4 @@
-import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Table, Text, type FigureProps } from "@/components/figure";
-import { FONT, NODE } from "@/components/figure/theme";
+import { Col, Diagram, Dots, Edge, Grid, Group, measure, Node, Row, Space, Table, Text, type FigureProps, FONT, NODE } from "@/components/figure";
 import { ScheduleGrid, type TxId } from "@/components/ScheduleGrid";
 import { TX_TONE } from "@/components/tones";
 

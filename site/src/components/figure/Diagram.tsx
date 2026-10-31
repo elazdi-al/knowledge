@@ -3,13 +3,14 @@
  * static SVG. Zero client JS.
  */
 import katex from "katex";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { layoutScene, reportDiagnostics } from "./layout";
-import { isContainer, type Block } from "./model";
-import { toScene } from "./primitives";
-import { FrameSvg } from "./render";
+import { toScene } from "./compile";
 import { splitMath } from "./label";
+import { layoutScene } from "./layout";
+import { reportDiagnostics } from "./lint";
+import { narrowTree } from "./marks/layout";
+import { FrameSvg } from "./svg";
 
 /** Caption HTML with its `$...$` set by KaTeX, like the prose math. */
 const captionHtml = (caption: string) =>
@@ -32,33 +33,16 @@ export interface DiagramProps extends FigureProps {
   narrowChildren?: ReactNode;
 }
 
-function stableId(seed: unknown): string {
-  const s = JSON.stringify(seed) ?? "";
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return `dg${(h >>> 0).toString(36)}`;
-}
-
-const hasWrap = (b: Block): boolean => isContainer(b) && ((b.kind === "row" && b.wrap === true) || b.children.some(hasWrap));
-/** The narrow tree: every wrapping row becomes a centred column. */
-function narrowed(b: Block): Block {
-  if (!isContainer(b)) return b;
-  const children = b.children.map(narrowed);
-  return b.kind === "row" && b.wrap ? { ...b, kind: "col", align: "center", children } : { ...b, children };
-}
-
 export function Diagram({ caption, title, className, children, narrowChildren }: DiagramProps) {
+  const uid = `dg${useId().replace(/\W/g, "")}`;
   const scene = toScene(children);
   const label = caption ?? title ?? "figure";
-  const frame = layoutScene(scene);
+  const frame = layoutScene(scene, uid);
   reportDiagnostics(frame, label);
-  const uid = stableId(frame);
   // CSS swaps the mobile composition at 520px; wrapping remains the default.
-  const narrowScene = narrowChildren !== undefined ? toScene(narrowChildren) : hasWrap(scene.root) ? { ...scene, root: narrowed(scene.root) } : null;
-  const narrow = narrowScene ? layoutScene(narrowScene) : null;
+  const narrowRoot = narrowChildren === undefined ? narrowTree(scene.root) : null;
+  const narrowScene = narrowChildren !== undefined ? toScene(narrowChildren) : narrowRoot ? { ...scene, root: narrowRoot } : null;
+  const narrow = narrowScene ? layoutScene(narrowScene, `${uid}n`) : null;
   if (narrow) reportDiagnostics(narrow, `${label} (narrow)`);
   return (
     <figure className={cn("diagram", className)}>

@@ -1,7 +1,4 @@
-import { Diagram, Edge, FONT, Free, measure, Node, NODE, Row, Table, Text } from "@/components/figure";
-import { nodeTitleW } from "@/components/figure/layout";
-import type { State, TableRow, Tone } from "@/components/figure/model";
-import { TABLE } from "@/components/figure/theme";
+import { Diagram, Edge, FONT, Free, measure, Node, NODE, Row, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE } from "@/components/figure";
 
 /** Width of a `Text` drawn at `size`; mono text draws half a pixel smaller. */
 const textW = (text: string, size: "label" | "note", mono = false) => {

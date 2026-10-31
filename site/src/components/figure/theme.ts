@@ -86,3 +86,6 @@ export const LABEL_CLEAR = 40;
 export const MAX_CONTENT_W = 660;
 
 export const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Height of a line of text at each size. */
+export const LINE_H = { title: Math.round(FONT.title * 1.4), label: Math.round(FONT.label * 1.4), note: Math.round(FONT.note * 1.4) } as const;

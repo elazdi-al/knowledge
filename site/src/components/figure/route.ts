@@ -1,24 +1,21 @@
 /** Edge routing from item rects. Pure. */
 import { measureStyle } from "./measure";
-import type { EdgeSpec, Item, Rect, Shape, Side } from "./model";
+import type { Box, EdgeSpec, Rect, Shape, Side } from "./model";
 import { EDGE_LABEL, NODE, PORT_INSET, RADIUS, TEXT, r2 } from "./theme";
 
 /** Width of an edge label's pill (text plus padding). */
 export const labelPillW = (label: string) => measureStyle(label, TEXT.edgeLabel) + EDGE_LABEL.pad;
 
-/** Kinds that paint something; layout containers and derived cells are not obstacles. */
-const SOLID = new Set(["node", "group", "cells", "table", "text", "tag", "dots"]);
-export const isSolid = (kind: string) => SOLID.has(kind);
 export const encloses = (outer: Rect, inner: Rect) =>
   outer.x <= inner.x && outer.y <= inner.y && outer.x + outer.w >= inner.x + inner.w && outer.y + outer.h >= inner.y + inner.h;
 
 /** Route `edges` between `items`, treating every visible item as a label obstacle. Non-box node shapes project ports onto their outlines, and diamonds and triangles attach at their vertices. */
-export function routeItems(items: Item[], edges: EdgeSpec[]): RoutedEdge[] {
-  const rects = Object.fromEntries(items.map((i) => [i.id, i.rect]));
+export function routeItems(boxes: Box[], edges: EdgeSpec[]): RoutedEdge[] {
+  const rects = Object.fromEntries(boxes.map((i) => [i.id, i.rect]));
   const shapes: Record<string, Shape> = {}, solids: Record<string, Rect> = {};
-  for (const it of items) {
-    if (it.kind === "node") shapes[it.id] = it.shape;
-    if (SOLID.has(it.kind)) solids[it.id] = it.rect;
+  for (const it of boxes) {
+    if (it.shape) shapes[it.id] = it.shape;
+    if (it.solid) solids[it.id] = it.rect;
   }
   return routeEdges(rects, edges, shapes, solids);
 }

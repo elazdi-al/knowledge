@@ -9,10 +9,7 @@ import type { CSSProperties } from "react";
 import { BANNED_GLYPH, normalizeLabel, splitMath, unescapeLabel } from "./label";
 import { typeset } from "./math";
 import { textWidth } from "./measure";
-import { FONT, r2, type TextStyle } from "./theme";
-
-/** `Label` props for `text` in a text role; pair with `measureStyle` so layout and render agree. */
-export const styled = (text: string, s: TextStyle) => ({ text, size: s.size, weight: s.weight, mono: s.mono });
+import { FONT, r2 } from "./theme";
 
 const MONO = "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)";
 
@@ -30,7 +27,6 @@ interface LabelProps {
   baseline?: "central" | "baseline";
   /** knockout halo in the canvas colour, so lines passing behind the text break around it */
   halo?: boolean;
-  style?: CSSProperties;
 }
 
 export function Label({
@@ -45,15 +41,14 @@ export function Label({
   anchor = "middle",
   baseline = "central",
   halo = false,
-  style,
 }: LabelProps) {
   const normalized = normalizeLabel(text);
   if (process.env.NODE_ENV !== "production" && BANNED_GLYPH.test(normalized)) {
     console.warn(`[figure] banned glyph in label ${JSON.stringify(normalized)}: draw dots or chevrons instead of unicode`);
   }
   const paint: CSSProperties = halo
-    ? { fill, stroke: "var(--dg-canvas)", strokeWidth: 8, strokeLinejoin: "round", paintOrder: "stroke", ...style }
-    : { fill, ...style };
+    ? { fill, stroke: "var(--dg-canvas)", strokeWidth: 8, strokeLinejoin: "round", paintOrder: "stroke" }
+    : { fill };
   const font = {
     fontSize: size,
     fontWeight: weight === 400 ? undefined : weight,
@@ -83,7 +78,7 @@ export function Label({
   const up = Math.max(0.75 * size, ...tex.map((t) => (t ? t.h * mathPx : 0)));
   const down = Math.max(0.25 * size, ...tex.map((t) => (t ? t.d * mathPx : 0)));
   return (
-    <g style={{ fill, ...style }}>
+    <g style={{ fill }}>
       {halo && <rect x={r2(at - 4)} y={r2(base - up - 2)} width={r2(total + 8)} height={r2(up + down + 4)} rx={3} style={{ fill: "var(--dg-canvas)" }} />}
       {parts.map((p, i) => {
         const px = at;
