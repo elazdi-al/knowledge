@@ -3,9 +3,6 @@ import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Pa
 import { Link, NET_TONE, Router, ROUTER_SIZE } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
 
-/** A zero-size anchor that edges attach to. */
-const at = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
-
 // --- frame formats -----------------------------------------------------------------------------------------------
 
 /** One field of a frame: its name, its size, the link hue for MAC header fields, `strong` for the field in focus, `w` to widen it. */
@@ -32,7 +29,7 @@ function FrameStrip({ id, fields, spans = [] }: { id: string; fields: Field[]; s
     <Canvas>
       {spans.flatMap(([from, to, label], r) => {
         const k = `${id}.s${r}`, y = top - (r + 1) * SPAN_ROW + 10;
-        return [at(`${k}a`, x[from], y), at(`${k}b`, x[to] + w[to], y), <Edge key={k} from={`${k}a`} to={`${k}b`} route="straight" head="both" label={label} />];
+        return <Edge key={k} from={[x[from], y]} to={[x[to] + w[to], y]} route="straight" head="both" label={label} />;
       })}
       {fields.map((f, i) => (
         <Node key={i} title={f.name} sub={f.size} at={[x[i], top]} anchor="nw" w={w[i]} tone={f.tone} state={f.strong ? "strong" : undefined} />
@@ -89,8 +86,8 @@ export function MacAddressSchema(props: FigureProps) {
     <Text key={text} text={text} size="note" weight={600} tone={MAC} at={[cell * BIT + (BIT - measure(text, FONT.note, { weight: 600 })) / 2, bitsY + BIT + 6]} anchor="nw" />
   );
   const span = (k: string, a: number, b: number, label: string) => [
-    at(`mac.${k}a`, bx(a), 10),
-    at(`mac.${k}b`, bx(b) + BYTE, 10),
+    <Space key={`mac.${k}a`} id={`mac.${k}a`} at={[bx(a), 10]} />,
+    <Space key={`mac.${k}b`} id={`mac.${k}b`} at={[bx(b) + BYTE, 10]} />,
     <Edge key={k} from={`mac.${k}a`} to={`mac.${k}b`} route="straight" head="both" label={label} />,
   ];
   return (

@@ -5,12 +5,10 @@ import { FrameHeaders, HeaderFormat, type Field } from "@/components/PacketFigur
 
 /** Advanced Networks, Lecture 2 figures: forwarding, IPv4 and IPv6 addresses, NAT. */
 
-/** A zero-size anchor that edges attach to. */
-const at = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
 /** A dimension line from x0 to x1 at height y, its label on the line. */
 const dim = (id: string, x0: number, x1: number, y: number, label: string) => [
-  at(`${id}.a`, x0, y),
-  at(`${id}.b`, x1, y),
+  <Space key={`${id}.a`} id={`${id}.a`} at={[x0, y]} />,
+  <Space key={`${id}.b`} id={`${id}.b`} at={[x1, y]} />,
   <Edge key={id} from={`${id}.a`} to={`${id}.b`} route="straight" head="both" label={label} />,
 ];
 
@@ -118,7 +116,7 @@ export function LongestPrefixMatchSchema(props: FigureProps) {
       <Canvas>
         {[1, 2, 3].map((n) => [
           <Node key={`h${n}`} id={`h${n}`} title={LPM_HOSTS[n][0]} sub={LPM_HOSTS[n][1]} at={[xs[n] - hostW / 2, 0]} anchor="nw" w={hostW} />,
-          at(`r${n}.north`, xs[n], top - ROUTER_BADGE),
+          <Space key={`r${n}.north`} id={`r${n}.north`} at={[xs[n], top - ROUTER_BADGE]} />,
           <Router key={n} id={`r${n}`} n={n} lit={LPM_LIT[n]} table={LPM_TABLES[n]} x={xs[n] - colW(n) / 2} y={top} />,
         ])}
       </Canvas>
@@ -270,7 +268,7 @@ export function EpflForwardingSchema(props: FigureProps) {
             ]}
           />
         </Col>
-        {at("bb", cx, yB)}
+        <Space id="bb" at={[cx, yB]} />
         <Router id="in" n={2} x={cx - spread - half} y={y2} />
         <Caption x={cx - spread} y={y2 + ROUTER_SIZE + 10} align="center" lines={["ed2-in", "128.178.100.3", "rest of EPFL"]} />
         <Router id="el" n={3} x={cx + spread - half} y={y2} />
@@ -351,14 +349,10 @@ export function NatTranslationSchema(props: FigureProps) {
           <Router id="nat" label="NAT" x={xNat} y={mid - ROUTER_SIZE / 2} />
           <Table id="o2" rows={strips.o2} at={[xR, head]} anchor="nw" />
           <Table id="i1" rows={strips.i1} at={[xR, head + PKT_H + GAP]} anchor="nw" />
-          {at("o.a", wL, yOut)}
-          {at("o.b", xNat, yOut)}
-          {at("o.c", xNat + ROUTER_SIZE, yOut)}
-          {at("o.d", xR, yOut)}
-          {at("i.d", xR, yIn)}
-          {at("i.c", xNat + ROUTER_SIZE, yIn)}
-          {at("i.b", xNat, yIn)}
-          {at("i.a", wL, yIn)}
+          <Edge from={[wL, yOut]} to={[xNat, yOut]} route="straight" />
+          <Edge from={[xNat + ROUTER_SIZE, yOut]} to={[xR, yOut]} route="straight" />
+          <Edge from={[xR, yIn]} to={[xNat + ROUTER_SIZE, yIn]} route="straight" />
+          <Edge from={[xNat, yIn]} to={[wL, yIn]} route="straight" />
         </Canvas>
         <Table
           id="nattab"
@@ -369,10 +363,6 @@ export function NatTranslationSchema(props: FigureProps) {
           ]}
         />
       </Col>
-      <Edge from="o.a" to="o.b" route="straight" />
-      <Edge from="o.c" to="o.d" route="straight" />
-      <Edge from="i.d" to="i.c" route="straight" />
-      <Edge from="i.b" to="i.a" route="straight" />
       <Edge from="nat.name" to="nattab" dashed head="none" />
     </Diagram>
   );

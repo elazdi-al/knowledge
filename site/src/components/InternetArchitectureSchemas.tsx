@@ -19,7 +19,6 @@ export function DomainNameSchema(props: FigureProps) {
   const UNDER = Math.round(FONT.title * 1.4) + 4;
   const ROW = 20;
   const labelX = name.length * adv + 20;
-  const at = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
   let start = 0;
   return (
     <Diagram caption="The three labels of ssc.epfl.ch, read from the right." {...props}>
@@ -34,12 +33,8 @@ export function DomainNameSchema(props: FigureProps) {
           const state = k === NAME.length - 1 ? "active" : undefined;
           const id = `dn.${k}`;
           return [
-            at(`${id}.a`, x0 + 1, UNDER),
-            at(`${id}.b`, x1 - 1, UNDER),
-            at(`${id}.m`, (x0 + x1) / 2, UNDER),
-            at(`${id}.t`, labelX - 6, y),
-            <Edge key={`${id}.u`} from={`${id}.a`} to={`${id}.b`} route="straight" head="none" thick state={state} />,
-            <Edge key={`${id}.l`} from={`${id}.m`} to={`${id}.t`} route="ortho" fromSide="bottom" toSide="left" head="none" state={state} />,
+            <Edge key={`${id}.u`} from={[x0 + 1, UNDER]} to={[x1 - 1, UNDER]} route="straight" head="none" thick state={state} />,
+            <Edge key={`${id}.l`} from={[(x0 + x1) / 2, UNDER]} to={[labelX - 6, y]} route="ortho" fromSide="bottom" toSide="left" head="none" state={state} />,
             <Text key={`${id}.r`} text={p.role} size="note" muted={!state} state={state} at={[labelX, y - 8]} anchor="nw" />,
           ];
         })}

@@ -259,8 +259,6 @@ export function TracerouteSchema(props: FigureProps) {
 const CELL = 28;
 const STRIP_GAP = 64;
 const bytes = (hex: string) => hex.match(/../g)!;
-/** A point edges attach to. */
-const pin = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
 
 /** Copied bits: blue, since purple means "network prefix" in the course's bit figures and these are host bits. */
 const COPY = "blue" as const;
@@ -291,13 +289,9 @@ export function SolicitedNodeSchema(props: FigureProps) {
         {ByteRow({ id: "tgt", name: "B's address", value: "2001:620:618:1a6:1:80b2:f66:1", hex: "20010620061801a6000180b20f660001", copied: [13, 14, 15], y: row(0) })}
         {ByteRow({ id: "sn", name: "Solicited node", value: "ff02::1:ff66:1", hex: "ff0200000000000000000001ff660001", copied: [13, 14, 15], carried: [12], y: row(1) })}
         {ByteRow({ id: "mac", name: "Multicast MAC", value: "33:33:ff:66:00:01", hex: "3333ff660001", col: 10, copied: [3, 4, 5], carried: [2], y: row(2) })}
-        {pin("a0", 14.5 * CELL, bottom(0))}
-        {pin("a1", 14.5 * CELL, top(1))}
-        {pin("b0", 14 * CELL, bottom(1))}
-        {pin("b1", 14 * CELL, top(2))}
+        <Edge from={[14.5 * CELL, bottom(0)]} to={[14.5 * CELL, top(1)]} route="straight" label="last 24 bits" />
+        <Edge from={[14 * CELL, bottom(1)]} to={[14 * CELL, top(2)]} route="straight" label="last 32 bits" />
       </Canvas>
-      <Edge from="a0" to="a1" route="straight" label="last 24 bits" />
-      <Edge from="b0" to="b1" route="straight" label="last 32 bits" />
     </Diagram>
   );
 }

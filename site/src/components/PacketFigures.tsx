@@ -10,8 +10,6 @@ const LAYERS: Layer[] = ["application", "transport", "network", "link", "physica
 const LAYER_NAME: Record<Layer, string> = { application: "Application", transport: "Transport", network: "Network", link: "Link", physical: "Physical" };
 const LAYER_TONE: Partial<Record<Layer, Tone>> = { transport: NET_TONE.transport, network: NET_TONE.network, link: NET_TONE.link };
 
-/** A zero-size anchor that edges attach to. */
-const at = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
 /** Lane header width: the widest name, so every header box matches. */
 const headWidth = (names: string[]) => Math.max(...names.map((n) => measure(n, FONT.title, { weight: 500 }))) + 2 * NODE.padX;
 
@@ -45,17 +43,17 @@ export function ProtocolStack({ id = "stack", stacks, path = false, highlight }:
     const role = !threaded ? null : i === 0 ? "first" : i === stacks.length - 1 ? "last" : "middle";
     const anchors: ReactNode[] = [];
     if (role === "first") {
-      anchors.push(at(`${k}.top`, R, TOP), at(`${k}.out`, R, bottom));
+      anchors.push(<Space key={`${k}.top`} id={`${k}.top`} at={[R, TOP]} />, <Space key={`${k}.out`} id={`${k}.out`} at={[R, bottom]} />);
       line(`${k}.top`, `${k}.out`);
     } else if (role === "middle") {
       // up the left gutter, over the top layer CLEAR px above it, down the right gutter
       const turn = TOP - CLEAR + TURN;
-      anchors.push(at(`${k}.in`, L, bottom), at(`${k}.up`, L, turn), at(`${k}.dn`, R, turn), at(`${k}.out`, R, bottom));
+      anchors.push(<Space key={`${k}.in`} id={`${k}.in`} at={[L, bottom]} />, <Space key={`${k}.up`} id={`${k}.up`} at={[L, turn]} />, <Space key={`${k}.dn`} id={`${k}.dn`} at={[R, turn]} />, <Space key={`${k}.out`} id={`${k}.out`} at={[R, bottom]} />);
       line(`${k}.in`, `${k}.up`);
       edges.push(<Edge key={`${k}.turn`} from={`${k}.up`} to={`${k}.dn`} route="ortho" fromSide="top" toSide="top" head="none" />);
       line(`${k}.dn`, `${k}.out`);
     } else if (role === "last") {
-      anchors.push(at(`${k}.in`, L, bottom), at(`${k}.top`, L, TOP));
+      anchors.push(<Space key={`${k}.in`} id={`${k}.in`} at={[L, bottom]} />, <Space key={`${k}.top`} id={`${k}.top`} at={[L, TOP]} />);
       line(`${k}.in`, `${k}.top`, "end");
     }
     if (role && role !== "last")
@@ -233,7 +231,7 @@ export function AddressBits({ id = "addr", cidr, mask = false, octet }: { id?: s
   // a dimension line per part, its bit count on the line; the words drop when the span is too short for them
   const dim = (key: string, x0: number, x1: number, words: string, n: number) => {
     const label = [`${words}: ${n} bits`, `${n} bits`, `${n}`].find((l) => labelPillW(l) + 24 <= x1 - x0) ?? `${n}`;
-    return [at(`${id}.${key}0`, x0, 8), at(`${id}.${key}1`, x1, 8), <Edge key={key} from={`${id}.${key}0`} to={`${id}.${key}1`} route="straight" head="both" label={label} />];
+    return [<Space key={`${id}.${key}0`} id={`${id}.${key}0`} at={[x0, 8]} />, <Space key={`${id}.${key}1`} id={`${id}.${key}1`} at={[x1, 8]} />, <Edge key={key} from={`${id}.${key}0`} to={`${id}.${key}1`} route="straight" head="both" label={label} />];
   };
   const rows = mask ? 2 : 1;
   const bits = octet === undefined ? null : binary(octets[octet]).split("");
@@ -291,8 +289,8 @@ export function SequenceChart({ id = "seq", lanes, messages, slant = false, pitc
   const edges: ReactNode[] = [];
   lanes.forEach((name, l) => {
     items.push(
-      headless ? at(`${id}.l${l}`, x(l), 0) : <Node key={`h${l}`} id={`${id}.l${l}`} title={name} at={[x(l) - headW / 2, 0]} anchor="nw" w={headW} />,
-      at(`${id}.end${l}`, x(l), bottom),
+      headless ? <Space key={`${id}.l${l}`} id={`${id}.l${l}`} at={[x(l), 0]} /> : <Node key={`h${l}`} id={`${id}.l${l}`} title={name} at={[x(l) - headW / 2, 0]} anchor="nw" w={headW} />,
+      <Space key={`${id}.end${l}`} id={`${id}.end${l}`} at={[x(l), bottom]} />,
     );
     edges.push(<Edge key={`life${l}`} from={`${id}.l${l}`} to={`${id}.end${l}`} route="straight" head="none" state="ghost" />);
   });
@@ -308,7 +306,7 @@ export function SequenceChart({ id = "seq", lanes, messages, slant = false, pitc
     const n = stops.length - 1;
     const labelAt = Math.floor((n - 1) / 2);
     const tone = m.drop ? NET_TONE.drop : undefined;
-    stops.forEach((l, k) => items.push(at(`${id}.m${i}.${k}`, x(l), y(l))));
+    stops.forEach((l, k) => items.push(<Space key={`${id}.m${i}.${k}`} id={`${id}.m${i}.${k}`} at={[x(l), y(l)]} />));
     for (let k = 0; k < n; k++)
       edges.push(
         <Edge
@@ -325,7 +323,7 @@ export function SequenceChart({ id = "seq", lanes, messages, slant = false, pitc
     if (m.drop) {
       const ex = x(m.to), ey = y(m.to);
       [[-1, -1, 1, 1], [-1, 1, 1, -1]].forEach(([ax, ay, bx, by], c) => {
-        items.push(at(`${id}.x${i}.${c}a`, ex + ax * crossR, ey + ay * crossR), at(`${id}.x${i}.${c}b`, ex + bx * crossR, ey + by * crossR));
+        items.push(<Space key={`${id}.x${i}.${c}a`} id={`${id}.x${i}.${c}a`} at={[ex + ax * crossR, ey + ay * crossR]} />, <Space key={`${id}.x${i}.${c}b`} id={`${id}.x${i}.${c}b`} at={[ex + bx * crossR, ey + by * crossR]} />);
         edges.push(<Edge key={`x${i}.${c}`} from={`${id}.x${i}.${c}a`} to={`${id}.x${i}.${c}b`} route="straight" head="none" tone={tone} />);
       });
     }
@@ -382,8 +380,8 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixe
   const guides: ReactNode[] = [];
   const edges: ReactNode[] = [];
   lanes.forEach((name, l) => {
-    items.push(<Node key={`h${l}`} id={`${id}.l${l}`} title={name} at={[x(l) - headW / 2, 0]} anchor="nw" w={headW} />, at(`${id}.end${l}`, x(l), bottom));
-    edges.push(<Edge key={`axis${l}`} from={`${id}.l${l}`} to={`${id}.end${l}`} route="straight" />);
+    items.push(<Node key={`h${l}`} id={`${id}.l${l}`} title={name} at={[x(l) - headW / 2, 0]} anchor="nw" w={headW} />);
+    edges.push(<Edge key={`axis${l}`} from={`${id}.l${l}`} to={[x(l), bottom]} route="straight" />);
   });
   /** Every corner of every band, as [lane, time]. */
   const events = sends.flatMap((s) => [[s.from, s.at], [s.from, s.at + s.tx], [s.to, s.at + prop], [s.to, s.at + s.tx + prop]]);
@@ -410,28 +408,24 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixe
       const tick = `${side}:${t}`;
       if (!ticks.has(tick)) {
         ticks.add(tick);
-        items.push(at(`${id}.k${i}${e}a`, dx - 5, y(t)), at(`${id}.k${i}${e}b`, dx + 5, y(t)));
-        edges.push(<Edge key={`k${i}${e}`} from={`${id}.k${i}${e}a`} to={`${id}.k${i}${e}b`} route="straight" head="none" />);
+        edges.push(<Edge key={`k${i}${e}`} from={[dx - 5, y(t)]} to={[dx + 5, y(t)]} route="straight" head="none" />);
       }
       // a guide runs from the span to the nearest axis where something happens at that time, so it never crosses a band
       const lanesAt = events.filter(([, et]) => Math.abs(et - t) < 1e-9).map(([l]) => l);
       const lane = !lanesAt.length ? (side === "left" ? 0 : last) : side === "left" ? Math.min(...lanesAt) : Math.max(...lanesAt);
-      items.push(at(`${id}.d${i}${e}`, dx, y(t)), at(`${id}.g${i}${e}`, x(lane), y(t)));
-      guides.push(<Edge key={`g${i}${e}`} from={`${id}.d${i}${e}`} to={`${id}.g${i}${e}`} route="straight" head="none" dashed state="ghost" />);
+      guides.push(<Edge key={`g${i}${e}`} from={[dx, y(t)]} to={[x(lane), y(t)]} route="straight" head="none" dashed state="ghost" />);
     });
-    edges.push(<Edge key={`d${i}`} from={`${id}.d${i}0`} to={`${id}.d${i}1`} route="straight" head="none" label={sp.label} />);
+    edges.push(<Edge key={`d${i}`} from={[dx, y(sp.from)]} to={[dx, y(sp.to)]} route="straight" head="none" label={sp.label} />);
   });
   return (
-    <>
-      <Canvas>
-        {bands}
-        {items}
-        {/* edge labels take no layout room: keep the right margin's pills inside this block */}
-        {pill("right") > 0 && <Space at={[dimX.right + pill("right") / 2, 0]} />}
-      </Canvas>
+    <Canvas>
+      {bands}
+      {items}
+      {/* edge labels take no layout room: keep the right margin's pills inside this block */}
+      {pill("right") > 0 && <Space at={[dimX.right + pill("right") / 2, 0]} />}
       {guides}
       {edges}
-    </>
+    </Canvas>
   );
 }
 
