@@ -23,12 +23,16 @@ export interface Typeset {
   d: number;
 }
 
-const adaptor = liteAdaptor();
-RegisterHTMLHandler(adaptor);
-const doc = mathjax.document("", {
-  InputJax: new TeX({ packages: ["base", "ams"] }),
-  OutputJax: new SVG({ fontData: MathJaxTexFont, fontCache: "none", linebreaks: { inline: false } }),
-});
+function createTypesetter() {
+  const adaptor = liteAdaptor();
+  RegisterHTMLHandler(adaptor);
+  const doc = mathjax.document("", {
+    InputJax: new TeX({ packages: ["base", "ams"] }),
+    OutputJax: new SVG({ fontData: MathJaxTexFont, fontCache: "none", linebreaks: { inline: false } }),
+  });
+  return { adaptor, doc };
+}
+let typesetter: ReturnType<typeof createTypesetter> | undefined;
 
 const cache = new Map<string, Typeset>();
 
@@ -37,6 +41,7 @@ export function typeset(tex: string): Typeset {
   if (!m) {
     // "\theta" in a JS string (not a JSX attribute) is a tab and "heta".
     if (/[\b\t\n\v\f\r]/.test(tex)) throw new Error(`[diagram] control character in TeX ${JSON.stringify(tex)}: escape the backslash`);
+    const { adaptor, doc } = (typesetter ??= createTypesetter());
     const svg = adaptor.tags(doc.convert(tex, { display: false }), "svg")[0];
     const [, top, w, hd] = adaptor.getAttribute(svg, "viewBox").split(" ").map(Number);
     const inner = adaptor.innerHTML(svg);

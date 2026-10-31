@@ -6,28 +6,21 @@ import { EDGE_LABEL, NODE, PORT_INSET, RADIUS, TEXT, r2 } from "./theme";
 /** Width of an edge label's pill (text plus padding). */
 export const labelPillW = (label: string) => measureStyle(label, TEXT.edgeLabel) + EDGE_LABEL.pad;
 
-export interface RouteOpts {
-  /** non-box node shapes: ports project onto the outline, and diamonds and triangles attach at their vertices */
-  shapes?: Record<string, Shape>;
-  /** rects of visible items; labels avoid them */
-  solids?: Record<string, Rect>;
-}
-
 /** Kinds that paint something; layout containers and derived cells are not obstacles. */
 const SOLID = new Set(["node", "group", "cells", "table", "text", "tag", "dots"]);
 export const isSolid = (kind: string) => SOLID.has(kind);
 export const encloses = (outer: Rect, inner: Rect) =>
   outer.x <= inner.x && outer.y <= inner.y && outer.x + outer.w >= inner.x + inner.w && outer.y + outer.h >= inner.y + inner.h;
 
-/** Route `edges` between `items`, using `rects` (default: the items' own rects) and treating every visible item as a label obstacle. */
-export function routeItems(items: Item[], edges: EdgeSpec[], rects?: Record<string, Rect>): RoutedEdge[] {
-  const own = rects ?? Object.fromEntries(items.map((i) => [i.id, i.rect]));
+/** Route `edges` between `items`, treating every visible item as a label obstacle. Non-box node shapes project ports onto their outlines, and diamonds and triangles attach at their vertices. */
+export function routeItems(items: Item[], edges: EdgeSpec[]): RoutedEdge[] {
+  const rects = Object.fromEntries(items.map((i) => [i.id, i.rect]));
   const shapes: Record<string, Shape> = {}, solids: Record<string, Rect> = {};
   for (const it of items) {
     if (it.kind === "node") shapes[it.id] = it.shape;
-    if (SOLID.has(it.kind) && own[it.id]) solids[it.id] = own[it.id];
+    if (SOLID.has(it.kind)) solids[it.id] = it.rect;
   }
-  return routeEdges(own, edges, { shapes, solids });
+  return routeEdges(rects, edges, shapes, solids);
 }
 
 /** Edges meet these shapes at a side's midpoint (a vertex or the apex), never spread along it. */
@@ -101,9 +94,8 @@ export interface Pt {
 export interface RoutedEdge {
   spec: EdgeSpec;
   d: string;
-  /** sampled polyline, for tokens and labels */
+  /** sampled polyline, for labels and chevrons */
   pts: Pt[];
-  len: number;
   /** travel direction (radians) at the start and end, for chevrons */
   startAngle: number;
   endAngle: number;
@@ -144,14 +136,14 @@ function autoSides(a: Rect, b: Rect): [Side, Side] {
   return cb.y >= ca.y ? ["bottom", "top"] : ["top", "bottom"];
 }
 
-export function pathLength(pts: Pt[]): number {
+function pathLength(pts: Pt[]): number {
   let l = 0;
   for (let i = 1; i < pts.length; i++) l += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
   return l;
 }
 
 /** Point at fraction `t` (0..1) of the polyline's arc length. */
-export function pointAt(pts: Pt[], t: number): Pt {
+function pointAt(pts: Pt[], t: number): Pt {
   if (pts.length === 1) return pts[0];
   const total = pathLength(pts);
   let target = Math.min(1, Math.max(0, t)) * total;
@@ -287,7 +279,6 @@ function buildPath(spec: EdgeSpec, a: Rect, b: Rect, pa: Port, pb: Port, shapes:
   return {
     d,
     pts,
-    len: pathLength(pts),
     startAngle: angleOf(pts[1] ?? p1, p0),
     endAngle: angleOf(pts[pts.length - 2] ?? p0, p1),
   };
@@ -313,7 +304,6 @@ function selfLoop(spec: EdgeSpec, r: Rect, shape: Shape | undefined): Omit<Route
   return {
     d: `M${P(p0)} C${P(c1)} ${P(c2)} ${P(p1)}`,
     pts,
-    len: pathLength(pts),
     startAngle: angleOf(pts[1], p0),
     endAngle: angleOf(pts[pts.length - 2], p1),
   };
@@ -323,9 +313,7 @@ function selfLoop(spec: EdgeSpec, r: Rect, shape: Shape | undefined): Omit<Route
  * Route every edge. Ports on a shared side are spread evenly along it,
  * ordered by the other endpoint's position, so fan-outs never stack.
  */
-export function routeEdges(rects: Record<string, Rect>, edges: EdgeSpec[], opts: RouteOpts = {}): RoutedEdge[] {
-  const shapes = opts.shapes ?? {};
-  const solids = opts.solids ?? {};
+function routeEdges(rects: Record<string, Rect>, edges: EdgeSpec[], shapes: Record<string, Shape>, solids: Record<string, Rect>): RoutedEdge[] {
   type Pending = { spec: EdgeSpec; a: Rect; b: Rect; pa: Port; pb: Port };
   const pending: (Pending | null)[] = [];
   const groups = new Map<string, { i: number; end: "a" | "b"; other: number }[]>();

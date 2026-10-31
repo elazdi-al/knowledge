@@ -1,5 +1,5 @@
 import { Cells, Col, Diagram, Edge, Grid, Group, Node, Row, Space, Table, Text, type Tone } from "@/components/figure";
-import { labelPillW } from "@/components/figure/layout";
+import { labelPillW } from "@/components/figure/route";
 import { LABEL_CLEAR } from "@/components/figure/theme";
 import { TONE } from "@/components/tones";
 

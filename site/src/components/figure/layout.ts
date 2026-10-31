@@ -22,8 +22,6 @@ import {
 import { encloses, insideOutline, isSolid, labelPillW, routeItems, samplePath } from "./route";
 import { CELL, EDGE_GAP, EDGE_LABEL, FONT, GROUP, LABEL_CLEAR, MARGIN, MAX_CONTENT_W, NODE, TABLE, TAG, TEXT, type TextStyle } from "./theme";
 
-export { labelPillW } from "./route";
-
 interface Size {
   w: number;
   h: number;

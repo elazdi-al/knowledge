@@ -187,7 +187,7 @@ function isMarker(t: unknown): t is Marker<unknown> {
 }
 
 /** Flatten a children tree into marker nodes, expanding plain components. */
-export function collect(children: ReactNode): TNode[] {
+function collect(children: ReactNode): TNode[] {
   const out: TNode[] = [];
   Children.forEach(children, (child) => {
     if (child == null || typeof child === "boolean") return;

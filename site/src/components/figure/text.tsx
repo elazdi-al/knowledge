@@ -6,33 +6,15 @@
  * chevrons instead.
  */
 import type { CSSProperties } from "react";
+import { BANNED_GLYPH, normalizeLabel, splitMath, unescapeLabel } from "./label";
 import { typeset } from "./math";
 import { textWidth } from "./measure";
 import { FONT, r2, type TextStyle } from "./theme";
 
-export function normalizeLabel(s: string): string {
-  return s.replace(/[‐-―−]/g, "-").replace(/ /g, " ");
-}
-
-const BANNED = /[•‣◦⋯…→←↔⇒⇐⟶⟵]/;
-
-export function warnIfBanned(s: string) {
-  if (process.env.NODE_ENV !== "production" && BANNED.test(s)) {
-    console.warn(`[diagram] banned glyph in label ${JSON.stringify(s)}: draw dots/chevrons instead of unicode`);
-  }
-}
-
-/** A backslash makes the next character literal: `\$` is a dollar, not TeX. */
-export const unescapeLabel = (s: string) => s.replace(/\\(.)/g, "$1");
-
-/** Text and TeX alternate: odd indices are the insides of `$...$`; `\$` is a literal dollar. */
-export const splitMath = (label: string) => label.split(/(?<!\\)\$/);
-
 /** `Label` props for `text` in a text role; pair with `measureStyle` so layout and render agree. */
 export const styled = (text: string, s: TextStyle) => ({ text, size: s.size, weight: s.weight, mono: s.mono });
 
-export const SANS = "var(--font-sans, ui-sans-serif, system-ui, sans-serif)";
-export const MONO = "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)";
+const MONO = "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)";
 
 interface LabelProps {
   x: number;
@@ -66,7 +48,9 @@ export function Label({
   style,
 }: LabelProps) {
   const normalized = normalizeLabel(text);
-  warnIfBanned(normalized);
+  if (process.env.NODE_ENV !== "production" && BANNED_GLYPH.test(normalized)) {
+    console.warn(`[figure] banned glyph in label ${JSON.stringify(normalized)}: draw dots or chevrons instead of unicode`);
+  }
   const paint: CSSProperties = halo
     ? { fill, stroke: "var(--dg-canvas)", strokeWidth: 8, strokeLinejoin: "round", paintOrder: "stroke", ...style }
     : { fill, ...style };

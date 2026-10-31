@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Cells, Col, Diagram, Edge, FONT, layoutScene, MAX_CONTENT_W, measure, Row, Space, Text, toScene } from "@/components/figure";
-import { labelPillW } from "@/components/figure/layout";
+import { labelPillW } from "@/components/figure/route";
 import { LABEL_CLEAR } from "@/components/figure/theme";
 
 export interface BPlusNode {

@@ -38,12 +38,9 @@ export {
 } from "./primitives";
 export { formatDiagnostic, type Diagnostic, type DiagnosticCode } from "./diagnostics";
 export { layoutScene } from "./layout";
-export { routeEdges } from "./route";
-export { FrameSvg } from "./render";
 export { measure } from "./measure";
-export { Label, normalizeLabel } from "./text";
 export * from "./model";
-export { DOT_R, FONT, MAX_CONTENT_W, NODE, STROKE } from "./theme";
+export { FONT, MAX_CONTENT_W, NODE, STROKE } from "./theme";
 
 /** Everything an MDX author needs, keyed by tag name. */
 export const figureComponents = { Diagram, Row, Col, Grid, Group, Graph, Free, Space, Node, Cells, Table, Text, Tag, Dots, Poly, Path, Dot, Edge };

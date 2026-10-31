@@ -6,7 +6,7 @@
 import { INTER_400, INTER_700 } from "./font-metrics";
 import { typeset } from "./math";
 import { FONT, type TextStyle } from "./theme";
-import { normalizeLabel, splitMath, unescapeLabel } from "./text";
+import { normalizeLabel, splitMath, unescapeLabel } from "./label";
 
 const SAFETY = 1.02;
 

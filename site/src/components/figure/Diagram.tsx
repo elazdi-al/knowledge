@@ -9,7 +9,7 @@ import { layoutScene, reportDiagnostics } from "./layout";
 import { isContainer, type Block } from "./model";
 import { toScene } from "./primitives";
 import { FrameSvg } from "./render";
-import { splitMath } from "./text";
+import { splitMath } from "./label";
 
 /** Caption HTML with its `$...$` set by KaTeX, like the prose math. */
 const captionHtml = (caption: string) =>
