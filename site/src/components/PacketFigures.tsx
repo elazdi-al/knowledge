@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Edge, FONT, Free, Group, measure, Node, NODE, Poly, Row, Space, Text, type Tone, labelPillW } from "@/components/figure";
+import { Cells, Col, Edge, FONT, Canvas, Group, measure, Node, NODE, Poly, Row, Space, Text, type Tone, labelPillW } from "@/components/figure";
 import { NET_TONE } from "@/components/NetworkFigures";
 
 export type Layer = "application" | "transport" | "network" | "link" | "physical";
@@ -11,7 +11,7 @@ const LAYER_NAME: Record<Layer, string> = { application: "Application", transpor
 const LAYER_TONE: Partial<Record<Layer, Tone>> = { transport: NET_TONE.transport, network: NET_TONE.network, link: NET_TONE.link };
 
 /** A zero-size anchor that edges attach to. */
-const at = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
+const at = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
 /** Lane header width: the widest name, so every header box matches. */
 const headWidth = (names: string[]) => Math.max(...names.map((n) => measure(n, FONT.title, { weight: 500 }))) + 2 * NODE.padX;
 
@@ -64,8 +64,7 @@ export function ProtocolStack({ id = "stack", stacks, path = false, highlight }:
       <Node
         key={key}
         id={`${k}.${key}`}
-        x={x}
-        y={y}
+        at={[x, y]} anchor="nw"
         w={w}
         h={H}
         title={title}
@@ -81,12 +80,12 @@ export function ProtocolStack({ id = "stack", stacks, path = false, highlight }:
     });
     return (
       <Col key={k} gap={8}>
-        <Free>
+        <Canvas>
           {boxes}
           {anchors}
           {/* room for the gutters and for the wire that runs under the stacks */}
-          {threaded && <Space x={R} y={bottom + TURN + 2} />}
-        </Free>
+          {threaded && <Space at={[R, bottom + TURN + 2]} />}
+        </Canvas>
         {s.title && <Text text={s.title} weight={500} />}
       </Col>
     );
@@ -199,21 +198,20 @@ export function HeaderFormat({ fields, highlight = [], layer = "network" }: { fi
         key={i}
         title={name}
         sub={rows > 1 ? `${bits} bits` : undefined}
-        x={col * BIT}
-        y={top + row * (ROW_H + SEAM)}
+        at={[col * BIT, top + row * (ROW_H + SEAM)]} anchor="nw"
         w={Math.min(bits, 32) * BIT - SEAM}
         h={rows * (ROW_H + SEAM) - SEAM}
         tone={highlight.includes(name) ? LAYER_TONE[layer] : undefined}
       />
     );
   });
-  const ruler = [0, 8, 16, 24].map((b) => <Text key={b} text={String(b)} size="note" mono muted x={b * BIT} y={0} />);
+  const ruler = [0, 8, 16, 24].map((b) => <Text key={b} text={String(b)} size="note" mono muted at={[b * BIT, 0]} anchor="nw" />);
   return (
-    <Free>
+    <Canvas>
       {ruler}
-      <Text text="31" size="note" mono muted x={32 * BIT - SEAM - measure("31", FONT.note - 0.5, { mono: true })} y={0} />
+      <Text text="31" size="note" mono muted at={[32 * BIT - SEAM - measure("31", FONT.note - 0.5, { mono: true }), 0]} anchor="nw" />
       {boxes}
-    </Free>
+    </Canvas>
   );
 }
 
@@ -230,7 +228,7 @@ export function AddressBits({ id = "addr", cidr, mask = false, octet }: { id?: s
   const OW = 8 * BIT - SEAM;
   const rowY = (r: number) => 26 + r * (ROW_H + 8);
   const row = (values: string[], r: number) =>
-    values.map((v, k) => <Node key={`${r}.${k}`} title={v} mono x={8 * k * BIT} y={rowY(r)} w={OW} h={ROW_H} tone={inPrefix(k) ? tone : undefined} />);
+    values.map((v, k) => <Node key={`${r}.${k}`} title={v} mono at={[8 * k * BIT, rowY(r)]} anchor="nw" w={OW} h={ROW_H} tone={inPrefix(k) ? tone : undefined} />);
   const binary = (n: number) => n.toString(2).padStart(8, "0");
   // a dimension line per part, its bit count on the line; the words drop when the span is too short for them
   const dim = (key: string, x0: number, x1: number, words: string, n: number) => {
@@ -240,20 +238,19 @@ export function AddressBits({ id = "addr", cidr, mask = false, octet }: { id?: s
   const rows = mask ? 2 : 1;
   const bits = octet === undefined ? null : binary(octets[octet]).split("");
   return (
-    <Free>
+    <Canvas>
       {p > 0 && dim("pre", 0, p * BIT - SEAM, "prefix", p)}
       {p < 32 && dim("host", p * BIT, 32 * BIT - SEAM, "host", 32 - p)}
       {row(octets.map(String), 0)}
       {mask && row(masks.map(binary), 1)}
       {bits && (
         <Cells
-          x={8 * octet! * BIT}
-          y={rowY(rows) + 2}
+          at={[8 * octet! * BIT, rowY(rows) + 2]} anchor="nw"
           cell={OW / 8}
           items={bits.map((b, j) => ({ label: b, tone: 8 * octet! + j < p ? tone : undefined }))}
         />
       )}
-    </Free>
+    </Canvas>
   );
 }
 
@@ -294,7 +291,7 @@ export function SequenceChart({ id = "seq", lanes, messages, slant = false, pitc
   const edges: ReactNode[] = [];
   lanes.forEach((name, l) => {
     items.push(
-      headless ? at(`${id}.l${l}`, x(l), 0) : <Node key={`h${l}`} id={`${id}.l${l}`} title={name} x={x(l) - headW / 2} y={0} w={headW} />,
+      headless ? at(`${id}.l${l}`, x(l), 0) : <Node key={`h${l}`} id={`${id}.l${l}`} title={name} at={[x(l) - headW / 2, 0]} anchor="nw" w={headW} />,
       at(`${id}.end${l}`, x(l), bottom),
     );
     edges.push(<Edge key={`life${l}`} from={`${id}.l${l}`} to={`${id}.end${l}`} route="straight" head="none" state="ghost" />);
@@ -332,11 +329,11 @@ export function SequenceChart({ id = "seq", lanes, messages, slant = false, pitc
         edges.push(<Edge key={`x${i}.${c}`} from={`${id}.x${i}.${c}a`} to={`${id}.x${i}.${c}b`} route="straight" head="none" tone={tone} />);
       });
     }
-    if (m.note) items.push(<Text key={`t${i}`} text={m.note} size="note" muted x={noteX} y={mid - 8} />);
+    if (m.note) items.push(<Text key={`t${i}`} text={m.note} size="note" muted at={[noteX, mid - 8]} anchor="nw" />);
   });
   return (
     <>
-      <Free>{items}</Free>
+      <Canvas>{items}</Canvas>
       {edges}
     </>
   );
@@ -385,7 +382,7 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixe
   const guides: ReactNode[] = [];
   const edges: ReactNode[] = [];
   lanes.forEach((name, l) => {
-    items.push(<Node key={`h${l}`} id={`${id}.l${l}`} title={name} x={x(l) - headW / 2} y={0} w={headW} />, at(`${id}.end${l}`, x(l), bottom));
+    items.push(<Node key={`h${l}`} id={`${id}.l${l}`} title={name} at={[x(l) - headW / 2, 0]} anchor="nw" w={headW} />, at(`${id}.end${l}`, x(l), bottom));
     edges.push(<Edge key={`axis${l}`} from={`${id}.l${l}`} to={`${id}.end${l}`} route="straight" />);
   });
   /** Every corner of every band, as [lane, time]. */
@@ -401,7 +398,7 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixe
     bands.push(<Poly key={`band${i}`} id={`${id}.s${i}`} points={corners} tone={tone} outline />);
     if (s.label) {
       const w = measure(s.label, FONT.note);
-      items.push(<Text key={`sl${i}`} text={s.label} size="note" tone={tone} x={(x(s.from) + x(s.to)) / 2 - w / 2} y={y(s.at + (s.tx + prop) / 2) - 8} />);
+      items.push(<Text key={`sl${i}`} text={s.label} size="note" tone={tone} at={[(x(s.from) + x(s.to)) / 2 - w / 2, y(s.at + (s.tx + prop) / 2) - 8]} anchor="nw" />);
     }
   });
   const ticks = new Set<string>();
@@ -426,12 +423,12 @@ export function TimeSpace({ id = "ts", lanes, prop, sends, spans = [], end: fixe
   });
   return (
     <>
-      <Free>
+      <Canvas>
         {bands}
         {items}
         {/* edge labels take no layout room: keep the right margin's pills inside this block */}
-        {pill("right") > 0 && <Space x={dimX.right + pill("right") / 2} y={0} />}
-      </Free>
+        {pill("right") > 0 && <Space at={[dimX.right + pill("right") / 2, 0]} />}
+      </Canvas>
       {guides}
       {edges}
     </>

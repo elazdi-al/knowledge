@@ -1,17 +1,20 @@
-import type { AnyBlock, MarkDef, PropTable, State, Tone } from "./model";
-import { STATES, TONES } from "./model";
+import type { Anchor, AnyBlock, MarkDef, Point, PropTable, State, Tone } from "./model";
+import { ANCHORS, STATES, TONES } from "./model";
 
 /** Props every mark takes. */
 export interface Common {
   id?: string;
   state?: State;
   tone?: Tone;
-  /** position inside a `Free` parent */
-  x?: number;
-  y?: number;
+  /** inside a `Canvas`: the point this mark sits on */
+  at?: Point;
+  /** which part of the mark sits on `at`; default its centre */
+  anchor?: Anchor;
+  /** px between the point and the mark, away from the anchor */
+  offset?: number;
 }
 
-export const COMMON: PropTable<Common> = { id: true, state: STATES, tone: TONES, x: "number", y: "number" };
+export const COMMON: PropTable<Common> = { id: true, state: STATES, tone: TONES, at: true, anchor: ANCHORS, offset: "number" };
 
 /** A JSX marker: renders nothing, and carries the definition the compiler reads. */
 export type Marker<P> = ((props: P) => null) & { def: MarkDef<P, unknown> };

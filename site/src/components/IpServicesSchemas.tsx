@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type FigureProps, labelPillW, GROUP, TAG } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Tag, Text, type FigureProps, labelPillW, GROUP, TAG } from "@/components/figure";
 import { DEVICE_NAME, Host, Link, NET_TONE, Router, ROUTER_SIZE, Subnet, Switch } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
 
@@ -11,16 +11,16 @@ const natLane = (l: number) => NAT_HOST_W / 2 + l * NAT_PITCH;
 
 /** A, its NAT, and optionally the STUN server, each on its chart lane. */
 function NatRow({ stun }: { stun?: boolean }) {
-  const host = (id: string, l: number, name: string, sub: string) => <Node id={id} title={name} sub={sub} x={natLane(l) - NAT_HOST_W / 2} y={0} w={NAT_HOST_W} />;
+  const host = (id: string, l: number, name: string, sub: string) => <Node id={id} title={name} sub={sub} at={[natLane(l) - NAT_HOST_W / 2, 0]} anchor="nw" w={NAT_HOST_W} />;
   const natTop = (NODE.hSub - ROUTER_SIZE) / 2;
   const natAddr = "198.51.100.1";
   return (
-    <Free>
+    <Canvas>
       {host("a", 0, "A", "192.168.1.10")}
       <Router id="nat" label="NAT A" x={natLane(1) - ROUTER_SIZE / 2} y={natTop} />
-      <Text text={natAddr} size="note" mono x={natLane(1) - measure(natAddr, FONT.note - 0.5, { mono: true }) / 2} y={natTop + ROUTER_SIZE + DEVICE_NAME} />
+      <Text text={natAddr} size="note" mono at={[natLane(1) - measure(natAddr, FONT.note - 0.5, { mono: true }) / 2, natTop + ROUTER_SIZE + DEVICE_NAME]} anchor="nw" />
       {stun && host("s", 2, "S", "STUN server")}
-    </Free>
+    </Canvas>
   );
 }
 
@@ -140,24 +140,24 @@ export function IceSchema(props: FigureProps) {
   const top = (h: number, i: number) => rowY(i) - h / 2;
   const items: ReactNode[] = [];
   const edges: ReactNode[] = [];
-  ["NAT A", "", "NAT B"].forEach((name, k) => name && items.push(<Text key={name} text={name} size="note" weight={600} x={col(k + 1) - measure(name, FONT.note, { weight: 600 }) / 2} y={0} />));
+  ["NAT A", "", "NAT B"].forEach((name, k) => name && items.push(<Text key={name} text={name} size="note" weight={600} at={[col(k + 1) - measure(name, FONT.note, { weight: 600 }) / 2, 0]} anchor="nw" />));
   pairs.forEach((p, i) => {
     const stops = [0, ...p.via, 4];
     items.push(
-      <Tag key={`n${i}`} text={String(i + 1)} x={0} y={top(TAG.h, i)} />,
-      <Text key={`l${i}`} text={p.name} x={28} y={top(textH, i)} />,
-      <Text key={`r${i}`} text={p.result} tone={p.tone} state={p.state} muted={p.muted} x={col(4) + NODE.minW / 2 + 24} y={top(textH, i)} />,
+      <Tag key={`n${i}`} text={String(i + 1)} at={[0, top(TAG.h, i)]} anchor="nw" />,
+      <Text key={`l${i}`} text={p.name} at={[28, top(textH, i)]} anchor="nw" />,
+      <Text key={`r${i}`} text={p.result} tone={p.tone} state={p.state} muted={p.muted} at={[col(4) + NODE.minW / 2 + 24, top(textH, i)]} anchor="nw" />,
     );
     stops.forEach((k) => {
       const id = `ice${i}.${k}`, x = col(k);
       if (k === 1 || k === 3) items.push(<Router key={id} id={id} x={x - ROUTER_SIZE / 2} y={top(ROUTER_SIZE, i)} />);
-      else items.push(<Node key={id} id={id} title={["A", "", "T", "", "B"][k]} x={x - NODE.minW / 2} y={top(NODE.h, i)} w={NODE.minW} />);
+      else items.push(<Node key={id} id={id} title={["A", "", "T", "", "B"][k]} at={[x - NODE.minW / 2, top(NODE.h, i)]} anchor="nw" w={NODE.minW} />);
     });
     stops.slice(1).forEach((k, j) => edges.push(<Link key={`e${i}.${j}`} from={`ice${i}.${stops[j]}`} to={`ice${i}.${k}`} route="straight" tone={p.tone} state={p.state} />));
   });
   return (
     <Diagram caption="ICE between two port-restricted cone NATs. The host pair gets no answer, because A and B sit in different LANs. Both other pairs answer, and ICE keeps the more direct one." {...props}>
-      <Free>{items}</Free>
+      <Canvas>{items}</Canvas>
       {edges}
     </Diagram>
   );
@@ -260,7 +260,7 @@ const CELL = 28;
 const STRIP_GAP = 64;
 const bytes = (hex: string) => hex.match(/../g)!;
 /** A point edges attach to. */
-const pin = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
+const pin = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
 
 /** Copied bits: blue, since purple means "network prefix" in the course's bit figures and these are host bits. */
 const COPY = "blue" as const;
@@ -268,13 +268,12 @@ const COPY = "blue" as const;
 /** One row: a title line, then the address as byte cells from column `col`; `copied` bytes (B's last 24 bits) are drawn strong, `carried` ones (the rest of the 32 bits the MAC takes) light. */
 function ByteRow({ id, name, value, hex, col = 0, copied, carried = [], y }: { id: string; name: string; value: string; hex: string; col?: number; copied: number[]; carried?: number[]; y: number }): ReactNode[] {
   return [
-    <Text key={`${id}.n`} text={name} weight={500} x={0} y={y} />,
-    <Text key={`${id}.v`} text={value} mono muted x={132} y={y} />,
+    <Text key={`${id}.n`} text={name} weight={500} at={[0, y]} anchor="nw" />,
+    <Text key={`${id}.v`} text={value} mono muted at={[132, y]} anchor="nw" />,
     <Cells
       key={id}
       id={id}
-      x={col * CELL}
-      y={y + 22}
+      at={[col * CELL, y + 22]} anchor="nw"
       cell={CELL}
       items={bytes(hex).map((b, i) => (copied.includes(i) ? { label: b, tone: COPY, state: "strong" } : carried.includes(i) ? { label: b, tone: COPY } : { label: b }))}
     />,
@@ -288,7 +287,7 @@ export function SolicitedNodeSchema(props: FigureProps) {
   const bottom = (r: number) => top(r) + CELL;
   return (
     <Diagram caption="Where an NS for B goes. The last 24 bits of B's address complete the solicited-node prefix ff02::1:ff00:0/104. The multicast MAC is 33:33 followed by the last 32 bits of that group." {...props}>
-      <Free>
+      <Canvas>
         {ByteRow({ id: "tgt", name: "B's address", value: "2001:620:618:1a6:1:80b2:f66:1", hex: "20010620061801a6000180b20f660001", copied: [13, 14, 15], y: row(0) })}
         {ByteRow({ id: "sn", name: "Solicited node", value: "ff02::1:ff66:1", hex: "ff0200000000000000000001ff660001", copied: [13, 14, 15], carried: [12], y: row(1) })}
         {ByteRow({ id: "mac", name: "Multicast MAC", value: "33:33:ff:66:00:01", hex: "3333ff660001", col: 10, copied: [3, 4, 5], carried: [2], y: row(2) })}
@@ -296,7 +295,7 @@ export function SolicitedNodeSchema(props: FigureProps) {
         {pin("a1", 14.5 * CELL, top(1))}
         {pin("b0", 14 * CELL, bottom(1))}
         {pin("b1", 14 * CELL, top(2))}
-      </Free>
+      </Canvas>
       <Edge from="a0" to="a1" route="straight" label="last 24 bits" />
       <Edge from="b0" to="b1" route="straight" label="last 32 bits" />
     </Diagram>

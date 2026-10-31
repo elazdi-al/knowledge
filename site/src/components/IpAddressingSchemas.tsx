@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow, type FigureProps, tableColumnWidths, GROUP } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Table, Text, type TableRow, type FigureProps, tableColumnWidths, GROUP } from "@/components/figure";
 import { ForwardingTable, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch, type Route } from "@/components/NetworkFigures";
 import { FrameHeaders, HeaderFormat, type Field } from "@/components/PacketFigures";
 
 /** Advanced Networks, Lecture 2 figures: forwarding, IPv4 and IPv6 addresses, NAT. */
 
 /** A zero-size anchor that edges attach to. */
-const at = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
+const at = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
 /** A dimension line from x0 to x1 at height y, its label on the line. */
 const dim = (id: string, x0: number, x1: number, y: number, label: string) => [
   at(`${id}.a`, x0, y),
@@ -29,13 +29,13 @@ const Star = ({ sw, label, hosts, flip = false }: { sw: string; label: string; h
   const hostX = flip ? SWITCH_W + REACH : 0;
   const swX = flip ? 0 : NODE.minW + REACH;
   return (
-    <Free>
-      <Node id={hosts[0]} title={hosts[0]} x={hostX} y={0} />
-      <Node id={hosts[1]} title={hosts[1]} x={hostX} y={NODE.h + gap} />
-      <Free x={swX} y={mid - SWITCH_H / 2}>
+    <Canvas>
+      <Node id={hosts[0]} title={hosts[0]} at={[hostX, 0]} anchor="nw" />
+      <Node id={hosts[1]} title={hosts[1]} at={[hostX, NODE.h + gap]} anchor="nw" />
+      <Canvas at={[swX, mid - SWITCH_H / 2]} anchor="nw">
         <Switch id={sw} label={label} />
-      </Free>
-    </Free>
+      </Canvas>
+    </Canvas>
   );
 };
 /** The centre line of a `Star`, measured from the top of its subnet's outline. */
@@ -73,14 +73,14 @@ export function LanCaptureSchema(props: FigureProps) {
     <Diagram caption="The frame at point 1. Inside one subnet, P is both the next hop and the destination, so both headers name P. The switch appears in neither." {...props}>
       <Col gap={20} align="center">
         <Group title="Ethernet, 10.10.2.0/24" dashed>
-          <Free>
-            <Node id="W" title="W" x={0} y={0} />
-            <Node id="pt" title="1" shape="circle" w={22} x={pt} y={line - 11} />
-            <Free x={swX} y={line - SWITCH_H / 2}>
+          <Canvas>
+            <Node id="W" title="W" at={[0, 0]} anchor="nw" />
+            <Node id="pt" title="1" shape="circle" w={22} at={[pt, line - 11]} anchor="nw" />
+            <Canvas at={[swX, line - SWITCH_H / 2]} anchor="nw">
               <Switch id="sw" label="Switch" />
-            </Free>
-            <Node id="P" title="P" x={pX} y={0} />
-          </Free>
+            </Canvas>
+            <Node id="P" title="P" at={[pX, 0]} anchor="nw" />
+          </Canvas>
         </Group>
         <FrameHeaders frames={[{ n: 1, mac: ["W", "P"], ip: ["W", "P"] }]} />
       </Col>
@@ -115,13 +115,13 @@ export function LongestPrefixMatchSchema(props: FigureProps) {
   const top = NODE.hSub + DROP + ROUTER_BADGE;
   return (
     <Diagram caption="Alice's packet to Bob takes the thick links, and each router uses its outlined entry. A chip names the next-hop router, and direct marks an attached subnet." {...props}>
-      <Free>
+      <Canvas>
         {[1, 2, 3].map((n) => [
-          <Node key={`h${n}`} id={`h${n}`} title={LPM_HOSTS[n][0]} sub={LPM_HOSTS[n][1]} x={xs[n] - hostW / 2} y={0} w={hostW} />,
+          <Node key={`h${n}`} id={`h${n}`} title={LPM_HOSTS[n][0]} sub={LPM_HOSTS[n][1]} at={[xs[n] - hostW / 2, 0]} anchor="nw" w={hostW} />,
           at(`r${n}.north`, xs[n], top - ROUTER_BADGE),
           <Router key={n} id={`r${n}`} n={n} lit={LPM_LIT[n]} table={LPM_TABLES[n]} x={xs[n] - colW(n) / 2} y={top} />,
         ])}
-      </Free>
+      </Canvas>
       <Link from="h1" to="r1.north" route="straight" thick />
       <Link from="r1" to="r2" route="straight" thick />
       <Link from="r2.north" to="h2" route="straight" thick />
@@ -157,15 +157,14 @@ function BitRows({ prefix, rows, prefixLabel, hostLabel }: { prefix: number; row
     const y = head + k * pitch;
     const bits = toBits(r.addr);
     items.push(
-      <Text key={`${k}.role`} text={r.role} size="note" muted x={0} y={y} />,
-      <Text key={`${k}.addr`} text={r.addr} size="note" mono x={measure(r.role, FONT.note) + 8} y={y} />,
+      <Text key={`${k}.role`} text={r.role} size="note" muted at={[0, y]} anchor="nw" />,
+      <Text key={`${k}.addr`} text={r.addr} size="note" mono at={[measure(r.role, FONT.note) + 8, y]} anchor="nw" />,
     );
     for (let o = 0; o < 4; o++)
       items.push(
         <Cells
           key={`${k}.${o}`}
-          x={bitX(8 * o)}
-          y={y + 17}
+          at={[bitX(8 * o), y + 17]} anchor="nw"
           cell={BIT}
           items={bits.slice(8 * o, 8 * o + 8).map((b, j) => {
             const i = 8 * o + j;
@@ -179,11 +178,11 @@ function BitRows({ prefix, rows, prefixLabel, hostLabel }: { prefix: number; row
       );
   });
   return (
-    <Free>
+    <Canvas>
       {dim("pre", 0, bitX(prefix) - (prefix % 8 === 0 ? OCTET_GAP : 0), 8, prefixLabel)}
       {dim("host", bitX(prefix), end, 8, hostLabel)}
       {items}
-    </Free>
+    </Canvas>
   );
 }
 
@@ -242,9 +241,9 @@ function Caption({ x, y, lines, align = "start" }: { x: number; y: number; lines
   const place = (t: string, w: number) => x - shift * w;
   return (
     <>
-      <Text text={name} size="note" weight={600} x={place(name, measure(name, FONT.note, { weight: 600 }))} y={y} />
-      {addr && <Text text={addr} size="note" mono x={place(addr, measure(addr, FONT.note - 0.5, { mono: true }))} y={y + 16} />}
-      {role && <Text text={role} size="note" muted x={place(role, measure(role, FONT.note))} y={y + 32} />}
+      <Text text={name} size="note" weight={600} at={[place(name, measure(name, FONT.note, { weight: 600 })), y]} anchor="nw" />
+      {addr && <Text text={addr} size="note" mono at={[place(addr, measure(addr, FONT.note - 0.5, { mono: true })), y + 16]} anchor="nw" />}
+      {role && <Text text={role} size="note" muted at={[place(role, measure(role, FONT.note)), y + 32]} anchor="nw" />}
     </>
   );
 }
@@ -255,12 +254,12 @@ export function EpflForwardingSchema(props: FigureProps) {
   const y0 = 12 + ROUTER_BADGE, y1 = 112 + ROUTER_BADGE, yB = y1 + ROUTER_SIZE + 64, y2 = yB - half;
   return (
     <Diagram caption="Router ed0-swi and its IPv4 forwarding table: each entry names a destination prefix, the next-hop router, and the interface toward it." {...props}>
-      <Free>
+      <Canvas>
         <Router id="sw" n={1} x={cx - half} y={y0} />
         <Caption x={cx - half - 12} y={y0 - 2} align="end" lines={["sw-la-01", "128.178.47.3", "toward the Internet"]} />
         <Router id="ed0" x={cx - half} y={y1} />
         <Caption x={cx - half - 12} y={y1 + 12} align="end" lines={["ed0-swi"]} />
-        <Col x={cx + half + 36} y={y1 + half - 52}>
+        <Col at={[cx + half + 36, y1 + half - 52]} anchor="nw">
           <ForwardingTable
             of="ed0"
             columns={["destination", "next hop", "interface"]}
@@ -276,7 +275,7 @@ export function EpflForwardingSchema(props: FigureProps) {
         <Caption x={cx - spread} y={y2 + ROUTER_SIZE + 10} align="center" lines={["ed2-in", "128.178.100.3", "rest of EPFL"]} />
         <Router id="el" n={3} x={cx + spread - half} y={y2} />
         <Caption x={cx + spread} y={y2 + ROUTER_SIZE + 10} align="center" lines={["ed2-el", "128.178.100.2", "LEMA, 128.178.29/24"]} />
-      </Free>
+      </Canvas>
       <Link from="sw" to="ed0" label="north" route="straight" />
       <Link from="ed0" to="bb" label="south" route="straight" fromSide="bottom" />
       <Link from="in" to="el" route="straight" />
@@ -299,23 +298,23 @@ export function Ipv6AddressSchema(props: FigureProps) {
   const rowY = (r: number) => 70 + r * 44;
   const items: ReactNode[] = [];
   SEGS.forEach(({ label, segs }, r) => {
-    items.push(<Text key={`l${r}`} text={label} size="note" muted x={0} y={rowY(r) + 9} />);
+    items.push(<Text key={`l${r}`} text={label} size="note" muted at={[0, rowY(r) + 9]} anchor="nw" />);
     let bit = 0;
     segs.forEach(([text, bits], s) => {
-      items.push(<Node key={`${r}.${s}`} title={text} mono x={bx(bit) + 1} y={rowY(r)} w={bits * K - 3} h={34} tone={bit < 64 ? NET_TONE.network : undefined} />);
+      items.push(<Node key={`${r}.${s}`} title={text} mono at={[bx(bit) + 1, rowY(r)]} anchor="nw" w={bits * K - 3} h={34} tone={bit < 64 ? NET_TONE.network : undefined} />);
       bit += bits;
     });
   });
   return (
     <Diagram caption="Two EPFL addresses with subnet ID 1a6. The global one nests inside EPFL's /48, itself inside SWITCH's /32; the private one starts with fd and 40 random bits." {...props}>
-      <Free>
+      <Canvas>
         {dim("sw", bx(0), bx(32) - 2, 8, "SWITCH /32")}
         {dim("epfl", bx(0), bx(48) - 2, 28, "EPFL /48")}
         {dim("lan", bx(0), bx(64) - 2, 48, "subnet /64")}
         {dim("host", bx(64) + 1, bx(128), 48, "host: 64 bits")}
         {items}
         {dim("rnd", bx(8) + 1, bx(48) - 2, rowY(1) + 34 + 14, "random: 40 bits")}
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }
@@ -340,18 +339,18 @@ export function NatTranslationSchema(props: FigureProps) {
   const mid = head + PKT_H + GAP / 2;
   // outbound above the NAT's centre, inbound below: four straight arrows, each meeting an outline
   const yOut = mid - 20, yIn = mid + 20;
-  const heading = (t: string, x0: number, w: number) => <Text text={t} size="note" muted x={x0 + (w - measure(t, FONT.note)) / 2} y={0} />;
+  const heading = (t: string, x0: number, w: number) => <Text text={t} size="note" muted at={[x0 + (w - measure(t, FONT.note)) / 2, 0]} anchor="nw" />;
   return (
     <Diagram caption="Outbound, the NAT rewrites the source and records the mapping. Inbound, it finds that mapping by exact match and rewrites the destination back." {...props}>
       <Col gap={GAP}>
-        <Free>
+        <Canvas>
           {heading("LAN side, private", 0, wL)}
           {heading("Internet side, public", xR, wR)}
-          <Table id="o1" rows={strips.o1} x={0} y={head} />
-          <Table id="i2" rows={strips.i2} x={0} y={head + PKT_H + GAP} />
+          <Table id="o1" rows={strips.o1} at={[0, head]} anchor="nw" />
+          <Table id="i2" rows={strips.i2} at={[0, head + PKT_H + GAP]} anchor="nw" />
           <Router id="nat" label="NAT" x={xNat} y={mid - ROUTER_SIZE / 2} />
-          <Table id="o2" rows={strips.o2} x={xR} y={head} />
-          <Table id="i1" rows={strips.i1} x={xR} y={head + PKT_H + GAP} />
+          <Table id="o2" rows={strips.o2} at={[xR, head]} anchor="nw" />
+          <Table id="i1" rows={strips.i1} at={[xR, head + PKT_H + GAP]} anchor="nw" />
           {at("o.a", wL, yOut)}
           {at("o.b", xNat, yOut)}
           {at("o.c", xNat + ROUTER_SIZE, yOut)}
@@ -360,7 +359,7 @@ export function NatTranslationSchema(props: FigureProps) {
           {at("i.c", xNat + ROUTER_SIZE, yIn)}
           {at("i.b", xNat, yIn)}
           {at("i.a", wL, yIn)}
-        </Free>
+        </Canvas>
         <Table
           id="nattab"
           columns={["internal IP", "port", "proto", "NAT IP", "NAT port"]}

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Dot, Free, Path, Poly, Row, Text, type CellInput } from "@/components/figure";
+import { Cells, Col, Diagram, Dot, Canvas, Path, Poly, Row, Text, type CellInput } from "@/components/figure";
 import { At, Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
 import { ML_TONE } from "@/components/tones";
 
@@ -11,7 +11,7 @@ export function LossShapesSchema() {
   const tukey = (e: number) => ((c * c) / 6) * (1 - Math.max(0, 1 - (e / c) ** 2) ** 3);
   return (
     <Diagram caption="Per-example losses of one residual $e$, with $\delta = 1$ and $c = 2.5$.">
-      <Free>
+      <Canvas>
         <Path points={[a.p([delta, 0]), a.p([delta, huber(delta)])]} dashed state="ghost" />
         <Path points={[a.p([c, 0]), a.p([c, tukey(c)])]} dashed state="ghost" />
         <Axes area={a} x={[-4, 4.1]} y={[0, 4.5]} labels={["$e$", "$\\ell(e)$"]} />
@@ -25,7 +25,7 @@ export function LossShapesSchema() {
         <At text="MAE" at={a.p([3.7, 3.7])} anchor="w" gap={6} tone={ML_TONE.mae} weight={500} />
         <At text="Huber" at={a.p([3.7, huber(3.7)])} anchor="w" gap={6} tone="blue" weight={500} />
         <At text="Tukey" at={a.p([3.7, tukey(3.7)])} anchor="w" gap={6} tone="blue" weight={500} />
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }
@@ -64,14 +64,14 @@ export function CurseOfDimensionalitySchema() {
         {panel(
           3,
           "$4^3 = 64$ points",
-          <Free>
+          <Canvas>
             <Poly points={quad([[0, n, 0], [n, n, 0], [n, n, n], [0, n, n]])} />
             <Poly points={quad([[n, 0, 0], [n, n, 0], [n, n, n], [n, 0, n]])} />
             <Poly points={top(n - 1, 0)} tone="blue" />
             <Poly points={side(n - 1, 0)} tone="blue" />
             {lines.map((pts, i) => <Path key={i} points={pts} state="ghost" thin />)}
-            <Cells items={square} cols={n} cell={s} x={0} y={P(0, n, 0)[1]} />
-          </Free>,
+            <Cells items={square} cols={n} cell={s} at={[0, P(0, n, 0)[1]]} anchor="nw" />
+          </Canvas>,
         )}
       </Row>
     </Diagram>
@@ -102,7 +102,7 @@ export function MinimaSchema() {
   const right = pieces.slice(3).flatMap((p) => bezier(...p));
   return (
     <Diagram caption="A strict local minimum with its ball, a flat local minimum and the strict global one.">
-      <Free>
+      <Canvas>
         <Path points={[a.p([1.2, 2.6]), a.p([1.2, 0])]} dashed state="ghost" />
         <Axes area={a} x={[0, 7.8]} y={[0, 4.7]} labels={["$\\theta$", "$L(\\theta)$"]} />
         <Path points={[a.p([0.75, 0]), a.p([1.65, 0])]} state="strong" thick />
@@ -114,7 +114,7 @@ export function MinimaSchema() {
         <At text="strict local" at={a.p([1.2, 2.6])} anchor="nw" gap={8} tone="blue" weight={500} />
         <At text="local, not strict" at={a.p([3.9, 2.2])} anchor="n" gap={10} tone="blue" weight={500} />
         <At text="strict global" at={a.p([6.3, 1.0])} anchor="n" gap={10} tone="blue" weight={500} />
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }
@@ -136,12 +136,12 @@ export function FeatureScalingSchema() {
           const a = plotArea({ x: [-4.8, 4.8], y: [-2.5, 2.6], w: 230, h: 122, at: [4, 22] });
           return (
             <Col key={title} gap={8}>
-              <Free>
+              <Canvas>
                 <Axes area={a} x={[-4.8, 4.8]} y={[-2.5, 2.6]} labels={["$w_1$", "$w_2$"]} />
                 {[1, 2, 3].map((k) => <Path key={k} points={ellipse([0, 0], rx * k, ry * k).map(a.p)} closed thin state="ghost" />)}
                 <Path points={path.map(a.p)} tone="blue" />
                 {path.map((p) => <Dot key={p.join()} at={a.p(p)} tone="blue" r={2.5} />)}
-              </Free>
+              </Canvas>
               <Text text={title} weight={500} />
             </Col>
           );

@@ -1,4 +1,4 @@
-import { Diagram, Dot, Free, Path, Poly } from "@/components/figure";
+import { Diagram, Dot, Canvas, Path, Poly } from "@/components/figure";
 import { Arrow, At, Axes, plotArea, type Pt } from "@/components/PlotFigures";
 import { ML_TONE } from "@/components/tones";
 
@@ -10,7 +10,7 @@ export function PerceptronBoundarySchema() {
   // boundary x1 + x2 = 6, so w = (1, 1) and b = -6
   return (
     <Diagram caption="The boundary and its normal $\mathbf{w}$, which points to the side classified $+1$.">
-      <Free>
+      <Canvas>
         <Axes area={a} x={[0, 7.4]} y={[0, 7]} labels={["$x_1$", "$x_2$"]} />
         <Path points={[a.p([0.75, 5.25]), a.p([5.25, 0.75])]} state="strong" />
         <At text="$\mathbf{w}^T \mathbf{x} + b = 0$" at={a.p([5.25, 0.75])} anchor="w" gap={8} />
@@ -20,7 +20,7 @@ export function PerceptronBoundarySchema() {
         {pos.map((p, i) => <Dot key={`p${i}`} at={a.p(p)} tone={ML_TONE.positive} />)}
         <At text="$y = -1$" at={a.p([1.7, 0.45])} tone={ML_TONE.negative} />
         <At text="$y = +1$" at={a.p([4.6, 5.45])} tone={ML_TONE.positive} />
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }
@@ -47,7 +47,7 @@ export function RegressionPlaneSchema() {
   const above = data.filter(([, , r]) => r > 0), below = data.filter(([, , r]) => r < 0);
   return (
     <Diagram caption="With two features the model is a plane. Residuals hidden below it are dashed.">
-      <Free>
+      <Canvas>
         <Poly points={corners.map(([u, v]) => P(u, v, 0))} outline />
         <Arrow from={P(0, 0, 0)} to={P(4.8, 0, 0)} />
         <Arrow from={P(0, 0, 0)} to={P(0, 3.8, 0)} />
@@ -80,7 +80,7 @@ export function RegressionPlaneSchema() {
         <At text="$y_i$" at={on(iu, iv, ir)} anchor="e" gap={7} />
         <At text="$e_i$" at={on(iu, iv, ir / 2)} anchor="w" gap={7} tone={ML_TONE.residual} />
         <At text="$\hat{y} = \mathbf{w}^T \mathbf{x} + b$" at={on(4, 3)} anchor="w" gap={10} tone="blue" />
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }

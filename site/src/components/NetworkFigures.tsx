@@ -61,7 +61,7 @@ const Named = ({ id, name, children }: { id: string; name?: string; children: Re
     </Col>
   );
 
-/** A router: square box, number badge in its hue on top, 3x3 switching glyph, `label` as its name underneath; `lit` cells (0-8, row-major) hint at the path; `table` hangs its forwarding table below; `x`/`y` place the box's top-left corner inside a `Free`, the badge sitting above it. */
+/** A router: square box, number badge in its hue on top, 3x3 switching glyph, `label` as its name underneath; `lit` cells (0-8, row-major) hint at the path; `table` hangs its forwarding table below; `x`/`y` place the box's top-left corner inside a `Canvas`, the badge sitting above it. */
 export function Router({ id, n, lit = [], label, table, x, y }: { id: string; n?: number; lit?: number[]; label?: string; table?: Route[]; x?: number; y?: number }) {
   const tone = routerTone(n);
   const top = y === undefined || n === undefined ? y : y - ROUTER_BADGE;
@@ -71,7 +71,7 @@ export function Router({ id, n, lit = [], label, table, x, y }: { id: string; n?
     </Group>
   );
   return (
-    <Col gap={14} align="center" x={x} y={top}>
+    <Col gap={14} align="center" {...(x !== undefined && top !== undefined && { at: [x, top] as [number, number], anchor: "nw" as const })}>
       <Named id={id} name={label}>
         <Col gap={0} align="center">
           {n !== undefined && <Tag text={String(n)} tone={tone} />}

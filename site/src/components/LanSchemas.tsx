@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Path, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
+import { Cells, Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Path, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
 import { Link, NET_TONE, Router, ROUTER_SIZE } from "@/components/NetworkFigures";
 import { SequenceChart } from "@/components/PacketFigures";
 
 /** A zero-size anchor that edges attach to. */
-const at = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
+const at = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
 
 // --- frame formats -----------------------------------------------------------------------------------------------
 
@@ -29,15 +29,15 @@ function FrameStrip({ id, fields, spans = [] }: { id: string; fields: Field[]; s
   const x = w.map((_, i) => w.slice(0, i).reduce((sum, wi) => sum + wi + SEAM, 0));
   const top = spans.length * SPAN_ROW;
   return (
-    <Free>
+    <Canvas>
       {spans.flatMap(([from, to, label], r) => {
         const k = `${id}.s${r}`, y = top - (r + 1) * SPAN_ROW + 10;
         return [at(`${k}a`, x[from], y), at(`${k}b`, x[to] + w[to], y), <Edge key={k} from={`${k}a`} to={`${k}b`} route="straight" head="both" label={label} />];
       })}
       {fields.map((f, i) => (
-        <Node key={i} title={f.name} sub={f.size} x={x[i]} y={top} w={w[i]} tone={f.tone} state={f.strong ? "strong" : undefined} />
+        <Node key={i} title={f.name} sub={f.size} at={[x[i], top]} anchor="nw" w={w[i]} tone={f.tone} state={f.strong ? "strong" : undefined} />
       ))}
-    </Free>
+    </Canvas>
   );
 }
 
@@ -86,7 +86,7 @@ export function MacAddressSchema(props: FigureProps) {
   const top = 2 * SPAN_ROW - 16, bitsY = top + H + 36;
   const bits = (0x08).toString(2).padStart(8, "0").split("");
   const tag = (text: string, cell: number) => (
-    <Text key={text} text={text} size="note" weight={600} tone={MAC} x={cell * BIT + (BIT - measure(text, FONT.note, { weight: 600 })) / 2} y={bitsY + BIT + 6} />
+    <Text key={text} text={text} size="note" weight={600} tone={MAC} at={[cell * BIT + (BIT - measure(text, FONT.note, { weight: 600 })) / 2, bitsY + BIT + 6]} anchor="nw" />
   );
   const span = (k: string, a: number, b: number, label: string) => [
     at(`mac.${k}a`, bx(a), 10),
@@ -95,18 +95,18 @@ export function MacAddressSchema(props: FigureProps) {
   ];
   return (
     <Diagram caption="The MAC address 08:00:20:71:0d:d4. Its first byte, 0x08, is written below in binary, most significant bit first. Its last bit is the I/G bit and the one before it is the U/L bit. Both are 0: one interface, numbered by its manufacturer." {...props}>
-      <Free>
+      <Canvas>
         {span("oui", 0, 2, "OUI")}
         {span("ser", 3, 5, "serial number")}
         {bytes.map((b, i) => (
-          <Node key={b + i} title={b} mono x={bx(i)} y={top} w={BYTE} h={H} tone={i === 0 ? MAC : undefined} />
+          <Node key={b + i} title={b} mono at={[bx(i), top]} anchor="nw" w={BYTE} h={H} tone={i === 0 ? MAC : undefined} />
         ))}
         <Path points={[[0, top + H], [0, bitsY]]} thin />
         <Path points={[[BYTE, top + H], [8 * BIT, bitsY]]} thin />
-        <Cells x={0} y={bitsY} cell={BIT} items={bits.map((b, j) => ({ label: b, tone: j >= 6 ? MAC : undefined }))} />
+        <Cells at={[0, bitsY]} anchor="nw" cell={BIT} items={bits.map((b, j) => ({ label: b, tone: j >= 6 ? MAC : undefined }))} />
         {tag("U/L", 6)}
         {tag("I/G", 7)}
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }
@@ -117,10 +117,10 @@ const SW_W = 52;
 const HOST_W = 72;
 
 /** A switch box centred on (cx, cy), as in the switch topologies. */
-const Sw = ({ id, cx, cy }: { id: string; cx: number; cy: number }) => <Node id={id} title={id} x={cx - SW_W / 2} y={cy - NODE.h / 2} w={SW_W} />;
+const Sw = ({ id, cx, cy }: { id: string; cx: number; cy: number }) => <Node id={id} title={id} at={[cx - SW_W / 2, cy - NODE.h / 2]} anchor="nw" w={SW_W} />;
 /** A host box centred on (cx, cy), its VLAN underneath its name. */
 const VlanHost = ({ id, vlan, cx, cy }: { id: string; vlan: number; cx: number; cy: number }) => (
-  <Node id={id} title={id} sub={`VLAN ${vlan}`} x={cx - HOST_W / 2} y={cy - NODE.hSub / 2} w={HOST_W} />
+  <Node id={id} title={id} sub={`VLAN ${vlan}`} at={[cx - HOST_W / 2, cy - NODE.hSub / 2]} anchor="nw" w={HOST_W} />
 );
 
 export function VlanTrunkSchema(props: FigureProps) {
@@ -133,13 +133,13 @@ export function VlanTrunkSchema(props: FigureProps) {
   return (
     <Diagram caption="Two switches carry VLANs 2 and 3. Each host port belongs to one VLAN and carries untagged frames. The trunk link between S1 and S2 carries both VLANs, so each of its frames holds a VLAN tag." {...props}>
       <Col gap={28} align="center">
-        <Free>
+        <Canvas>
           <Sw id="S1" cx={120} cy={NODE.h / 2} />
           <Sw id="S2" cx={400} cy={NODE.h / 2} />
           {hosts.map(([id, vlan, , cx]) => (
             <VlanHost key={id} id={id} vlan={vlan} cx={cx} cy={130} />
           ))}
-        </Free>
+        </Canvas>
         <Col gap={10} align="center">
           <Text text="A frame on the trunk link" weight={500} />
           <FrameStrip id="tagged" fields={[DST, SRC, { name: "VLAN tag", size: "4 B", tone: MAC, strong: true }, TYPE, { name: "Payload", size: "46–1500 B" }, FCS]} />
@@ -163,13 +163,13 @@ export function VlanRouterSchema(props: FigureProps) {
   ];
   return (
     <Diagram caption="VLAN 2 (A, Y) and VLAN 3 (C, D) share switch S1. Router R joins S1 through a trunk link and is the gateway of both VLANs." {...props}>
-      <Free>
+      <Canvas>
         <Router id="R" label="R" x={90} y={cy - ROUTER_SIZE / 2} />
         <Sw id="S1" cx={295} cy={cy} />
         {hosts.map(([id, vlan, cx]) => (
           <VlanHost key={id} id={id} vlan={vlan} cx={cx} cy={cy + 120} />
         ))}
-      </Free>
+      </Canvas>
       <Link from="R" to="S1" label="trunk" route="straight" />
       {hosts.map(([id]) => (
         <Link key={id} from={id} to="S1" fromSide="top" toSide="bottom" route="straight" />

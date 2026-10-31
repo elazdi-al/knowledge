@@ -21,6 +21,12 @@ export const SHAPES: readonly Shape[] = ["box", "pill", "circle", "cylinder", "d
 export type TextSize = "title" | "label" | "note";
 export type Weight = 400 | 500 | 600 | 700;
 
+/** A point, in the coordinates of the enclosing `Canvas`. */
+export type Point = [number, number];
+/** Which part of a mark sits on its point, by compass: `w` puts the west edge there and the mark to its right. */
+export type Anchor = "c" | "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+export const ANCHORS: readonly Anchor[] = ["c", "n", "s", "e", "w", "ne", "nw", "se", "sw"];
+
 export interface Size {
   w: number;
   h: number;
@@ -91,9 +97,10 @@ export interface Base {
   id: string;
   state: State;
   tone?: Tone;
-  /** Position inside a `Free` parent. */
-  x?: number;
-  y?: number;
+  /** Placement inside a `Canvas` parent. */
+  at?: Point;
+  anchor?: Anchor;
+  offset?: number;
 }
 
 /** A compiled element: its mark, the data the mark made from its props, and its children. */
@@ -147,8 +154,8 @@ export interface MarkDef<P, D> {
   props: PropTable<P>;
   /** resolve props to the data every other step reads */
   data(props: P): D;
-  /** position inside a `Free`, when it does not come from `x` and `y` */
-  origin?(props: P, data: D): { x: number; y: number };
+  /** its top-left corner in a `Canvas`, when the mark's own geometry says where it is */
+  origin?(props: P, data: D): Point;
   /** a leaf's own size */
   size?(b: Block<D>): Size;
   /** a container's layout: called without `given` to measure, and with the final size to place */

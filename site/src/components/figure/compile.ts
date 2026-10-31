@@ -1,10 +1,10 @@
 /** Walk JSX into a Scene: expand plain components, validate props, resolve ids and ghosting. */
 import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
 import { suggest, type Diagnostic } from "./diagnostics";
-import { partIds } from "./mark";
+import { partIds, type Common } from "./mark";
 import { Edge } from "./marks/edge";
 import { Col } from "./marks/layout";
-import type { AnyBlock, EdgeSpec, MarkDef, Scene, State } from "./model";
+import type { AnyBlock, EdgeSpec, MarkDef, Point, Scene, State } from "./model";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDef = MarkDef<any, any>;
@@ -57,6 +57,8 @@ interface Ctx {
   diagnostics: Diagnostic[];
 }
 
+const PLACEMENT = ["at", "anchor", "offset"];
+
 function checkProps(t: TNode, parentKind: string, ctx: Ctx) {
   const table: Record<string, true | "number" | readonly string[]> = t.def.props;
   const where = `<${t.def.kind}${typeof t.props.id === "string" ? ` id="${t.props.id}"` : ""}>`;
@@ -67,15 +69,15 @@ function checkProps(t: TNode, parentKind: string, ctx: Ctx) {
       ctx.diagnostics.push({ code: "prop/invalid", severity: "error", message: `${where} has no prop "${name}".`, hint: suggest(name, Object.keys(table)) });
     } else if (allowed === "number" ? typeof value !== "number" : allowed !== true && !allowed.includes(value as string)) {
       ctx.diagnostics.push({ code: "prop/invalid", severity: "error", message: `${where} ${name}="${String(value)}" is not valid.`, hint: allowed === "number" ? "Pass a number." : `One of: ${(allowed as readonly string[]).join(", ")}.` });
-    } else if ((name === "x" || name === "y") && parentKind !== "free") {
-      ctx.diagnostics.push({ code: "prop/ignored", severity: "warn", message: `${where} sets ${name}, but only a child of <Free> is positioned.`, hint: `Its parent is <${parentKind}>.` });
+    } else if (PLACEMENT.includes(name) && parentKind !== "canvas" && !t.def.origin && t.def.kind !== "dot") {
+      ctx.diagnostics.push({ code: "prop/ignored", severity: "warn", message: `${where} sets ${name}, but only a child of <Canvas> is placed.`, hint: `Its parent is <${parentKind}>.` });
     }
   }
 }
 
 function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean, parentKind: string): AnyBlock | null {
   checkProps(t, parentKind, ctx);
-  const p = t.props as { id?: string; state?: State; tone?: AnyBlock["tone"]; x?: number; y?: number };
+  const p = t.props as Pick<Common, "id" | "state" | "tone" | "at" | "anchor" | "offset">;
   if (t.def === (Edge.def as unknown)) {
     ctx.edges.push(t.def.data(t.props));
     return null;
@@ -85,8 +87,8 @@ function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean, pare
   register(id, state, ctx);
   const children = t.children.map((c, i) => resolve(c, ctx, `${id}.${i}`, state === "ghost", t.def.kind)).filter((b): b is AnyBlock => b !== null);
   const data = t.def.data(t.props);
-  const { x, y } = t.def.origin?.(t.props, data) ?? { x: p.x, y: p.y };
-  const block: AnyBlock = { id, state, tone: p.tone, x, y, def: t.def as AnyBlock["def"], data, children };
+  const origin: Point | undefined = t.def.origin?.(t.props, data);
+  const block: AnyBlock = { id, state, tone: p.tone, at: origin ?? p.at, anchor: origin ? "nw" : p.anchor, offset: p.offset, def: t.def as AnyBlock["def"], data, children };
   for (const part of partIds(block)) register(part, state, ctx);
   return block;
 }

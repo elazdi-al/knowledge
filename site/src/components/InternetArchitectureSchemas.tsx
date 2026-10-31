@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Edge, FONT, Free, Group, measure, Node, NODE, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
+import { Col, Diagram, Edge, FONT, Canvas, Group, measure, Node, NODE, Row, Space, Text, type Tone, type FigureProps } from "@/components/figure";
 import { DEVICE_NAME, Link, NET_TONE, Router, ROUTER_BADGE, ROUTER_SIZE, Switch } from "@/components/NetworkFigures";
 import { AddressBits, FrameHeaders, ProtocolStack, TimeSpace } from "@/components/PacketFigures";
 
@@ -19,12 +19,12 @@ export function DomainNameSchema(props: FigureProps) {
   const UNDER = Math.round(FONT.title * 1.4) + 4;
   const ROW = 20;
   const labelX = name.length * adv + 20;
-  const at = (id: string, x: number, y: number) => <Space key={id} id={id} x={x} y={y} />;
+  const at = (id: string, x: number, y: number) => <Space key={id} id={id} at={[x, y]} />;
   let start = 0;
   return (
     <Diagram caption="The three labels of ssc.epfl.ch, read from the right." {...props}>
-      <Free>
-        <Text text={name} size="title" weight={500} mono x={0} y={0} />
+      <Canvas>
+        <Text text={name} size="title" weight={500} mono at={[0, 0]} anchor="nw" />
         {NAME.map((p, k) => {
           const x0 = start * adv;
           const x1 = x0 + p.label.length * adv;
@@ -40,10 +40,10 @@ export function DomainNameSchema(props: FigureProps) {
             at(`${id}.t`, labelX - 6, y),
             <Edge key={`${id}.u`} from={`${id}.a`} to={`${id}.b`} route="straight" head="none" thick state={state} />,
             <Edge key={`${id}.l`} from={`${id}.m`} to={`${id}.t`} route="ortho" fromSide="bottom" toSide="left" head="none" state={state} />,
-            <Text key={`${id}.r`} text={p.role} size="note" muted={!state} state={state} x={labelX} y={y - 8} />,
+            <Text key={`${id}.r`} text={p.role} size="note" muted={!state} state={state} at={[labelX, y - 8]} anchor="nw" />,
           ];
         })}
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }
@@ -58,7 +58,7 @@ const ADDR_PX = FONT.note - 0.5;
 const addrW = (s: string) => measure(s, ADDR_PX, { mono: true });
 
 /** An interface address written just under the link line, in the hue of the router that owns it. */
-const Addr = ({ text, x, tone }: { text: string; x: number; tone?: Tone }) => <Text text={text} size="note" mono tone={tone} x={x} y={LINE + 5} />;
+const Addr = ({ text, x, tone }: { text: string; x: number; tone?: Tone }) => <Text text={text} size="note" mono tone={tone} at={[x, LINE + 5]} anchor="nw" />;
 
 /** Gap between a LAN panel and the router beside it, so the link visibly leaves the LAN. */
 const JOIN = 10;
@@ -66,10 +66,10 @@ const JOIN = 10;
 /** A LAN as a dashed outline titled with its prefix; `children` are placed freely around the link line at y = LINE, in `h` of height. */
 const Lan = ({ title, h = 2 * LINE, children }: { title: string; h?: number; children: ReactNode }) => (
   <Group title={title} pad={LAN_PAD} dashed>
-    <Free>
-      <Space x={0} y={0} h={h} />
+    <Canvas>
+      <Space at={[0, 0]} anchor="nw" h={h} />
       {children}
-    </Free>
+    </Canvas>
   </Group>
 );
 
@@ -89,7 +89,7 @@ export function SubnetChainSchema(props: FigureProps) {
     <Diagram caption="Three Ethernet LANs in a row. Every address on a LAN starts with the LAN's prefix, and each router has one interface, with its own address, on each LAN it joins." {...props}>
       <Row gap={JOIN} align="start">
         <Lan title="10.10.3.0/24">
-          <Node id="a" title="A" sub="?" x={0} y={0} w={a} />
+          <Node id="a" title="A" sub="?" at={[0, 0]} anchor="nw" w={a} />
           <Addr text="10.10.3.1" x={a + gap} tone={r[1]} />
         </Lan>
         <OnLine>
@@ -104,7 +104,7 @@ export function SubnetChainSchema(props: FigureProps) {
         </OnLine>
         <Lan title="10.10.2.0/24">
           <Addr text="10.10.2.1" x={0} tone={r[2]} />
-          <Node id="b" title="B" sub="10.10.2.33" x={w21 + gap} y={0} w={b} />
+          <Node id="b" title="B" sub="10.10.2.33" at={[w21 + gap, 0]} anchor="nw" w={b} />
         </Lan>
       </Row>
       <Link from="a" to="r" route="straight" />
@@ -115,7 +115,7 @@ export function SubnetChainSchema(props: FigureProps) {
 }
 
 /** An observation point on a link: a small numbered circle the link passes through. */
-const Point = ({ id, n, x }: { id: string; n: number; x: number }) => <Node id={id} title={String(n)} shape="circle" w={22} x={x} y={LINE - 11} />;
+const Point = ({ id, n, x }: { id: string; n: number; x: number }) => <Node id={id} title={String(n)} shape="circle" w={22} at={[x, LINE - 11]} anchor="nw" />;
 
 /** Height of a switch: its 10px port strip plus 6px padding each side. */
 const SWITCH_H = 22;
@@ -128,19 +128,19 @@ export function GatewayPathSchema(props: FigureProps) {
     <Diagram caption="The web server on LAN B sends to Eliane's phone on LAN A through the gateway router. Point 1 lies on LAN B, between the switch and the gateway. Point 2 lies on LAN A, between the gateway and the phone." {...props}>
       <Row gap={JOIN} align="start">
         <Lan title="LAN B (Ethernet)" h={h}>
-          <Node id="srv" title="Web server" x={0} y={LINE - NODE.h / 2} w={server} />
-          <Free x={sw} y={LINE - SWITCH_H / 2}>
+          <Node id="srv" title="Web server" at={[0, LINE - NODE.h / 2]} anchor="nw" w={server} />
+          <Canvas at={[sw, LINE - SWITCH_H / 2]} anchor="nw">
             <Switch id="sw" label="Switch" />
-          </Free>
+          </Canvas>
           <Point id="p1" n={1} x={p1} />
-          <Space x={p1 + 22 + 20} y={0} />
+          <Space at={[p1 + 22 + 20, 0]} />
         </Lan>
         <OnLine mid={ROUTER_SIZE / 2}>
           <Router id="gw" label="Gateway" />
         </OnLine>
         <Lan title="LAN A (WiFi)" h={h}>
           <Point id="p2" n={2} x={20} />
-          <Node id="eli" title="Eliane" x={20 + 22 + 32} y={LINE - NODE.h / 2} />
+          <Node id="eli" title="Eliane" at={[20 + 22 + 32, LINE - NODE.h / 2]} anchor="nw" />
         </Lan>
       </Row>
       <Link from="srv" to="sw" route="straight" />

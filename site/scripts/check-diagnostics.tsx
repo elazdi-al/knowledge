@@ -1,7 +1,7 @@
 // Each entry is a mistake an author can make and the code the engine must answer it with.
 import assert from "node:assert/strict";
 import type { ReactNode } from "react";
-import { Cells, Col, Edge, Free, Graph, layoutScene, Node, Row, toScene, type DiagnosticCode } from "@/components/figure";
+import { Cells, Col, Edge, Canvas, Graph, layoutScene, Node, Row, toScene, type DiagnosticCode } from "@/components/figure";
 
 const any = (props: object): object => props;
 const cases: [string, DiagnosticCode, ReactNode][] = [
@@ -14,7 +14,7 @@ const cases: [string, DiagnosticCode, ReactNode][] = [
   ["bad shape", "prop/invalid", <Node {...any({ shape: "hexagon" })} />],
   ["bad route", "prop/invalid", <><Node id="a" /><Edge from="a" to="a" {...any({ route: "elbow" })} /></>],
   ["unknown prop", "prop/invalid", <Node {...any({ label: "A" })} />],
-  ["position outside a canvas", "prop/ignored", <Row><Node x={1} y={1} /></Row>],
+  ["position outside a canvas", "prop/ignored", <Row><Node at={[1, 1]} /></Row>],
   ["edge to a layout box", "edge/invisible-endpoint", <><Col id="c"><Node id="a" /></Col><Node id="b" /><Edge from="c" to="b" /></>],
   ["figure too wide", "frame/too-wide", <Node title={"long title ".repeat(12)} />],
   ["title wider than its node", "node/title-overflow", <Node title="a long title here" w={20} />],
@@ -27,6 +27,6 @@ for (const [name, code, figure] of cases) {
 }
 const typo = layoutScene(toScene(<><Node id="handler" /><Edge from="handler" to="handlr" /></>)).diagnostics[0];
 assert.equal(typo.hint, 'Did you mean "handler"?');
-const clean = layoutScene(toScene(<Free><Node id="a" title="a" x={0} y={0} /><Node id="b" title="b" x={100} y={0} /><Edge from="a" to="b" /></Free>));
+const clean = layoutScene(toScene(<Canvas><Node id="a" title="a" at={[0, 0]} anchor="nw" /><Node id="b" title="b" at={[100, 0]} anchor="nw" /><Edge from="a" to="b" /></Canvas>));
 assert.deepEqual(clean.diagnostics, []);
 console.log(`${cases.length} diagnostics behave`);

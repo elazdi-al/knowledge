@@ -1,4 +1,4 @@
-import { Col, Diagram, Dot, Free, Path, Poly, Row, Text } from "@/components/figure";
+import { Col, Diagram, Dot, Canvas, Path, Poly, Row, Text } from "@/components/figure";
 import { Arrow, At, Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
 
 /** Points of the ellipse with half-axes `rx`, `ry` around `c`, in data units. */
@@ -22,12 +22,12 @@ export function StepSizeSchema() {
           const pts = ws.map((w): Pt => [w, (w * w) / 2]);
           return (
             <Col key={eta} gap={10}>
-              <Free>
+              <Canvas>
                 <Axes area={a} x={X} y={Y} origin={[0, 0]} labels={["$w$", "$L$"]} />
                 <Path points={curve(a, (w) => (w * w) / 2, X)} state="strong" />
                 <Path points={pts.map(a.p)} tone="blue" />
                 {pts.map((p, t) => <Dot key={t} at={a.p(p)} tone="blue" r={t === 0 ? 3.5 : 2.5} />)}
-              </Free>
+              </Canvas>
               <Col gap={2}>
                 <Text text={`$\\eta = ${eta}$`} />
                 <Text text={note} size="note" muted />
@@ -69,13 +69,13 @@ export function SgdNoiseSchema() {
   const p = (t: number, v: number) => a.p([t, Math.log10(v)]);
   return (
     <Diagram caption="Loss on a log scale. SGD is noisy and, with a constant $\eta$, keeps jittering above the minimum.">
-      <Free>
+      <Canvas>
         <Axes area={a} x={[0, T + 4]} y={Y} origin={[0, Y[0]]} labels={["step $t$", "$\\log L$"]} />
         <Path points={sgd.map((v, t) => p(t, v))} tone="purple" />
         <Path points={gd.map((v, t) => p(t, v))} tone="blue" thick />
         <At text="SGD" at={p(30, Math.max(...sgd.slice(26, 34)))} anchor="s" gap={8} tone="purple" weight={500} />
         <At text="gradient descent" at={p(48, gd[48])} anchor="n" gap={5} tone="blue" weight={500} />
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }
@@ -105,12 +105,12 @@ export function MomentumSchema() {
           const a = plotArea({ x: [-4.8, 4.8], y: [-1.6, 1.7], w: 230, h: 100, at: [4, 22] });
           return (
             <Col key={title} gap={8}>
-              <Free>
+              <Canvas>
                 <Axes area={a} x={[-4.8, 4.8]} y={[-1.6, 1.7]} labels={["$\\theta_1$", "$\\theta_2$"]} />
                 {[1, 2, 3].map((k) => <Path key={k} points={ellipse([0, 0], 1.45 * k, 0.25 * k).map(a.p)} closed thin state="ghost" />)}
                 <Path points={path.map(a.p)} tone="blue" />
                 {path.map((p, t) => <Dot key={t} at={a.p(p)} tone="blue" r={2.5} />)}
-              </Free>
+              </Canvas>
               <Text text={title} weight={500} />
             </Col>
           );
@@ -126,7 +126,7 @@ export function SubgradientSchema() {
   const slopes = [-0.55, 0, 0.55];
   return (
     <Diagram caption="Any line through the kink with slope in $[-1, 1]$ stays below $|e|$.">
-      <Free>
+      <Canvas>
         <Axes area={a} x={[-2.2, 2.4]} y={[-0.9, 2.2]} labels={["$e$", "$|e|$"]} />
         {slopes.map((g) => (
           <Path key={g} points={[a.p([-1.6, -1.6 * g]), a.p([1.6, 1.6 * g])]} tone="blue" dashed />
@@ -136,7 +136,7 @@ export function SubgradientSchema() {
         <At text="slope $-1$" at={a.p([-1.7, 1.7])} anchor="ne" gap={6} muted />
         <At text="slope $1$" at={a.p([1.7, 1.7])} anchor="nw" gap={6} muted />
         <At text="$g \in [-1, 1]$" at={a.p([1.6, 1.6 * slopes[2]])} anchor="w" gap={6} tone="blue" />
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }
@@ -164,7 +164,7 @@ export function ProjectionSchema() {
   const a = plotArea({ x: [0, 7.5], y: [0, 4.6], w: 345, h: 212, at: [12, 12] });
   return (
     <Diagram caption="The gradient step leaves $C$ at $\theta'$, and the projection returns to the nearest point of $C$.">
-      <Free>
+      <Canvas>
         {[0.4, 0.8, 1.2].map((r) => <Path key={r} points={ellipse(center, r * Math.SQRT2, r).map(a.p)} closed thin state="ghost" />)}
         <Poly points={C.map(a.p)} tone="blue" outline />
         <Arrow from={a.p(theta)} to={short(a.p(theta), a.p(stepped))} state="strong" />
@@ -176,7 +176,7 @@ export function ProjectionSchema() {
         <At text="$\theta^{(t)}$" at={a.p(theta)} anchor="n" gap={7} />
         <At text="$\theta'$" at={a.p(stepped)} anchor="w" gap={7} />
         <At text="$P_C(\theta')$" at={a.p(projected)} anchor="sw" gap={8} tone="blue" />
-      </Free>
+      </Canvas>
     </Diagram>
   );
 }

@@ -1,4 +1,4 @@
-import { Diagram, Edge, FONT, Free, measure, Node, NODE, Row, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE } from "@/components/figure";
+import { Diagram, Edge, FONT, Canvas, measure, Node, NODE, Row, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE } from "@/components/figure";
 
 /** Width of a `Text` drawn at `size`; mono text draws half a pixel smaller. */
 const textW = (text: string, size: "label" | "note", mono = false) => {
@@ -38,19 +38,19 @@ export function AddressVsDereferenceDiagram() {
   ];
   return (
     <Diagram caption="rax holds an address. [rax] is the memory at that address.">
-      <Free>
-        <Node id="rax" title="rax" sub="0x1000" mono x={0} y={top + 1.5 * TABLE.rowH - NODE.hSub / 2} w={raxW} />
-        <Text text="memory" size="note" muted x={tx} y={0} />
-        <Table id="mem" rows={mem} x={tx} y={top} />
+      <Canvas>
+        <Node id="rax" title="rax" sub="0x1000" mono at={[0, top + 1.5 * TABLE.rowH - NODE.hSub / 2]} anchor="nw" w={raxW} />
+        <Text text="memory" size="note" muted at={[tx, 0]} anchor="nw" />
+        <Table id="mem" rows={mem} at={[tx, top]} anchor="nw" />
         {eqs.map((e, i) => {
           const y = eqY + i * (LABEL_H + 6);
           return [
-            <Text key={`l${i}`} text={e.lhs} mono state={e.state} x={lhsW - textW(e.lhs, "label", true)} y={y} />,
-            <Text key={`r${i}`} text={e.rhs} mono state={e.state} x={lhsW + 8} y={y} />,
-            <Text key={`n${i}`} text={e.note} size="note" muted x={noteX} y={y + (LABEL_H - NOTE_H) / 2} />,
+            <Text key={`l${i}`} text={e.lhs} mono state={e.state} at={[lhsW - textW(e.lhs, "label", true), y]} anchor="nw" />,
+            <Text key={`r${i}`} text={e.rhs} mono state={e.state} at={[lhsW + 8, y]} anchor="nw" />,
+            <Text key={`n${i}`} text={e.note} size="note" muted at={[noteX, y + (LABEL_H - NOTE_H) / 2]} anchor="nw" />,
           ];
         })}
-      </Free>
+      </Canvas>
       <Edge from="rax" to="mem.r1" route="straight" state="active" />
     </Diagram>
   );
@@ -78,16 +78,16 @@ export function StackCallDiagram() {
     <Diagram caption="Higher addresses are at the top. The stack grows toward lower addresses.">
       <Row gap={16} align="start" wrap>
         {CALL_STATES.map((s) => (
-          <Free key={s.key}>
-            <Text text={s.title} weight={600} x={sx + (w - textW(s.title, "label")) / 2} y={0} />
-            <Text id={`${s.key}-rsp`} text="rsp" mono x={0} y={top + slotY(s.rsp) + (SLOT_H - LABEL_H) / 2} />
+          <Canvas key={s.key}>
+            <Text text={s.title} weight={600} at={[sx + (w - textW(s.title, "label")) / 2, 0]} anchor="nw" />
+            <Text id={`${s.key}-rsp`} text="rsp" mono at={[0, top + slotY(s.rsp) + (SLOT_H - LABEL_H) / 2]} anchor="nw" />
             {s.slots.map((slot, i) => (
-              <Node key={i} id={`${s.key}-${i}`} title={slot.label} state={slot.state} x={sx} y={top + slotY(i)} w={w} h={SLOT_H} />
+              <Node key={i} id={`${s.key}-${i}`} title={slot.label} state={slot.state} at={[sx, top + slotY(i)]} anchor="nw" w={w} h={SLOT_H} />
             ))}
             {s.notes.map((n, i) => (
-              <Text key={n} text={n} size="note" mono x={sx} y={notesY + i * (NOTE_H + 2)} />
+              <Text key={n} text={n} size="note" mono at={[sx, notesY + i * (NOTE_H + 2)]} anchor="nw" />
             ))}
-          </Free>
+          </Canvas>
         ))}
       </Row>
       {CALL_STATES.map((s) => (
@@ -117,9 +117,9 @@ export function StackFrameDiagram({ overflow = false }: { overflow?: boolean }) 
   const top = overflow ? NODE.h + 48 : NOTE_H + 8;
   const last = FRAME.length - 1;
   const pointer = (reg: string, slot: number) => (
-    <Text id={reg} text={reg} mono x={sx + w + POINTER_GAP} y={top + slotY(slot) + (SLOT_H - LABEL_H) / 2} />
+    <Text id={reg} text={reg} mono at={[sx + w + POINTER_GAP, top + slotY(slot) + (SLOT_H - LABEL_H) / 2]} anchor="nw" />
   );
-  const centred = (text: string, y: number) => <Text text={text} size="note" muted x={sx + (w - textW(text, "note")) / 2} y={y} />;
+  const centred = (text: string, y: number) => <Text text={text} size="note" muted at={[sx + (w - textW(text, "note")) / 2, y]} anchor="nw" />;
   return (
     <Diagram
       caption={
@@ -128,18 +128,18 @@ export function StackFrameDiagram({ overflow = false }: { overflow?: boolean }) 
           : "After the prologue, rbp points at the saved rbp and rsp points at the bottom of the local area."
       }
     >
-      <Free>
-        {overflow ? <Node id="rip" title="rip" mono x={sx + (w - 48) / 2} y={0} w={48} /> : centred("higher addresses", 0)}
+      <Canvas>
+        {overflow ? <Node id="rip" title="rip" mono at={[sx + (w - 48) / 2, 0]} anchor="nw" w={48} /> : centred("higher addresses", 0)}
         {FRAME.map((s, i) => (
-          <Text key={s.offset} text={s.offset} size="note" mono muted x={0} y={top + slotY(i) + (SLOT_H - NOTE_H) / 2} />
+          <Text key={s.offset} text={s.offset} size="note" mono muted at={[0, top + slotY(i) + (SLOT_H - NOTE_H) / 2]} anchor="nw" />
         ))}
         {slots.map((s, i) => (
-          <Node key={i} id={`slot${i}`} title={s.label} mono={s.mono} tone={s.tone} x={sx} y={top + slotY(i)} w={w} h={SLOT_H} />
+          <Node key={i} id={`slot${i}`} title={s.label} mono={s.mono} tone={s.tone} at={[sx, top + slotY(i)]} anchor="nw" w={w} h={SLOT_H} />
         ))}
         {!overflow && pointer("rbp", 1)}
         {!overflow && pointer("rsp", last)}
         {centred("lower addresses", top + slotY(last) + SLOT_H + 8)}
-      </Free>
+      </Canvas>
       {overflow ? (
         <>
           <Edge from={`slot${last}`} to="slot0" label="input" route="ortho" fromSide="right" toSide="right" tone="red" />

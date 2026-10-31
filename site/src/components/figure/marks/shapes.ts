@@ -1,6 +1,6 @@
-/** Geometry placed by its own coordinates inside a `Free`, and room for a layout to leave. */
+/** Geometry placed by its own coordinates inside a `Canvas`, and room for a layout to leave. */
 import { COMMON, mark, type Common, type Marker } from "../mark";
-import type { PropTable } from "../model";
+import type { Point, PropTable } from "../model";
 import { line, shownTone, solid, tint, V } from "../paint";
 import { DOT_R, STROKE, r2 } from "../theme";
 
@@ -16,18 +16,18 @@ export const Space: Marker<SpaceProps> = mark<SpaceProps, { w: number; h: number
   size: ({ data }) => data,
 });
 
-type Pts = [number, number][];
-type Drawn = Omit<Common, "x" | "y">;
+type Pts = Point[];
+type Drawn = Pick<Common, "id" | "state" | "tone">;
 const DRAWN: PropTable<Drawn> = { id: true, state: COMMON.state, tone: COMMON.tone };
 
-const originOf = (pts: Pts) => ({ x: Math.min(...pts.map(([x]) => x)), y: Math.min(...pts.map(([, y]) => y)) });
+const originOf = (pts: Pts): Point => [Math.min(...pts.map(([x]) => x)), Math.min(...pts.map(([, y]) => y))];
 const fromOrigin = (pts: Pts): Pts => {
-  const o = originOf(pts);
-  return pts.map(([x, y]) => [x - o.x, y - o.y]);
+  const [ox, oy] = originOf(pts);
+  return pts.map(([x, y]) => [x - ox, y - oy]);
 };
 const extent = (pts: Pts) => ({ w: Math.max(0, ...pts.map(([x]) => x)), h: Math.max(0, ...pts.map(([, y]) => y)) });
 
-/** A filled polygon inside a `Free`, its points in the `Free`'s coordinates; a background, so edges and labels may cross it. `outline` draws its border in the tone's line. */
+/** A filled polygon inside a `Canvas`, its points in the `Canvas`'s coordinates; a background, so edges and labels may cross it. `outline` draws its border in the tone's line. */
 export interface PolyProps extends Drawn {
   points: Pts;
   outline?: boolean;
@@ -53,7 +53,7 @@ export const Poly: Marker<PolyProps> = mark<PolyProps, { points: Pts; outline: b
   },
 });
 
-/** A stroked polyline inside a `Free`, its points in the `Free`'s coordinates: ink when `strong`, the tone's solid when toned, else the edge grey. */
+/** A stroked polyline inside a `Canvas`, its points in the `Canvas`'s coordinates: ink when `strong`, the tone's solid when toned, else the edge grey. */
 export interface PathProps extends Drawn {
   points: Pts;
   /** join the last point back to the first */
@@ -90,9 +90,9 @@ export const Path: Marker<PathProps> = mark<PathProps, { points: Pts; closed: bo
   },
 });
 
-/** A filled data point centred `at` a point of its `Free`. */
+/** A filled data point centred `at` a point of its `Canvas`. */
 export interface DotProps extends Drawn {
-  at: [number, number];
+  at: Point;
   r?: number;
 }
 
@@ -100,7 +100,6 @@ export const Dot: Marker<DotProps> = mark<DotProps, { r: number }>({
   kind: "dot",
   props: { ...DRAWN, at: true, r: "number" },
   data: (p) => ({ r: p.r ?? DOT_R }),
-  origin: ({ at = [0, 0] }, d) => ({ x: at[0] - d.r, y: at[1] - d.r }),
   size: ({ data }) => ({ w: 2 * data.r, h: 2 * data.r }),
   /** A canvas-coloured ring keeps a point legible where it sits on a line or touches another point. */
   paint(it) {

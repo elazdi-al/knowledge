@@ -57,7 +57,7 @@ function connectEdges(root: AnyBlock, edges: EdgeSpec[], rects: Record<string, R
 }
 
 /**
- * Arcs, loops and same-side curves bow past the items, loop labels sit beyond them, and a `Free` child may sit at a
+ * Arcs, loops and same-side curves bow past the items, loop labels sit beyond them, and a `Canvas` child may sit at a
  * negative offset (a label left of a plot); keep every item, path and pill in the viewBox. Moves the boxes if it must,
  * and returns the frame size and the final routes.
  */

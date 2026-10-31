@@ -1,13 +1,13 @@
 import { FONT, measure, Path, STROKE, Text, type PathProps, type TextProps } from "@/components/figure";
 
 /**
- * Plot vocabulary over the figure engine: a data box mapped to the pixels of a `Free`, sampled curves, labels anchored
+ * Plot vocabulary over the figure engine: a data box mapped to the pixels of a `Canvas`, sampled curves, labels anchored
  * to a point, and arrows. Everything it returns is engine markers, so plots share the look of every other figure.
  */
 
 export type Pt = [number, number];
 
-/** The data box `x` × `y` drawn `w` × `h` px with its top-left at `at` in the enclosing `Free`; y grows up. */
+/** The data box `x` × `y` drawn `w` × `h` px with its top-left at `at` in the enclosing `Canvas`; y grows up. */
 export function plotArea({ x: [x0, x1], y: [y0, y1], w, h, at = [0, 0] }: { x: Pt; y: Pt; w: number; h: number; at?: Pt }) {
   const px = (v: number) => at[0] + ((v - x0) / (x1 - x0)) * w;
   const py = (v: number) => at[1] + h - ((v - y0) / (y1 - y0)) * h;
@@ -34,7 +34,7 @@ export function At({ at: [x, y], anchor = "c", gap = 4, size = "note", ...props 
   const h = Math.round(px * 1.4);
   const dx = anchor.includes("w") ? gap : anchor.includes("e") ? -w - gap : -w / 2;
   const dy = anchor.startsWith("n") ? gap : anchor.startsWith("s") ? -h - gap : -h / 2;
-  return <Text size={size} {...props} x={x + dx} y={y + dy} />;
+  return <Text size={size} {...props} at={[x + dx, y + dy]} anchor="nw" />;
 }
 
 /** Open chevron at `tip` for a line arriving from `from`, the shape the engine draws on edges. */

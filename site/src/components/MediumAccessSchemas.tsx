@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Col, Diagram, Dot, Edge, FONT, Free, Group, measure, Node, NODE, Path, Row, Text, type EdgeState, type FigureProps } from "@/components/figure";
+import { Col, Diagram, Dot, Edge, FONT, Canvas, Group, measure, Node, NODE, Path, Row, Text, type EdgeState, type FigureProps } from "@/components/figure";
 import { Link, NET_TONE, Switch } from "@/components/NetworkFigures";
 import { SequenceChart, TimeSpace } from "@/components/PacketFigures";
 
@@ -93,12 +93,12 @@ function Topology({ switches, hosts = [], panel }: { switches: (Spot | [...Spot,
   const h = NODE.h;
   const items: ReactNode[] = [
     ...switches.flatMap(([name, cx, cy, root]) => [
-      <Node key={name} id={inPanel(name, panel)} title={name} x={cx - SW_W / 2} y={cy - h / 2} w={SW_W} h={h} state={root ? "strong" : undefined} />,
-      root && <Text key={`${name}.root`} text="root" size="note" muted x={cx - measure("root", FONT.note) / 2} y={cy - h / 2 - 20} />,
+      <Node key={name} id={inPanel(name, panel)} title={name} at={[cx - SW_W / 2, cy - h / 2]} anchor="nw" w={SW_W} h={h} state={root ? "strong" : undefined} />,
+      root && <Text key={`${name}.root`} text="root" size="note" muted at={[cx - measure("root", FONT.note) / 2, cy - h / 2 - 20]} anchor="nw" />,
     ]),
-    ...hosts.map(([name, cx, cy]) => <Node key={name} id={inPanel(name, panel)} title={name} shape="circle" x={cx - HOST_D / 2} y={cy - HOST_D / 2} w={HOST_D} h={HOST_D} />),
+    ...hosts.map(([name, cx, cy]) => <Node key={name} id={inPanel(name, panel)} title={name} shape="circle" at={[cx - HOST_D / 2, cy - HOST_D / 2]} anchor="nw" w={HOST_D} h={HOST_D} />),
   ];
-  return <Free>{items}</Free>;
+  return <Canvas>{items}</Canvas>;
 }
 
 /**
@@ -282,14 +282,14 @@ function tapped(panel: string, name: string, c: Pt, tap: Pt, spoke = false) {
   const wire: Pt[] = [tap, [tap[0] + k * dx, tap[1] + k * dy]];
   return [
     <Path key={`${panel}.${name}.wire`} points={wire} thick={spoke} tone={spoke ? NET_TONE.link : undefined} />,
-    <Node key={name} id={`${panel}.${name}`} title={name} shape="circle" x={c[0] - HOST_D / 2} y={c[1] - HOST_D / 2} w={HOST_D} h={HOST_D} />,
+    <Node key={name} id={`${panel}.${name}`} title={name} shape="circle" at={[c[0] - HOST_D / 2, c[1] - HOST_D / 2]} anchor="nw" w={HOST_D} h={HOST_D} />,
   ];
 }
 
 const panel = (name: string, drawing: ReactNode[]) => (
   <Col gap={12} align="center">
     <Text text={name} weight={500} />
-    <Free>{drawing}</Free>
+    <Canvas>{drawing}</Canvas>
   </Col>
 );
 
@@ -348,9 +348,9 @@ export function TransparentSwitchSchema(props: FigureProps) {
             ...tapped("sw", "A", [20, 17], [50, 49]),
             ...tapped("sw", "B", [124, 17], [94, 49]),
             ...tapped("sw", "C", [72, 111], [72, 71]),
-            <Free key="switch" x={36} y={49}>
+            <Canvas key="switch" at={[36, 49]} anchor="nw">
               <Switch id="sw.switch" />
-            </Free>,
+            </Canvas>,
           ])}
         </Row>
         <Group title="Ethernet frame" tone={NET_TONE.link} dir="row" gap={4} pad={8}>

@@ -1,4 +1,4 @@
-import { Col, Diagram, Edge, Free, Node, Row, Space, type Side, nodeTitleW } from "@/components/figure";
+import { Col, Diagram, Edge, Canvas, Node, Row, Space, type Side, nodeTitleW } from "@/components/figure";
 import { TONE } from "@/components/tones";
 
 /**
@@ -128,9 +128,9 @@ export function Automaton({ states, transitions, start, startDir = "left", accep
     return SIDE[best];
   };
 
-  const node = (s: AutoState, x?: number, y?: number) => {
+  const node = (s: AutoState, at?: [number, number]) => {
     const acc = !!s.accepting || !!accepting?.includes(s.id);
-    return <Node key={s.id} id={s.id} shape="circle" w={D} title={s.label ?? s.id} double={acc} tone={acc ? TONE.accept : undefined} x={x} y={y} />;
+    return <Node key={s.id} id={s.id} shape="circle" w={D} title={s.label ?? s.id} double={acc} tone={acc ? TONE.accept : undefined} {...(at && { at, anchor: "nw" as const })} />;
   };
 
   let body;
@@ -140,10 +140,10 @@ export function Automaton({ states, transitions, start, startDir = "left", accep
     const minX = Math.min(anchor.x, ...[...pos.values()].map((q) => q.x - D / 2));
     const minY = Math.min(anchor.y, ...[...pos.values()].map((q) => q.y - D / 2));
     body = (
-      <Free>
-        {states.map((s) => node(s, pos.get(s.id)!.x - D / 2 - minX, pos.get(s.id)!.y - D / 2 - minY))}
-        <Space id={START} w={0} h={0} x={anchor.x - minX} y={anchor.y - minY} />
-      </Free>
+      <Canvas>
+        {states.map((s) => node(s, [pos.get(s.id)!.x - D / 2 - minX, pos.get(s.id)!.y - D / 2 - minY]))}
+        <Space id={START} w={0} h={0} at={[anchor.x - minX, anchor.y - minY]} anchor="nw" />
+      </Canvas>
     );
   } else {
     const anchor = <Space id={START} w={0} h={0} />;

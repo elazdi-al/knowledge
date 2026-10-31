@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import { COMMON, idsUnder, mark, type Common, type Marker } from "../mark";
 import { measureStyle } from "../measure";
-import type { Align, AnyBlock, Arranged, Block, Dir, EdgeSpec, LayoutCtx, PropTable, Rect, Size } from "../model";
+import type { Align, Anchor, AnyBlock, Arranged, Block, Dir, EdgeSpec, LayoutCtx, Point, PropTable, Rect, Size } from "../model";
 import { ACCENT, badge, ink, lookOf, rect, shapeStyle, styled, V } from "../paint";
 import { layoutGraph } from "../graph";
 import { labelPillW } from "../route";
@@ -206,19 +206,28 @@ export const Grid: Marker<GridProps> = mark<GridProps, GridData>({
   },
 });
 
+/** Where a mark's top-left corner goes to put its `anchor` side `offset` px from `at`. */
+export function anchored([x, y]: Point, { w, h }: Size, anchor: Anchor = "c", offset = 0) {
+  return {
+    x: x + (anchor.includes("w") ? offset : anchor.includes("e") ? -w - offset : -w / 2),
+    y: y + (anchor.startsWith("n") ? offset : anchor.startsWith("s") ? -h - offset : -h / 2),
+  };
+}
+
 const boxesAt = (at: { x: number; y: number }[], kids: Size[]): Arranged => {
   const rects: Rect[] = at.map((p, i) => ({ x: p.x, y: p.y, w: kids[i].w, h: kids[i].h }));
   return { size: { w: Math.max(0, ...rects.map((r) => r.x + r.w)), h: Math.max(0, ...rects.map((r) => r.y + r.h)) }, rects };
 };
 
-export type FreeProps = Common & WithChildren;
+export type CanvasProps = Common & WithChildren;
 
-export const Free: Marker<FreeProps> = mark<FreeProps, null>({
-  kind: "free",
+/** Children placed by coordinates: `at`, with `anchor` and `offset`; without `at`, a child's top-left is the canvas's origin. */
+export const Canvas: Marker<CanvasProps> = mark<CanvasProps, null>({
+  kind: "canvas",
   overlapping: true,
   props: { ...COMMON, children: true },
   data: () => null,
-  arrange: (b, kids) => boxesAt(b.children.map((c) => ({ x: c.x ?? 0, y: c.y ?? 0 })), kids),
+  arrange: (b, kids) => boxesAt(b.children.map((c, i) => (c.at ? anchored(c.at, kids[i], c.anchor, c.offset) : { x: 0, y: 0 })), kids),
 });
 
 export interface GraphProps extends Common, WithChildren {
