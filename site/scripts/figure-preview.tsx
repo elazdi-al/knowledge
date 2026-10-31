@@ -38,7 +38,7 @@ const out = process.env.OUT ?? "/tmp/figure-preview";
 mkdirSync(out, { recursive: true });
 const tokens = readFileSync(new URL("../../packages/figure/tokens.css", import.meta.url), "utf8");
 const page = join(out, `${name}.html`);
-writeFileSync(page, `<!doctype html><html class="${dark ? "dark" : ""}"><head><meta charset="utf-8"><style>${tokens} body{margin:16px;background:${dark ? "#111110" : "#fff"};font-family:Inter,system-ui,sans-serif} .diagram{margin:0;width:fit-content} .diagram__caption{font-size:14px;color:gray}</style></head><body>${figure}</body></html>`);
+writeFileSync(page, `<!doctype html><html class="${dark ? "dark" : ""}"><head><meta charset="utf-8"><style>${tokens} :root{--color-bg:${dark ? "#111110" : "#fff"}} body{margin:16px;background:var(--color-bg);font-family:Inter,system-ui,sans-serif} .diagram{margin:0;width:fit-content} .diagram__canvas--narrow{display:none} .diagram__caption{font-size:14px;color:gray}</style></head><body>${figure}</body></html>`);
 
 const cache = join(homedir(), "Library/Caches/ms-playwright");
 let shell: string | undefined;
