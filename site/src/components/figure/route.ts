@@ -408,6 +408,19 @@ const densify = (pts: Pt[], step = 4): Pt[] => {
 };
 const inside = (p: Pt, r: Rect, slack = 1) => p.x > r.x + slack && p.x < r.x + r.w - slack && p.y > r.y + slack && p.y < r.y + r.h - slack;
 
+/** Points every few px along a polyline. */
+export const samplePath = (pts: Pt[]) => densify(pts);
+
+/** Whether `p` is inside the drawn outline of an item, not only its box. */
+export function insideOutline(shape: Shape | undefined, r: Rect, p: Pt): boolean {
+  if (!inside(p, r)) return false;
+  const c = centre(r), hw = r.w / 2, hh = r.h / 2, dx = Math.abs(p.x - c.x), dy = Math.abs(p.y - c.y);
+  if (shape === "circle") return Math.hypot(dx, dy) < Math.min(hw, hh) - 1;
+  if (shape === "diamond") return dx / hw + dy / hh < 1;
+  if (shape === "triangle") return dx < hw * (1 - (p.y - r.y) / r.h);
+  return true;
+}
+
 /**
  * Label anchor: fraction `t` along the longest run of the path that is outside
  * every solid item, pulled back so the pill clears both ends of that run when

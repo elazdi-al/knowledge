@@ -3,7 +3,12 @@
  * element tree, expands plain function components, and returns one `Scene`.
  */
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
+import { suggest, type Diagnostic } from "./diagnostics";
 import {
+  partIds,
+  SHAPES,
+  STATES,
+  TONES,
   type Align,
   type Block,
   type CellItem,
@@ -223,10 +228,83 @@ interface Ctx {
   edges: EdgeSpec[];
   /** id -> state, for edge presence and ghosting */
   states: Map<string, State>;
+  diagnostics: Diagnostic[];
 }
 
-function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean): Block | null {
+/** Every prop a marker takes: `true`, or the values it may hold. Keeping this exhaustive is what lets MDX, which has no types, get the same errors as TSX. */
+type PropTable<P> = { [K in keyof Required<P>]: true | readonly string[] };
+const ALIGN = ["start", "center", "end", "stretch"] as const;
+const DIR = ["row", "col"] as const;
+const SIDES = ["top", "right", "bottom", "left"] as const;
+const COMMON: PropTable<Common> = { id: true, state: STATES, tone: TONES, x: true, y: true };
+const STACK: PropTable<RowProps> = { ...COMMON, children: true, gap: true, align: ALIGN, pad: true, wrap: true };
+const SHAPE_POINTS = { id: true, state: STATES, tone: TONES, points: true } as const;
+const PROPS: Record<string, Record<string, true | readonly string[]>> = {
+  row: STACK,
+  col: STACK,
+  grid: { ...COMMON, children: true, cols: true, gap: true, colGap: true, rowGap: true, align: ALIGN } satisfies PropTable<GridProps>,
+  group: { ...COMMON, children: true, title: true, badge: true, dir: DIR, gap: true, pad: true, align: ALIGN, dashed: true } satisfies PropTable<GroupProps>,
+  graph: { ...COMMON, children: true, dir: ["right", "down"], gap: true, rankGap: true } satisfies PropTable<GraphProps>,
+  free: { ...COMMON, children: true } satisfies PropTable<FreeProps>,
+  space: { ...COMMON, w: true, h: true } satisfies PropTable<SpaceProps>,
+  node: {
+    ...COMMON,
+    title: true,
+    sub: true,
+    mono: true,
+    badge: true,
+    shape: SHAPES,
+    double: true,
+    underline: ["solid", "dashed"],
+    w: true,
+    h: true,
+    align: ["start", "center"],
+  } satisfies PropTable<NodeProps>,
+  cells: { ...COMMON, items: true, dir: DIR, cols: true, cell: true, mono: true, index: true, ellipsis: ["start", "end", "both"] } satisfies PropTable<CellsProps>,
+  table: { ...COMMON, columns: true, rows: true, mono: true, empty: true } satisfies PropTable<TableProps>,
+  text: { ...COMMON, text: true, size: ["title", "label", "note"], muted: true, mono: true, weight: true } satisfies PropTable<TextProps>,
+  tag: { ...COMMON, text: true } satisfies PropTable<TagProps>,
+  dots: { ...COMMON, dir: DIR } satisfies PropTable<DotsProps>,
+  poly: { ...SHAPE_POINTS, outline: true } satisfies PropTable<PolyProps>,
+  path: { ...SHAPE_POINTS, closed: true, dashed: true, thin: true, thick: true } satisfies PropTable<PathProps>,
+  dot: { id: true, state: STATES, tone: TONES, at: true, r: true } satisfies PropTable<DotProps>,
+  edge: {
+    id: true,
+    from: true,
+    to: true,
+    label: true,
+    dashed: true,
+    thick: true,
+    head: ["end", "both", "none"],
+    route: ["auto", "straight", "curve", "ortho", "arc"],
+    bend: true,
+    fromSide: SIDES,
+    toSide: SIDES,
+    loop: SIDES,
+    tone: TONES,
+    state: ["default", "active", "ghost"],
+  } satisfies PropTable<EdgeProps>,
+};
+
+function checkProps(t: TNode, parentKind: string, ctx: Ctx) {
+  const table = PROPS[t.kind];
+  const where = `<${t.kind}${typeof t.props.id === "string" ? ` id="${t.props.id}"` : ""}>`;
+  for (const [name, value] of Object.entries(t.props)) {
+    if (value === undefined) continue;
+    const allowed = table[name];
+    if (allowed === undefined) {
+      ctx.diagnostics.push({ code: "prop/invalid", severity: "error", message: `${where} has no prop "${name}".`, hint: suggest(name, Object.keys(table)) });
+    } else if (allowed !== true && !allowed.includes(value as string)) {
+      ctx.diagnostics.push({ code: "prop/invalid", severity: "error", message: `${where} ${name}="${String(value)}" is not valid.`, hint: `One of: ${allowed.join(", ")}.` });
+    } else if ((name === "x" || name === "y") && parentKind !== "free") {
+      ctx.diagnostics.push({ code: "prop/ignored", severity: "warn", message: `${where} sets ${name}, but only a child of <Free> is positioned.`, hint: `Its parent is <${parentKind}>.` });
+    }
+  }
+}
+
+function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean, parentKind: string): Block | null {
   const p = t.props;
+  checkProps(t, parentKind, ctx);
   if (t.kind === "edge") {
     const from = String(p.from), to = String(p.to);
     ctx.edges.push({
@@ -251,13 +329,24 @@ function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean): Blo
   const id = str(p.id) ?? pathId;
   const state: State = inheritGhost ? "ghost" : ((p.state as State) ?? "default");
   const common = { id, state, tone: p.tone as Tone | undefined, x: p.x as number | undefined, y: p.y as number | undefined };
+  if (ctx.states.has(id)) ctx.diagnostics.push({ code: "id/duplicate", severity: "error", message: `Two items have id "${id}".`, hint: id === ROOT ? `"${ROOT}" is reserved.` : "Ids must be unique within a figure." });
   ctx.states.set(id, state);
 
   const kids = () =>
     t.children
-      .map((c, i) => resolve(c, ctx, `${id}.${i}`, state === "ghost"))
+      .map((c, i) => resolve(c, ctx, `${id}.${i}`, state === "ghost", t.kind))
       .filter((b): b is Block => b !== null);
 
+  const block = build(t, common, kids);
+  for (const part of partIds(block)) {
+    if (ctx.states.has(part)) ctx.diagnostics.push({ code: "id/duplicate", severity: "error", message: `Two items have id "${part}".`, hint: "Ids must be unique within a figure." });
+    ctx.states.set(part, state);
+  }
+  return block;
+}
+
+function build(t: TNode, common: Pick<Block, "id" | "state" | "tone" | "x" | "y">, kids: () => Block[]): Block {
+  const p = t.props;
   switch (t.kind) {
     case "row":
     case "col":
@@ -384,26 +473,28 @@ function resolve(t: TNode, ctx: Ctx, pathId: string, inheritGhost: boolean): Blo
   throw new Error(`[diagram] unknown primitive ${t.kind}`);
 }
 
-/** Owner id of a derived id (`cells.3` -> `cells`, `tbl.r2` -> `tbl`). */
-export const ownerId = (id: string) => id.replace(/\.[^.]*$/, "");
+const ROOT = "root";
 
-/** Compile the children of a `<Diagram>` into a scene. Edges to missing ids are dropped; edges touching a ghost are ghosts. */
+/** Compile the children of a `<Diagram>` into a scene. An edge to a missing id is an error; edges touching a ghost are ghosts. */
 export function toScene(children: ReactNode): Scene {
-  const ctx: Ctx = { edges: [], states: new Map() };
+  const ctx: Ctx = { edges: [], states: new Map([[ROOT, "default"]]), diagnostics: [] };
   const kids = collect(children)
-    .map((n, i) => resolve(n, ctx, `root.${i}`, false))
+    .map((n, i) => resolve(n, ctx, `${ROOT}.${i}`, false, "col"))
     .filter((b): b is Block => b !== null);
-  const root: Block = { id: "root", state: "default", kind: "col", gap: GAP.stack, align: "center", pad: 0, children: kids };
-  const stateOf = (id: string) => ctx.states.get(id) ?? ctx.states.get(ownerId(id));
+  const root: Block = { id: ROOT, state: "default", kind: "col", gap: GAP.stack, align: "center", pad: 0, children: kids };
+  const known = [...ctx.states.keys()].filter((id) => id !== ROOT);
   const seen = new Set<string>();
-  const edges = ctx.edges
-    .filter((e) => stateOf(e.from) !== undefined && stateOf(e.to) !== undefined)
-    .map((e) => {
-      let id = e.id;
-      for (let n = 2; seen.has(id); n++) id = `${e.id}#${n}`;
-      seen.add(id);
-      const ghosted = stateOf(e.from) === "ghost" || stateOf(e.to) === "ghost";
-      return { ...e, id, state: ghosted ? ("ghost" as const) : e.state };
-    });
-  return { root, edges };
+  const edges = ctx.edges.flatMap((e) => {
+    const missing = [e.from, e.to].filter((id) => !ctx.states.has(id));
+    for (const id of new Set(missing)) {
+      ctx.diagnostics.push({ code: "edge/unknown-endpoint", severity: "error", message: `Edge "${e.from}" -> "${e.to}" has no item "${id}".`, hint: suggest(id, known) });
+    }
+    if (missing.length) return [];
+    let id = e.id;
+    for (let n = 2; seen.has(id); n++) id = `${e.id}#${n}`;
+    seen.add(id);
+    const ghosted = ctx.states.get(e.from) === "ghost" || ctx.states.get(e.to) === "ghost";
+    return [{ ...e, id, state: ghosted ? ("ghost" as const) : e.state }];
+  });
+  return { root, edges, diagnostics: ctx.diagnostics };
 }

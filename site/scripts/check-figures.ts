@@ -1,6 +1,8 @@
 // Fails on a figure registered in src/mdx-components.tsx that no note renders. Run from site/.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { renderToStaticMarkup } from "react-dom/server";
+import { renderMDX } from "@/lib/mdx";
 
 const NOTES = "../notes";
 // Only notes/ctf/ uses these, and git ignores that folder, so a clean checkout can't see their uses.
@@ -21,3 +23,20 @@ if (unused.length > 0) {
   process.exit(1);
 }
 console.log(`${registered.length} figures registered, all used`);
+
+const warnings: string[] = [];
+console.warn = (...args: unknown[]) => void warnings.push(args.join(" "));
+const failures: string[] = [];
+for (const note of readdirSync(NOTES, { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".mdx"))) {
+  try {
+    renderToStaticMarkup(await renderMDX(readFileSync(join(NOTES, note), "utf8")));
+  } catch (e) {
+    failures.push(`${note}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+const problems = [...failures, ...new Set(warnings.filter((w) => w.startsWith("[figure")))];
+if (problems.length > 0) {
+  console.error(`${problems.length} figure problems:\n${problems.join("\n")}`);
+  process.exit(1);
+}
+console.log("every figure renders with no diagnostics");

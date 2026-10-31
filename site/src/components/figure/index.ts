@@ -36,6 +36,7 @@ export {
   type TagProps,
   type TextProps,
 } from "./primitives";
+export { formatDiagnostic, type Diagnostic, type DiagnosticCode } from "./diagnostics";
 export { layoutScene } from "./layout";
 export { routeEdges } from "./route";
 export { FrameSvg } from "./render";

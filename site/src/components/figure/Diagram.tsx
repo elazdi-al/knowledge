@@ -5,7 +5,7 @@
 import katex from "katex";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { layoutScene } from "./layout";
+import { layoutScene, reportDiagnostics } from "./layout";
 import { isContainer, type Block } from "./model";
 import { toScene } from "./primitives";
 import { FrameSvg } from "./render";
@@ -49,11 +49,13 @@ function narrowed(b: Block): Block {
 export function Diagram({ caption, title, className, children, narrowChildren }: DiagramProps) {
   const scene = toScene(children);
   const label = caption ?? title ?? "figure";
-  const frame = layoutScene(scene, { caption: label });
+  const frame = layoutScene(scene);
+  reportDiagnostics(frame, label);
   const uid = stableId(frame);
   // CSS swaps the mobile composition at 520px; wrapping remains the default.
   const narrowScene = narrowChildren !== undefined ? toScene(narrowChildren) : hasWrap(scene.root) ? { ...scene, root: narrowed(scene.root) } : null;
-  const narrow = narrowScene ? layoutScene(narrowScene, { caption: `${label} (narrow)` }) : null;
+  const narrow = narrowScene ? layoutScene(narrowScene) : null;
+  if (narrow) reportDiagnostics(narrow, `${label} (narrow)`);
   return (
     <figure className={cn("diagram", className)}>
       {title && <p className="diagram__title">{title}</p>}

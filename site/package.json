@@ -12,7 +12,8 @@
     "verify": "bun scripts/verify-note.tsx",
     "check:figures": "bun scripts/check-figures.ts",
     "check:math": "bun scripts/check-math.tsx",
-    "check:golden": "bun scripts/check-golden.tsx"
+    "check:golden": "bun scripts/check-golden.tsx",
+    "check:diagnostics": "bun scripts/check-diagnostics.tsx"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

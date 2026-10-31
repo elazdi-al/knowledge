@@ -4,8 +4,10 @@
  */
 import { layoutGraph, type GEdge } from "./graph";
 import { measure, measureStyle } from "./measure";
+import { formatDiagnostic, type Diagnostic } from "./diagnostics";
 import {
   isContainer,
+  partIds,
   type Block,
   type EdgeSpec,
   type Frame,
@@ -17,8 +19,7 @@ import {
   type TableCell,
   type Tone,
 } from "./model";
-import { ownerId } from "./primitives";
-import { encloses, isSolid, labelPillW, routeItems } from "./route";
+import { encloses, insideOutline, isSolid, labelPillW, routeItems, samplePath } from "./route";
 import { CELL, EDGE_GAP, EDGE_LABEL, FONT, GROUP, LABEL_CLEAR, MARGIN, MAX_CONTENT_W, NODE, TABLE, TAG, TEXT, type TextStyle } from "./theme";
 
 export { labelPillW } from "./route";
@@ -141,11 +142,10 @@ function leafSize(b: Block): Size {
 }
 
 function graphEdgesFor(b: Extract<Block, { kind: "graph" }>, scene: Scene) {
-  const ids = new Set(b.children.map((c) => c.id));
-  const own = (id: string) => (ids.has(id) ? id : ids.has(ownerId(id)) ? ownerId(id) : undefined);
+  const owner = new Map(b.children.flatMap((c) => [c.id, ...partIds(c)].map((id) => [id, c.id] as const)));
   const out: GEdge[] = [];
   for (const e of scene.edges) {
-    const from = own(e.from), to = own(e.to);
+    const from = owner.get(e.from), to = owner.get(e.to);
     if (from && to) out.push({ from, to, label: e.label ? labelPillW(e.label) : undefined });
   }
   return out;
@@ -161,6 +161,7 @@ interface Ctx {
 
 function idsUnder(b: Block, out = new Set<string>()): Set<string> {
   out.add(b.id);
+  for (const part of partIds(b)) out.add(part);
   if (isContainer(b)) for (const c of b.children) idsUnder(c, out);
   return out;
 }
@@ -171,12 +172,11 @@ function gapsOf(b: Extract<Block, { kind: "row" | "col" | "group" }>, ctx: Ctx):
   if (cached) return cached;
   const horizontal = (b.kind === "group" ? b.dir : b.kind) === "row";
   const sets = b.children.map((c) => idsUnder(c));
-  const has = (s: Set<string>, id: string) => s.has(id) || s.has(ownerId(id));
   const gaps = sets.slice(1).map((next, i) => {
     const prev = sets[i];
     let g = b.gap;
     for (const e of ctx.scene.edges) {
-      if ((has(prev, e.from) && has(next, e.to)) || (has(prev, e.to) && has(next, e.from))) g = Math.max(g, edgeGap(e, horizontal));
+      if ((prev.has(e.from) && next.has(e.to)) || (prev.has(e.to) && next.has(e.from))) g = Math.max(g, edgeGap(e, horizontal));
     }
     return g;
   });
@@ -259,7 +259,7 @@ function gridTracks(b: Extract<Block, { kind: "grid" }>, kids: Size[], ctx: Ctx)
   const colGap = new Array<number>(Math.max(0, cols - 1)).fill(b.colGap);
   const rowGap = new Array<number>(Math.max(0, rowH.length - 1)).fill(b.rowGap);
   const sets = b.children.map((c) => idsUnder(c));
-  const cellOf = (id: string) => sets.findIndex((s) => s.has(id) || s.has(ownerId(id)));
+  const cellOf = (id: string) => sets.findIndex((s) => s.has(id));
   for (const e of ctx.scene.edges) {
     const i = cellOf(e.from), j = cellOf(e.to);
     if (i < 0 || j < 0 || i === j) continue;
@@ -391,13 +391,7 @@ function place(b: Block, rect: Rect, parent: string | undefined, ctx: Ctx) {
   }
 }
 
-export interface LayoutOpts {
-  /** names the figure in lint warnings */
-  caption?: string;
-  lint?: boolean;
-}
-
-export function layoutScene(scene: Scene, opts: LayoutOpts = {}): Frame {
+export function layoutScene(scene: Scene): Frame {
   const ctx: Ctx = { scene, sizes: new Map(), gaps: new Map(), graphs: new Map(), items: [] };
   const s = size(scene.root, ctx);
   place(scene.root, { x: MARGIN, y: MARGIN, w: s.w, h: s.h }, undefined, ctx);
@@ -406,10 +400,11 @@ export function layoutScene(scene: Scene, opts: LayoutOpts = {}): Frame {
     w: s.w + 2 * MARGIN,
     h: s.h + 2 * MARGIN,
     items: ctx.items,
-    edges: treeEdges(scene.root, scene.edges.filter((e) => rects[e.from] && rects[e.to]), rects),
+    edges: treeEdges(scene.root, scene.edges, rects),
+    diagnostics: scene.diagnostics,
   };
   growToFit(frame);
-  if (opts.lint !== false && process.env.NODE_ENV !== "production") lint(frame, scene, opts.caption);
+  frame.diagnostics = [...scene.diagnostics, ...lint(frame)];
   return frame;
 }
 
@@ -418,14 +413,13 @@ function treeEdges(root: Block, edges: EdgeSpec[], rects: Record<string, Rect>):
   const graphOf = new Map<string, Block>();
   const walk = (b: Block) => {
     if (!isContainer(b)) return;
-    if (b.kind === "graph" && b.dir === "down") for (const c of b.children) graphOf.set(c.id, b);
+    if (b.kind === "graph" && b.dir === "down") for (const c of b.children) for (const id of [c.id, ...partIds(c)]) graphOf.set(id, b);
     b.children.forEach(walk);
   };
   walk(root);
   if (!graphOf.size) return edges;
-  const g = (id: string) => graphOf.get(id) ?? graphOf.get(ownerId(id));
   return edges.map((e) => {
-    if (e.route !== "auto" || e.from === e.to || !g(e.from) || g(e.from) !== g(e.to)) return e;
+    if (e.route !== "auto" || e.from === e.to || !graphOf.get(e.from) || graphOf.get(e.from) !== graphOf.get(e.to)) return e;
     const down = rects[e.from].y <= rects[e.to].y;
     return { ...e, route: "ortho", fromSide: e.fromSide ?? (down ? "bottom" : "top"), toSide: e.toSide ?? (down ? "top" : "bottom") };
   });
@@ -465,9 +459,10 @@ function growToFit(frame: Frame) {
 const overlaps = (a: Rect, b: Rect, slack = 0.5) =>
   a.x + a.w > b.x + slack && b.x + b.w > a.x + slack && a.y + a.h > b.y + slack && b.y + b.h > a.y + slack;
 
-function lint(frame: Frame, scene: Scene, caption?: string) {
-  const warn = (msg: string) => console.warn(`[diagram] ${caption ? `"${caption}": ` : ""}${msg}`);
-  if (frame.w > MAX_CONTENT_W) warn(`frame is ${Math.round(frame.w)}px wide (max ${MAX_CONTENT_W}); stack or wrap`);
+function lint(frame: Frame): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const warn = (code: Diagnostic["code"], message: string, hint?: string) => out.push({ code, severity: "warn", message, hint });
+  if (frame.w > MAX_CONTENT_W) warn("frame/too-wide", `Frame is ${Math.round(frame.w)}px wide (max ${MAX_CONTENT_W}).`, "Stack or wrap.");
 
   const byParent = new Map<string | undefined, Item[]>();
   for (const it of frame.items) {
@@ -480,10 +475,10 @@ function lint(frame: Frame, scene: Scene, caption?: string) {
     if (kind === "cells" || kind === "table" || kind === "free") continue;
     for (let i = 0; i < sibs.length; i++)
       for (let j = i + 1; j < sibs.length; j++)
-        if (overlaps(sibs[i].rect, sibs[j].rect)) warn(`siblings "${sibs[i].id}" and "${sibs[j].id}" overlap`);
+        if (overlaps(sibs[i].rect, sibs[j].rect)) warn("siblings/overlap", `Siblings "${sibs[i].id}" and "${sibs[j].id}" overlap.`);
   }
   for (const it of frame.items) {
-    if (it.kind === "node" && it.title && nodeTitleW(it) + 8 > it.rect.w) warn(`title "${it.title}" is wider than node "${it.id}"`);
+    if (it.kind === "node" && it.title && nodeTitleW(it) + 8 > it.rect.w) warn("node/title-overflow", `Title "${it.title}" is wider than node "${it.id}".`);
   }
   const rects = Object.fromEntries(frame.items.map((i) => [i.id, i.rect]));
   const byId = new Map(frame.items.map((i) => [i.id, i]));
@@ -492,20 +487,45 @@ function lint(frame: Frame, scene: Scene, caption?: string) {
     for (const id of [e.from, e.to]) {
       const it = byId.get(id);
       if (it && (["row", "col", "grid", "graph", "free"].includes(it.kind) || (it.kind === "space" && (it.rect.w > 0 || it.rect.h > 0))))
-        warn(`edge ${e.id} ends on invisible ${it.kind} "${id}"; attach it to the shape inside`);
+        warn("edge/invisible-endpoint", `Edge ${e.id} ends on invisible ${it.kind} "${id}".`, "Attach it to the shape inside.");
     }
   }
   const solids = frame.items.filter((i) => isSolid(i.kind));
-  // a pill over its own endpoint means layout reserved no room for the label; only shared ancestors are exempt
-  for (const r of routeItems(frame.items, frame.edges)) {
-    if (!r.label) continue;
+  const obstacles = frame.items.filter((i) => i.kind === "node" || i.kind === "cells" || i.kind === "table" || i.kind === "tag");
+  const routes = routeItems(frame.items, frame.edges);
+  const pillOf = (r: (typeof routes)[number]) => {
     const lw = labelPillW(r.spec.label ?? "");
-    const lr = { x: r.label.x - lw / 2, y: r.label.y - EDGE_LABEL.h / 2, w: lw, h: EDGE_LABEL.h };
+    return { x: r.label!.x - lw / 2, y: r.label!.y - EDGE_LABEL.h / 2, w: lw, h: EDGE_LABEL.h };
+  };
+  for (const r of routes) {
     const a = rects[r.spec.from], b = rects[r.spec.to];
+    const owner = (id: string) => byId.get(id)?.parent;
+    const along = samplePath(r.pts);
+    for (const it of obstacles) {
+      if (it.id === r.spec.from || it.id === r.spec.to || it.id === owner(r.spec.from) || it.id === owner(r.spec.to)) continue;
+      if (encloses(it.rect, a) || encloses(it.rect, b)) continue;
+      const shape = it.kind === "node" ? it.shape : undefined;
+      if (along.some((p) => insideOutline(shape, it.rect, p))) warn("edge/crosses-shape", `Edge ${r.spec.id} crosses "${it.id}".`, "Add a bend, set sides, or move the item.");
+    }
+    if (!r.label) continue;
+    // a pill over its own endpoint means layout reserved no room for the label; only shared ancestors are exempt
+    const lr = pillOf(r);
     for (const it of solids) {
       if (encloses(it.rect, a) && encloses(it.rect, b) && it.id !== r.spec.from && it.id !== r.spec.to) continue;
-      if (overlaps(lr, it.rect)) warn(`label "${r.spec.label}" on edge ${r.spec.id} overlaps "${it.id}"`);
+      if (overlaps(lr, it.rect)) warn("edge/label-overlap", `Label "${r.spec.label}" on edge ${r.spec.id} overlaps "${it.id}".`);
     }
   }
-  void scene;
+  const labelled = routes.filter((r) => r.label);
+  for (let i = 0; i < labelled.length; i++)
+    for (let j = i + 1; j < labelled.length; j++)
+      if (overlaps(pillOf(labelled[i]), pillOf(labelled[j]))) warn("edge/label-overlap", `Labels on edges ${labelled[i].spec.id} and ${labelled[j].spec.id} overlap.`);
+  return out;
+}
+
+/** Throws on errors, prints warnings in development. */
+export function reportDiagnostics(frame: Frame, figure: string) {
+  const errors = frame.diagnostics.filter((d) => d.severity === "error");
+  if (errors.length) throw new Error(errors.map((d) => formatDiagnostic(d, figure)).join("\n"));
+  if (process.env.NODE_ENV === "production") return;
+  for (const d of frame.diagnostics) console.warn(formatDiagnostic(d, figure));
 }

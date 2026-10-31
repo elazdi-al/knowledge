@@ -177,7 +177,7 @@ export function BPlusTree({ nodes, links, leafLinks = "double", promote = [], ro
       </>
     );
   };
-  const compact = layoutScene(toScene(tree(false)), { lint: false }).w > MAX_CONTENT_W;
+  const compact = layoutScene(toScene(tree(false))).w > MAX_CONTENT_W;
 
   return (
     <Diagram title={title} caption={caption} className={className}>

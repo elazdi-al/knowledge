@@ -3,6 +3,8 @@
  * the laid-out result. Both are plain JSON.
  */
 
+import type { Diagnostic } from "./diagnostics";
+
 export type Tone = "blue" | "teal" | "green" | "purple" | "red";
 export const TONES: readonly Tone[] = ["blue", "teal", "green", "purple", "red"];
 
@@ -129,6 +131,13 @@ export type Block = Base &
 export type Container = Extract<Block, { children: Block[] }>;
 export const isContainer = (b: Block): b is Container => "children" in b;
 
+/** Ids of the items a block derives at layout, which edges may address: `cells.3`, `tbl.r2`. */
+export function partIds(b: Block): string[] {
+  if (b.kind === "cells") return b.items.map((c, i) => c.id ?? `${b.id}.${i}`);
+  if (b.kind === "table") return b.rows.map((r, i) => r.id ?? `${b.id}.r${i}`);
+  return [];
+}
+
 export type RouteMode = "auto" | "straight" | "curve" | "ortho" | "arc";
 export type EdgeState = "default" | "active" | "ghost";
 
@@ -153,6 +162,7 @@ export interface EdgeSpec {
 export interface Scene {
   root: Block;
   edges: EdgeSpec[];
+  diagnostics: Diagnostic[];
 }
 
 type DistOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -174,4 +184,5 @@ export interface Frame {
   h: number;
   items: Item[];
   edges: EdgeSpec[];
+  diagnostics: Diagnostic[];
 }
