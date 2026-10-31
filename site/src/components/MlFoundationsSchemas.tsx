@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { Cells, Col, Diagram, Dot, Canvas, Path, Poly, Row, Text, type CellInput, Line } from "@/components/figure";
-import { Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
+import { Cells, Col, Diagram, Dot, Canvas, Path, Poly, Row, Text, type CellInput, Line, Axes, curve, plotArea, type Point as Pt } from "@/components/figure";
 import { ML_TONE } from "@/components/tones";
 
 /** The per-example squared, absolute, Huber and Tukey losses as functions of the residual. */

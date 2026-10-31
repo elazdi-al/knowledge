@@ -1,5 +1,4 @@
-import { Col, Diagram, Dot, Canvas, Path, Poly, Row, Text, Line } from "@/components/figure";
-import { Axes, curve, plotArea, type Pt } from "@/components/PlotFigures";
+import { Col, Diagram, Dot, Canvas, Path, Poly, Row, Text, Line, Axes, curve, plotArea, type Point as Pt } from "@/components/figure";
 
 /** Points of the ellipse with half-axes `rx`, `ry` around `c`, in data units. */
 const ellipse = (c: Pt, rx: number, ry: number, n = 72): Pt[] =>

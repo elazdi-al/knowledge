@@ -283,7 +283,7 @@ function buildPath(spec: EdgeSpec, a: Rect, b: Rect, pa: Port, pb: Port, shapes:
 
 /** Through its waypoints, with rounded corners; the ends meet the shapes on the line toward the nearest waypoint. */
 function viaPath(spec: EdgeSpec, a: Rect, b: Rect, rects: Record<string, Rect>, shapes: Record<string, Shape>): Omit<RoutedEdge, "spec" | "label"> {
-  const mid = spec.via!.map((id) => centre(rects[id]));
+  const mid = spec.via!.map(({ of, x, y }) => ({ x: rects[of].x + x, y: rects[of].y + y }));
   const p0 = outline(shapes[spec.from], a, mid[0]), p1 = outline(shapes[spec.to], b, mid[mid.length - 1]);
   const pts = [p0, ...mid, p1];
   return { d: roundedPath(pts, RADIUS.corner), pts, startAngle: angleOf(pts[1], p0), endAngle: angleOf(pts[pts.length - 2], p1) };
@@ -314,14 +314,40 @@ function selfLoop(spec: EdgeSpec, r: Rect, shape: Shape | undefined): Omit<Route
   };
 }
 
+/** An edge whose path the author left to the router. */
+const isFree = (e: EdgeSpec) => e.route === "auto" && !e.via && !e.bend && !e.fromSide && !e.toSide;
+/** How far apart spreading ports would set a pair of opposite edges: wide facing sides already keep them apart. */
+function portSeparation(a: Rect, b: Rect) {
+  const [sa] = autoSides(a, b);
+  const [a0, a1] = sideSpan(a, sa), [b0, b1] = sideSpan(b, OPPOSITE[sa]);
+  const span = Math.min(a1 - a0, b1 - b0);
+  return Math.min(a1, b1) > Math.max(a0, b0) ? (span - 2 * Math.min(PORT_INSET, span / 4)) / 2 : 0;
+}
+
+/** Two edges between the same pair in opposite directions bow apart when their ports alone would not separate them: an arc's apex is half its bend from the chord, so the bend is how far apart the apexes end up, and it clears their labels. */
+function bowOf(e: EdgeSpec, back: EdgeSpec, rects: Record<string, Rect>) {
+  const a = centre(rects[e.from]), b = centre(rects[e.to]);
+  const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  const across = (label?: string) => (label ? (Math.abs(b.y - a.y) / len) * labelPillW(label) + (Math.abs(b.x - a.x) / len) * EDGE_LABEL.h : 0);
+  return Math.max(22, (across(e.label) + across(back.label)) / 2 + 4);
+}
+
 /**
  * Route every edge. Ports on a shared side are spread evenly along it,
  * ordered by the other endpoint's position, so fan-outs never stack.
  */
-function routeEdges(rects: Record<string, Rect>, edges: EdgeSpec[], shapes: Record<string, Shape>, solids: Record<string, Rect>): RoutedEdge[] {
+function routeEdges(rects: Record<string, Rect>, given: EdgeSpec[], shapes: Record<string, Shape>, solids: Record<string, Rect>): RoutedEdge[] {
   type Pending = { spec: EdgeSpec; a: Rect; b: Rect; pa: Port; pb: Port };
   const pending: (Pending | null)[] = [];
   const groups = new Map<string, { i: number; end: "a" | "b"; other: number }[]>();
+  const edges = given.map((e) => {
+    if (!isFree(e) || e.from === e.to || !rects[e.from] || !rects[e.to]) return e;
+    const along = given.filter((o) => isFree(o) && o.from === e.from && o.to === e.to);
+    const back = given.filter((o) => isFree(o) && o.from === e.to && o.to === e.from);
+    if (along.length !== 1 || back.length !== 1) return e;
+    const bend = bowOf(e, back[0], rects);
+    return portSeparation(rects[e.from], rects[e.to]) < bend ? { ...e, route: "arc" as const, bend } : e;
+  });
 
   edges.forEach((spec, i) => {
     const a = rects[spec.from], b = rects[spec.to];

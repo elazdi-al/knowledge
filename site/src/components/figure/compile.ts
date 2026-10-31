@@ -99,7 +99,7 @@ function resolveEdge(t: TNode, ctx: Ctx, pathId: string, state: State, parentKin
     ...t.def.data(t.props),
     from: idOf(from, "from"),
     to: idOf(to, "to"),
-    via: via.length ? via.map((p, i) => idOf(p, `via${i}`)) : undefined,
+    via: via.length ? via.map((p, i) => ({ of: idOf(p, `via${i}`), x: 0, y: 0 })) : undefined,
   });
   return anchors;
 }

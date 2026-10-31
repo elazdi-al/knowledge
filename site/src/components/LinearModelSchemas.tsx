@@ -1,5 +1,4 @@
-import { Diagram, Dot, Canvas, Path, Poly, Line, Text } from "@/components/figure";
-import { Axes, plotArea, type Pt } from "@/components/PlotFigures";
+import { Diagram, Dot, Canvas, Path, Poly, Line, Text, Axes, plotArea, type Point as Pt } from "@/components/figure";
 import { ML_TONE } from "@/components/tones";
 
 /** Two linearly separable classes, the boundary w·x + b = 0 and its normal w. */

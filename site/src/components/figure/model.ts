@@ -40,6 +40,12 @@ export interface Rect extends Size {
 export type RouteMode = "auto" | "straight" | "curve" | "ortho" | "arc";
 export type EdgeState = "default" | "active" | "ghost";
 
+export interface Waypoint {
+  of: string;
+  x: number;
+  y: number;
+}
+
 export interface EdgeSpec {
   id: string;
   from: string;
@@ -54,8 +60,8 @@ export interface EdgeSpec {
   fromSide?: Side;
   toSide?: Side;
   loop?: Side;
-  /** ids of the zero-size anchors it passes through */
-  via?: string[];
+  /** points it passes through, each relative to the top-left of a box */
+  via?: Waypoint[];
   /** drawn over every item, or under them */
   layer: "above" | "below";
   tone?: Tone;

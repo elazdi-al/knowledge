@@ -1,7 +1,7 @@
 // Each entry is a mistake an author can make and the code the engine must answer it with.
 import assert from "node:assert/strict";
 import type { ReactNode } from "react";
-import { Brace, Canvas, Cells, Circle, Col, Edge, Fit, Graph, layoutScene, Legend, Line, Node, Row, Svg, Text, toScene, type DiagnosticCode, type Op } from "@/components/figure";
+import { Brace, Curve, Plot, Scatter, Tree, Canvas, Cells, Circle, Col, Edge, Fit, Graph, layoutScene, Legend, Line, Node, Row, Svg, Text, toScene, type DiagnosticCode, type Op } from "@/components/figure";
 
 const any = (props: object): object => props;
 const cases: [string, DiagnosticCode, ReactNode][] = [
@@ -23,7 +23,7 @@ const cases: [string, DiagnosticCode, ReactNode][] = [
   ["figure too wide", "frame/too-wide", <Node title={"long title ".repeat(12)} />],
   ["title wider than its node", "node/title-overflow", <Node title="a long title here" w={20} />],
   ["siblings overlap", "siblings/overlap", <Row gap={-20}><Node title="a" /><Node title="b" /></Row>],
-  ["long graph edge through a node", "edge/crosses-shape", <><Graph><Node id="a" title="a" /><Node id="b" title="b" /><Node id="c" title="c" /></Graph><Edge from="a" to="b" /><Edge from="b" to="c" /><Edge from="a" to="c" /></>],
+  ["edge through a node", "edge/crosses-shape", <><Row gap={80}><Node id="a" title="a" /><Node id="b" title="b" /><Node id="c" title="c" /></Row><Edge from="a" to="c" route="straight" /></>],
 ];
 for (const [name, code, figure] of cases) {
   const codes = layoutScene(toScene(figure)).diagnostics.map((d) => d.code);
@@ -66,4 +66,15 @@ const braced = frame(<><Cells id="arr" items={[1, 2, 3, 4]} index /><Brace from=
 assert.ok(braced.h > rectOf(braced, "arr").h + 30, "the frame grows to hold a brace");
 assert.ok(frame(<Legend items={[{ label: "a", tone: "blue" }, { label: "b", key: "dashed" }]} />).w > 0);
 assert.equal(flat(frame(<Svg w={40} h={40}><path d="M0 0" /></Svg>).ops)[0].el, "raw");
+const graph = frame(<><Graph><Node id="a" title="a" /><Node id="b" title="b" /><Node id="c" title="c" /></Graph><Edge from="a" to="b" /><Edge from="b" to="c" /><Edge from="a" to="c" /></>);
+assert.ok(graph.routes.length === 3, "a long graph edge goes around what lies between");
+const both = frame(<Row gap={80}><Node id="a" title="a" /><Node id="b" title="b" /><Edge from="a" to="b" /><Edge from="b" to="a" /></Row>);
+assert.notEqual(both.routes[0].d, both.routes[1].d.split(" ").reverse().join(" "));
+assert.ok(both.routes.every((r) => r.d.includes("Q")), "opposite edges bow apart");
+const tree = frame(<Tree root={{ id: "r", title: "r", children: [{ id: "x", title: "x" }, { id: "y", title: "y", children: [{ id: "z", title: "z" }] }] }} />);
+assert.ok(rectOf(tree, "x").x < rectOf(tree, "y").x, "tree children stay in order");
+assert.ok(rectOf(tree, "r").y < rectOf(tree, "x").y && rectOf(tree, "y").y < rectOf(tree, "z").y, "a tree runs top down");
+const plot = frame(<Plot legend x={{ domain: [0, 10], title: "x" }} y={{ domain: [0, 10], title: "y" }}><Scatter name="data" points={[[1, 2], [4, 5]]} tone="blue" /><Curve name="fit" f={(v) => v * 2} tone="red" /></Plot>);
+assert.ok(texts(plot).some((o) => o.el === "text" && o.text === "fit"), "the legend names the series");
+assert.ok(texts(plot).filter((o) => o.el === "text" && /^\d+$/.test(o.text)).length >= 10, "axes have tick labels");
 console.log(`${cases.length} diagnostics behave`);

@@ -4,7 +4,6 @@ import { COMMON, idsUnder, mark, type Common, type Marker } from "../mark";
 import { measureStyle } from "../measure";
 import type { Align, Anchor, AnyBlock, Arranged, Block, Dir, EdgeSpec, LayoutCtx, Point, PropTable, Rect, Size } from "../model";
 import { ACCENT, badge, ink, lookOf, rect, shapeStyle, styled, V } from "../paint";
-import { layoutGraph } from "../graph";
 import { labelPillW } from "../route";
 import { EDGE_GAP, EDGE_LABEL, GAP, GROUP, LABEL_CLEAR, RADIUS, STROKE, TEXT } from "../theme";
 
@@ -221,7 +220,7 @@ export function anchored([x, y]: Point, { w, h }: Size, anchor: Anchor = "c", of
   };
 }
 
-const boxesAt = (at: { x: number; y: number }[], kids: Size[]): Arranged => {
+export const boxesAt = (at: { x: number; y: number }[], kids: Size[]): Arranged => {
   const rects: Rect[] = at.map((p, i) => ({ x: p.x, y: p.y, w: kids[i].w, h: kids[i].h }));
   return { size: { w: Math.max(0, ...rects.map((r) => r.x + r.w)), h: Math.max(0, ...rects.map((r) => r.y + r.h)) }, rects };
 };
@@ -242,38 +241,6 @@ export const Canvas: Marker<CanvasProps> = mark<CanvasProps, null>({
       size: { w: placed.size.w - minX, h: placed.size.h - minY },
       rects: placed.rects.map((r) => ({ ...r, x: r.x - minX, y: r.y - minY })),
     };
-  },
-});
-
-export interface GraphProps extends Common, WithChildren {
-  dir?: "right" | "down";
-  gap?: number;
-  rankGap?: number;
-}
-interface GraphData {
-  dir: "right" | "down";
-  gap: number;
-  rankGap: number;
-}
-
-export const Graph: Marker<GraphProps> = mark<GraphProps, GraphData>({
-  kind: "graph",
-  props: { ...COMMON, children: true, dir: ["right", "down"], gap: "number", rankGap: "number" },
-  data: (p) => ({ dir: p.dir ?? "right", gap: p.gap ?? GAP.graphNode, rankGap: p.rankGap ?? GAP.graphRank }),
-  arrange(b, kids, ctx) {
-    const owner = new Map(b.children.flatMap((c: AnyBlock) => [...idsUnder(c, new Set(), false)].map((id) => [id, c.id] as const)));
-    const edges = ctx.edges.flatMap((e) => {
-      const from = owner.get(e.from), to = owner.get(e.to);
-      return from && to ? [{ from, to, label: e.label ? labelPillW(e.label) : undefined }] : [];
-    });
-    const pos = layoutGraph(b.children.map((c, i) => ({ id: c.id, w: kids[i].w, h: kids[i].h })), edges, b.data.dir, b.data.gap, b.data.rankGap);
-    return boxesAt(b.children.map((c) => pos.get(c.id) ?? { x: 0, y: 0 }), kids);
-  },
-  /** Edges inside a `dir="down"` graph are tree connectors: ortho from the parent's bottom to the child's top centre. */
-  connect(b, e, rects) {
-    if (b.data.dir !== "down" || e.route !== "auto" || e.from === e.to) return e;
-    const down = rects[e.from].y <= rects[e.to].y;
-    return { ...e, route: "ortho", fromSide: e.fromSide ?? (down ? "bottom" : "top"), toSide: e.toSide ?? (down ? "top" : "bottom") };
   },
 });
 
