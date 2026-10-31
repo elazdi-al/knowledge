@@ -1,0 +1,251 @@
+{
+ "advanced-networks/l1.mdx": [
+  "fef20409d15821f6",
+  "d7ffaca2fd01ed21",
+  "90998ca39354eb81",
+  "28fb7b9bf56ad308",
+  "5d46278428b4795d",
+  "ec87880d05ec8f7d",
+  "5e78b313010a8c47",
+  "f463ea01fdcb466e",
+  "bc5297cc6009cd94",
+  "5ff5d979e81b5dbb"
+ ],
+ "advanced-networks/l2.mdx": [
+  "cbf223b37eb85200",
+  "922f67327102f908",
+  "d6d75b5049672634",
+  "ace5efea817e2b30",
+  "79c46c1933d3558f",
+  "aae094e96673902d",
+  "b28c144d47d345bb",
+  "eceb3c30bb418cfe",
+  "c29d709c97ad5083"
+ ],
+ "advanced-networks/l3.mdx": [
+  "89b7d0a20cb0a043",
+  "bd453e3facda114b",
+  "1c8d1bd8a546e18e",
+  "75f0447f80ff7bd3",
+  "14a8d204ff84560c",
+  "19ec0139fa168e58",
+  "8a40a6b43da6edab",
+  "bbcb4ac18128ffa7",
+  "3cca03b2a16317f8",
+  "ef928bed5a591a9d",
+  "85b6c30354c3b7fe"
+ ],
+ "advanced-networks/l4.mdx": [
+  "13dfe3215209c27b",
+  "6a6bd7f362f57e18",
+  "6f9393e2f802ea66",
+  "329093c1eca29308",
+  "44aa41592bfe9f08",
+  "29f4a2b433c87e6a",
+  "7f41354f8b015afe",
+  "7a8a1dbd1bcd4c98",
+  "f582fd4632d78749",
+  "e336445ffd77eafc"
+ ],
+ "advanced-networks/l5.mdx": [
+  "fc9b855dfee2e1bb",
+  "a1d3993de146406f",
+  "a36d2db78beec607",
+  "84bf6cec51473168",
+  "0df770816843064c",
+  "b17f7954ea41736e",
+  "c5476480fbf7c2b0",
+  "dcfa6de214ca6f93",
+  "534330d4d4622a70"
+ ],
+ "data-intensive-systems/l1.mdx": [
+  "2c85a5c3b260186a",
+  "a3e32ca777fe0f38",
+  "656d1f28ade69ee6",
+  "65a6138191ed0ad0",
+  "58e78aa9d1bf3ff1",
+  "0e48a5fe82766434",
+  "658fdcd382859c58",
+  "dfa32f2e79f853b0",
+  "71f997784242156f",
+  "1fae8794b553b006"
+ ],
+ "data-intensive-systems/l10.mdx": [
+  "a36b8bd7dd217f8c",
+  "2dfe92f60af692c1",
+  "f47327816ca17a26",
+  "4fea7fc5e00112f0"
+ ],
+ "data-intensive-systems/l11.mdx": [
+  "88044e8ffdbebf95",
+  "165e16e64a8565eb",
+  "c6b70cb1eaf4c47c",
+  "5399e912db0e443f",
+  "c03959ff907d1d04",
+  "d2bdcb6d3795014e"
+ ],
+ "data-intensive-systems/l12.mdx": [
+  "61ee7dd352ef5ae1",
+  "e9a6cb0946e876fb",
+  "6b56fae446e37aee"
+ ],
+ "data-intensive-systems/l2.mdx": [
+  "62df14e85257d1d3",
+  "4dc0309166c4de29"
+ ],
+ "data-intensive-systems/l3.mdx": [
+  "5aea1d4abe576050",
+  "26fd095d9aa94730",
+  "9c251ff37a3e531d",
+  "5fd34bf21fa6ac37",
+  "b34c53c4a55ede73",
+  "70ce2444d839b179",
+  "453999523d478c1c",
+  "a9408d13d87191d4",
+  "836baaaed80d8740",
+  "6ba841c57afacede",
+  "15bcc3afc97de7f4",
+  "f7034abe9554a5ad",
+  "49c149d52c29c35c",
+  "a7a4acbc0c4dec71",
+  "e557d3f9e7745e8a",
+  "70b33cba505e215f",
+  "825cd0c5fabf6680",
+  "584676eea5c4bb4e",
+  "bbd880066e2dbee0",
+  "26ac746e4b188c88",
+  "09a2e238cf04d294",
+  "d6f920dea3221937",
+  "a5dd37748b483504"
+ ],
+ "data-intensive-systems/l4.mdx": [
+  "d2b4c6f575cd87db",
+  "9a467c26d4379844",
+  "d08cd6efdf3e8d32",
+  "31acba7086dc1f6a",
+  "06752fd19914cb24",
+  "f6b4196a85ba785b",
+  "eb06a29029fdadc3",
+  "be3d495d9bc1af15"
+ ],
+ "data-intensive-systems/l5.mdx": [
+  "f0b62fda96bc24cf",
+  "394d10a2b5a0aa08",
+  "248b5a6724dbd244",
+  "b6dfe1d82d8b5b24",
+  "c7ea68eb67d38723",
+  "7cf5ce717715b60d",
+  "76c94cdb86e46e75",
+  "154fc2af41ad764b",
+  "cf5eac7f611104a5",
+  "2cb3db62a32d49a7",
+  "54864fea641e05a8",
+  "c5087a2cf264bf25",
+  "d77fd6d84f44bd37",
+  "8128253df242c633",
+  "e32ce528eb214fd2",
+  "ddb634ebaeae0c16"
+ ],
+ "data-intensive-systems/l6.mdx": [
+  "824ad142f69e7491",
+  "e9daf5ae0edeacd8",
+  "f70ff66290ab176e",
+  "b6f8c99e8d6ca24e",
+  "daae6a97227e756b",
+  "bc187b467a8a4bb8",
+  "385f22aad7405b7f"
+ ],
+ "data-intensive-systems/l7.mdx": [
+  "c9bf8468beb33d2a",
+  "331abee2720bd98d",
+  "8827183083268ba6",
+  "49141616a3d45ba9",
+  "655a9f3d9c425f6a"
+ ],
+ "data-intensive-systems/l8.mdx": [
+  "69ff245c49b3a4c5"
+ ],
+ "data-intensive-systems/l9.mdx": [
+  "e5fc62cabb155ee6",
+  "5fdc6d7efff994de",
+  "5277264be5eb0152",
+  "16ae5690834b365d",
+  "daa388d0314b7107"
+ ],
+ "data-intensive-systems/sql-1.mdx": [],
+ "machine-learning/l1.mdx": [
+  "d48fa2a78e2a16fd",
+  "738131cfe14b2867",
+  "26eedbbfed6db7f5",
+  "a0bc64beb95710ae"
+ ],
+ "machine-learning/l2.mdx": [
+  "8012777c6cfd20ff",
+  "d1978cefb8c6cc6e",
+  "4a31bc4df185850d",
+  "485670bbd0f911ca",
+  "84ea41984c783644",
+  "7f7ac590fd71bec2",
+  "6c99a6af45db9590"
+ ],
+ "theory-of-computation/l1.mdx": [
+  "dc5bb2d8c3d4c96a",
+  "bf9a31fdd1f1a22c",
+  "e519056ba52cf9af",
+  "f0df152c43000e9d",
+  "888fd28ec28cf50e",
+  "d922e27a405e7a29",
+  "dfc68bce87c77d27",
+  "a2371e14b8b017d9",
+  "959dab7d4f27bb90",
+  "983f7ffaef38d09f",
+  "22a7c1bf56ab66de",
+  "3e91e250d615265c"
+ ],
+ "theory-of-computation/l10.mdx": [
+  "2ea61d25ae842275"
+ ],
+ "theory-of-computation/l2.mdx": [
+  "bc9a1a2d6e15c8c6",
+  "6edee08e62549d3c",
+  "072b15a3b132b8f3",
+  "d465f84514c8dcca",
+  "0609b851e439a23f",
+  "29c57ed54238da6b"
+ ],
+ "theory-of-computation/l3.mdx": [
+  "e5e34b78488b3509"
+ ],
+ "theory-of-computation/l4.mdx": [
+  "5549c4fd04b919ed",
+  "8fc7e28e5df25fb6",
+  "a2da206f730dcd55",
+  "e9a70f9c33706f47",
+  "480dfb5dd0229102"
+ ],
+ "theory-of-computation/l5.mdx": [
+  "8004022adb0519b0",
+  "d2dd3ed72c0871c6",
+  "b9440161917326d2"
+ ],
+ "theory-of-computation/l6.mdx": [
+  "22e9320bdef127a0",
+  "3c77350a2e54f668",
+  "f644f994b4d990f5",
+  "65f1f045c2e1550f"
+ ],
+ "theory-of-computation/l7.mdx": [
+  "8d2382ba4599f7a8",
+  "f5390a1262e20432",
+  "28630588d37c5bb7"
+ ],
+ "theory-of-computation/l8.mdx": [
+  "292125990054b062"
+ ],
+ "theory-of-computation/l9.mdx": [
+  "2ea61d25ae842275"
+ ],
+ "theory-of-computation/summary.mdx": [
+  "2ea61d25ae842275"
+ ]
+}
