@@ -1,4 +1,4 @@
-import { Col, Diagram, Edge, FONT, Canvas, measure, Node, NODE, Path, Poly, Row, Space, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE, LINE_H } from "figure";
+import { Diagram, Edge, FONT, Canvas, measure, Node, NODE, Path, Poly, Row, Space, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE, LINE_H } from "figure";
 
 /** Width of a `Text` drawn at `size`; mono text draws half a pixel smaller. */
 const textW = (text: string, size: "label" | "note", mono = false) => {
@@ -434,72 +434,43 @@ export function RelroDiagram() {
   );
 }
 
-const CALLER: Slot = { label: "caller data" };
-const UNUSED: Slot = { label: "unused", state: "placeholder" };
-const ALIGN_STATES: { key: string; title: string; slots: Slot[]; rsp: number; address: string; mod: string }[] = [
-  { key: "before", title: "Before call foo", slots: [CALLER, UNUSED, UNUSED], rsp: 0, address: "rsp = 0x1000", mod: "rsp % 16 = 0" },
-  { key: "call", title: "After call foo", slots: [CALLER, { label: "return address", state: "active" }, UNUSED], rsp: 1, address: "rsp = 0x0ff8", mod: "rsp % 16 = 8" },
-  { key: "push", title: "After push rbp in foo", slots: [CALLER, { label: "return address" }, { label: "saved rbp", state: "active" }], rsp: 2, address: "rsp = 0x0ff0", mod: "rsp % 16 = 0" },
+const ALIGN_SLOT_H = 36;
+const ALIGN_SLOTS: { label: string; address: string; mod: string; stage: string }[] = [
+  { label: "caller data", address: "0x1000", mod: "rsp % 16 = 0", stage: "before call foo" },
+  { label: "return address", address: "0x0ff8", mod: "rsp % 16 = 8", stage: "after call foo" },
+  { label: "saved rbp", address: "0x0ff0", mod: "rsp % 16 = 0", stage: "after push rbp" },
 ];
 
-/** Each 8-byte push moves rsp down one slot, so `rsp % 16` alternates between 0 and 8. */
+/** One stack column, high addresses on top: each 8-byte push moves rsp down one slot, so `rsp % 16` alternates between 0 and 8. */
 export function StackAlignmentDiagram() {
-  const titleW = Math.max(...ALIGN_STATES.map((s) => textW(s.title, "label")));
-  const w = Math.max(slotW(ALIGN_STATES.flatMap((s) => s.slots)), titleW);
-  const sx = textW("rsp", "label", true) + POINTER_GAP;
-  const top = LABEL_H + 8;
-  const notesY = top + slotY(3) + 6;
-  const height = notesY + NOTE_H + 2 + LABEL_H;
-  const pillW = textW("rsp % 16 = 0", "label", true) + 2 * NODE.padX;
-  const toggleGap = 216;
-  const states = ALIGN_STATES.map((s) => (
-    <Canvas key={s.key}>
-      <Text text={s.title} weight={600} at={[sx + (w - textW(s.title, "label")) / 2, 0]} anchor="nw" />
-      <Text id={`${s.key}-rsp`} text="rsp" mono at={[0, top + slotY(s.rsp) + (SLOT_H - LABEL_H) / 2]} anchor="nw" />
-      {s.slots.map((slot, i) => (
-        <Node key={i} id={`${s.key}-${i}`} title={slot.label} state={slot.state} at={[sx, top + slotY(i)]} anchor="nw" w={w} h={SLOT_H} />
-      ))}
-      <Text text={s.address} size="note" mono muted at={[sx + (w - textW(s.address, "note", true)) / 2, notesY]} anchor="nw" />
-      <Text text={s.mod} mono weight={600} at={[sx + (w - textW(s.mod, "label", true)) / 2, notesY + NOTE_H + 2]} anchor="nw" />
-    </Canvas>
-  ));
-  const pointers = ALIGN_STATES.map((s) => <Edge key={s.key} from={`${s.key}-rsp`} to={`${s.key}-${s.rsp}`} route="straight" />);
-  const toggle = (
-    <Canvas>
-      <Node id="mod0" title="rsp % 16 = 0" mono shape="pill" at={[0, 0]} anchor="nw" w={pillW} />
-      <Node id="mod8" title="rsp % 16 = 8" mono shape="pill" at={[pillW + toggleGap, 0]} anchor="nw" w={pillW} />
-    </Canvas>
-  );
-  const toggleEdge = <Edge from="mod0" to="mod8" label="every 8-byte push or ret" head="both" route="straight" />;
-  const axisW = textW("addresses", "note");
-  const axis = (
-    <Canvas>
-      <Text text="higher" size="note" muted at={[(axisW - textW("higher", "note")) / 2, 0]} anchor="nw" />
-      <Text id="axis-high" text="addresses" size="note" muted at={[0, NOTE_H]} anchor="nw" />
-      <Text id="axis-low" text="lower" size="note" muted at={[(axisW - textW("lower", "note")) / 2, height - 2 * NOTE_H]} anchor="nw" />
-      <Text text="addresses" size="note" muted at={[0, height - NOTE_H]} anchor="nw" />
-    </Canvas>
-  );
+  const w = textW("return address", "label", true) + 56;
+  const x = textW("0x1000", "note", true) + 12;
+  const modX = x + w + POINTER_GAP;
+  const stageX = modX + textW("rsp % 16 = 0", "label", true) + 16;
+  const bands: Band[] = [...ALIGN_SLOTS.map((s) => ({ label: s.label, h: ALIGN_SLOT_H, tone: "blue" as const })), { h: 56 }];
+  const { elements, ys, bottom } = placeBands(bands, x, NOTE_H + 6, w);
+  const free = ys[ALIGN_SLOTS.length];
   return (
-    <Diagram
-      caption="The stack grows downward. Each slot holds 8 bytes."
-      narrowChildren={
-        <>
-          <Col gap={16}>{states}</Col>
-          {toggle}
-          {pointers}
-          {toggleEdge}
-        </>
-      }
-    >
-      <Row gap={16} align="start">
-        {axis}
-        {states}
-      </Row>
-      {toggle}
-      {pointers}
-      {toggleEdge}
-      <Edge from="axis-high" to="axis-low" route="straight" fromSide="bottom" toSide="top" />
+    <Diagram caption="Each 8-byte push moves rsp down one slot, so rsp % 16 alternates between 0 and 8.">
+      <Canvas>
+        <Text text="high addresses" size="note" mono muted at={[x, 0]} anchor="nw" />
+        {elements}
+        {ALIGN_SLOTS.map((s, i) => [
+          <Text key={`address${i}`} text={s.address} size="note" mono muted at={[0, middle(ys[i], ALIGN_SLOT_H, NOTE_H)]} anchor="nw" />,
+          <Space key={`slot${i}`} id={`slot${i}`} at={[x + w, ys[i] + ALIGN_SLOT_H / 2]} />,
+          <Space key={`rsp${i}`} id={`rsp${i}`} at={[modX - 4, ys[i] + ALIGN_SLOT_H / 2]} />,
+          <Text key={`mod${i}`} text={s.mod} mono weight={600} at={[modX, middle(ys[i], ALIGN_SLOT_H, LABEL_H)]} anchor="nw" />,
+          <Text key={`stage${i}`} text={s.stage} size="note" muted at={[stageX, middle(ys[i], ALIGN_SLOT_H, NOTE_H)]} anchor="nw" />,
+        ])}
+        <Space id="grow-from" at={[x + w / 2, free]} />
+        <Space id="grow-to" at={[x + w / 2, free + GROWTH_ARROW]} />
+        <Text text="grows toward lower addresses" size="note" muted at={[modX, middle(free, 56, NOTE_H)]} anchor="nw" />
+        <Text text="low addresses" size="note" mono muted at={[x, bottom + 6]} anchor="nw" />
+      </Canvas>
+      {ALIGN_SLOTS.map((_, i) => (
+        <Edge key={i} from={`rsp${i}`} to={`slot${i}`} route="straight" />
+      ))}
+      <Edge from="grow-from" to="grow-to" route="straight" tone="blue" />
     </Diagram>
   );
 }
