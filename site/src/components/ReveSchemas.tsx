@@ -385,3 +385,141 @@ export function ReveArchitectureDiagram() {
     </Diagram>
   );
 }
+
+const SCHEMA_ROW = 22;
+const SCHEMA_PAD = 10;
+const SCHEMA_COL = 12;
+const SCHEMA_TITLE = LABEL_H + 6;
+
+interface SchemaBox {
+  title: string;
+  fields: [string, string][];
+  x: number;
+  y: number;
+}
+
+const schemaColumns = (fields: [string, string][]) => [
+  Math.max(...fields.map((_, i) => textW(String(i + 1), "note", true))),
+  Math.max(...fields.map(([name]) => textW(name, "note", true))),
+  Math.max(...fields.map(([, type]) => textW(type, "note", true))),
+];
+const schemaW = (fields: [string, string][]) => schemaColumns(fields).reduce((a, b) => a + b, 0) + 2 * SCHEMA_COL + 2 * SCHEMA_PAD;
+const schemaRowMid = (box: SchemaBox, i: number) => box.y + SCHEMA_TITLE + (i + 0.5) * SCHEMA_ROW;
+const schemaBottom = (box: SchemaBox) => box.y + SCHEMA_TITLE + box.fields.length * SCHEMA_ROW;
+
+function schemaBox(box: SchemaBox) {
+  const { title: name, fields, x, y } = box;
+  const [numW, nameW] = schemaColumns(fields);
+  const w = schemaW(fields);
+  const top = y + SCHEMA_TITLE;
+  const bottom = schemaBottom(box);
+  return [
+    <Text key={name} text={name} mono weight={600} at={[x, y]} anchor="nw" />,
+    <Poly key={`${name}-box`} points={[[x, top], [x + w, top], [x + w, bottom], [x, bottom]]} tone={OWNED} outline />,
+    fields.map(([field, type], i) => {
+      const mid = schemaRowMid(box, i);
+      const textY = mid - NOTE_H / 2;
+      return [
+        <Text key={`${name}-${field}-n`} text={String(i + 1)} size="note" mono muted at={[x + SCHEMA_PAD, textY]} anchor="nw" />,
+        <Text key={`${name}-${field}`} text={field} size="note" mono tone={OWNED} at={[x + SCHEMA_PAD + numW + SCHEMA_COL, textY]} anchor="nw" />,
+        <Text key={`${name}-${field}-t`} text={type} size="note" mono muted at={[x + SCHEMA_PAD + numW + SCHEMA_COL + nameW + SCHEMA_COL, textY]} anchor="nw" />,
+      ];
+    }),
+  ];
+}
+
+/** Every message in `engine.proto`, with field numbers and types. An arrow leads from a message field to the message it holds. */
+export function ReveSchemaDiagram() {
+  const W = 640;
+  const programF: [string, string][] = [["name", "string"], ["format", "string"], ["architecture", "string"], ["address_size_bits", "uint32"], ["functions", "repeated"]];
+  const functionF: [string, string][] = [["name", "string"], ["entry", "uint64"], ["size", "uint64"], ["instructions", "repeated"], ["decompilation", "message"]];
+  const instructionF: [string, string][] = [["address", "uint64"], ["size", "uint32"], ["mnemonic", "string"], ["operands", "string"], ["bytes", "bytes"]];
+  const decompF: [string, string][] = [["status", "Status"], ["signature", "string"], ["c_code", "string"], ["error_message", "optional string"], ["lines", "repeated"]];
+  const lineF: [string, string][] = [["tokens", "repeated"], ["addresses", "repeated uint64"]];
+  const tokenF: [string, string][] = [["text", "string"], ["kind", "Kind"]];
+
+  const rowGap = 44;
+  const row1H = SCHEMA_TITLE + 5 * SCHEMA_ROW;
+  const row2Y = row1H + rowGap;
+  const gap1 = (W - schemaW(programF) - schemaW(functionF) - schemaW(instructionF)) / 2;
+  const gap2 = (W - schemaW(decompF) - schemaW(lineF) - schemaW(tokenF)) / 2;
+
+  const program: SchemaBox = { title: "Program", fields: programF, x: 0, y: 0 };
+  const fn: SchemaBox = { title: "Function", fields: functionF, x: schemaW(programF) + gap1, y: 0 };
+  const instruction: SchemaBox = { title: "Instruction", fields: instructionF, x: W - schemaW(instructionF), y: 0 };
+  const decompilation: SchemaBox = { title: "Decompilation", fields: decompF, x: 0, y: row2Y };
+  const line: SchemaBox = { title: "Line", fields: lineF, x: schemaW(decompF) + gap2, y: row2Y };
+  const token: SchemaBox = { title: "Token", fields: tokenF, x: W - schemaW(tokenF), y: row2Y };
+
+  /** An elbow from a field's row, across the gap, up to the next message's title. */
+  const link = (from: SchemaBox, row: number, to: SchemaBox) => {
+    const x0 = from.x + schemaW(from.fields);
+    const y0 = schemaRowMid(from, row);
+    const mid = (x0 + to.x) / 2;
+    const y1 = to.y + LABEL_H / 2;
+    return <Edge key={`${from.title}-${to.title}`} from={[x0, y0]} via={[[mid, y0], [mid, y1]]} to={[to.x - 6, y1]} route="straight" tone={OWNED} />;
+  };
+
+  const downX = fn.x + schemaW(functionF) / 2;
+  const elbowY = row1H + rowGap / 2;
+  const intoX = decompilation.x + textW("Decompilation", "label", true) / 2;
+
+  return (
+    <Diagram caption="Rows give each field's number, name and type. Arrows lead to the message a field holds.">
+      <Canvas>
+        {[program, fn, instruction, decompilation, line, token].map(schemaBox)}
+        {link(program, 4, fn)}
+        {link(fn, 3, instruction)}
+        {link(decompilation, 4, line)}
+        {link(line, 0, token)}
+        <Edge key="function-decompilation" from={[downX, row1H]} via={[[downX, elbowY], [intoX, elbowY]]} to={[intoX, row2Y - 3]} route="straight" tone={OWNED} />
+      </Canvas>
+    </Diagram>
+  );
+}
+
+/** One schema, two generators and a hand-written model, with the file between the two processes. */
+export function ReveFamiliesDiagram() {
+  const H = 34;
+  const pad = 16;
+  const boxes = [
+    { key: "engine", label: "Engine.Program", sub: "Java, generated", tone: OWNED as Tone | undefined },
+    { key: "file", label: "result.pb", sub: "bytes on disk", tone: undefined },
+    { key: "wire", label: "wire::Program", sub: "Rust, generated", tone: OWNED as Tone | undefined },
+    { key: "model", label: "reve_model::Program", sub: "Rust, by hand", tone: OWNED as Tone | undefined },
+  ];
+  const widths = boxes.map((b) => Math.max(textW(b.label, "note", true), textW(b.sub, "note")) + pad);
+  const labels = ["writeTo", "decode", "into_model"];
+  const gaps = labels.map((l) => textW(l, "note", true) + 12);
+  const xs = widths.reduce<number[]>((acc, w, i) => [...acc, i === 0 ? 0 : acc[i - 1] + widths[i - 1] + gaps[i - 1]], []);
+  const protoH = 28;
+  const rowY = protoH + 46;
+  const midY = rowY + H / 2;
+  const center = (i: number) => xs[i] + widths[i] / 2;
+  const protoW = textW("engine.proto", "note", true) + pad;
+  const protoX = center(1) - protoW / 2;
+  const protoMid = protoH / 2;
+  return (
+    <Diagram caption="Dashes generate code at build time. Solid arrows carry one analysis at run time.">
+      <Canvas>
+        {archCell({ label: "engine.proto", x: protoX, y: 0, w: protoW, h: protoH, tone: OWNED })}
+        {boxes.map((b, i) => [
+          archCell({ label: b.label, x: xs[i], y: rowY, w: widths[i], h: H, tone: b.tone }),
+          <Text key={`${b.key}-sub`} text={b.sub} size="note" muted align="center" at={[center(i), rowY + H + 6 + NOTE_H / 2]} />,
+        ])}
+        {labels.map((label, i) => {
+          const x0 = xs[i] + widths[i];
+          const x1 = xs[i + 1];
+          return [
+            <Edge key={`${label}-edge`} from={[x0, midY]} to={[x1, midY]} route="straight" tone={OWNED} />,
+            <Text key={label} text={label} size="note" mono muted at={[(x0 + x1 - textW(label, "note", true)) / 2, midY - NOTE_H - 3]} anchor="nw" />,
+          ];
+        })}
+        <Edge from={[protoX, protoMid]} via={[[center(0), protoMid]]} to={[center(0), rowY]} route="straight" tone={OWNED} dashed />
+        <Text text="protoc" size="note" mono muted at={[center(0) + 8, protoH + 6]} anchor="nw" />
+        <Edge from={[protoX + protoW, protoMid]} via={[[center(2), protoMid]]} to={[center(2), rowY]} route="straight" tone={OWNED} dashed />
+        <Text text="prost-build" size="note" mono muted at={[center(2) + 8, protoH + 6]} anchor="nw" />
+      </Canvas>
+    </Diagram>
+  );
+}

@@ -99,7 +99,7 @@ import { packetFigures } from "@/components/PacketFigures";
 import { PageLayout } from "@/components/PageLayout";
 import { AddressVsDereferenceDiagram, AslrDiagram, NxDiagram, PieDiagram, ProcessMemoryLayoutDiagram, RelroDiagram, StackAlignmentDiagram, StackCallDiagram, StackCanaryDiagram, StackFrameDiagram } from "@/components/PwnSchemas";
 import { QueryTree } from "@/components/QueryTree";
-import { ReveArchitectureDiagram, ReveCursorDiagram, ReveLineAddressesDiagram, RevePipelineDiagram } from "@/components/ReveSchemas";
+import { ReveArchitectureDiagram, ReveCursorDiagram, ReveFamiliesDiagram, ReveLineAddressesDiagram, RevePipelineDiagram, ReveSchemaDiagram } from "@/components/ReveSchemas";
 import {
   ExecutionModelSchema,
   GraceProbeSchema,
@@ -231,8 +231,10 @@ export function useMDXComponents(
     RelroDiagram,
     ReveArchitectureDiagram,
     ReveCursorDiagram,
+    ReveFamiliesDiagram,
     ReveLineAddressesDiagram,
     RevePipelineDiagram,
+    ReveSchemaDiagram,
     StackAlignmentDiagram,
     StackCallDiagram,
     StackCanaryDiagram,

@@ -15,15 +15,6 @@ The interface is Rust on GPUI, and the first target is Linux ELF x86-64.
   <figcaption className="diagram__caption">Ghidra's own decompiler binary open in rêve, with the cursor on main.</figcaption>
 </figure>
 
-The window has four panes, and all four follow one cursor:
-
-| Pane | Shows |
-|---|---|
-| Symbol Tree | every function by name |
-| Listing | every instruction with its address, bytes and operands |
-| Decompile | the cursor's function as C, with its lines marked |
-| Functions | every function by address, with its signature and size |
-
 ---
 
 ## Ghidra as the Engine
@@ -56,11 +47,11 @@ rêve therefore reads Ghidra's results and has no way to change them.
 
 | Unit | Owner | Depends on |
 |---|---|---|
+| `engine.proto` | rêve | nothing |
 | `reve-model` | rêve | nothing |
 | `reve-ghidra-adapter` | rêve | `reve-model`, `prost`, `sha2`, `dirs` |
-| `reve-ui` | rêve | adapter, model, `gpui-kit` |
 | `reve-ghidra-extension` | rêve | Ghidra API, `protobuf-java` |
-| `engine.proto` | rêve | nothing |
+| `reve-ui` | rêve | adapter, model, `gpui-kit` |
 | Ghidra 12.2 | Ghidra | Temurin JDK 25 |
 
 `scripts/bootstrap.py` installs Ghidra and the JDK in `.tools/`.\
@@ -70,26 +61,174 @@ On any other platform, `bootstrap.py` builds it from source.
 
 ---
 
-## Opening a Binary
+## The Schema
 
-GPUI's main thread owns the interface.\
-A background thread runs the adapter.\
-Ghidra runs in its own process.
+**Schema.** `engine.proto` is the proto3 schema that the exporter and the adapter share.\
+Its package is `reve.engine.v1`.\
+One export holds one `Program` message,\
+so a binary's whole analysis is a single nested message.
 
-1. `Reve::open_binary` asks for a path with `cx.prompt_for_paths`.
-2. `Reve::open` sets `Screen::Open` with `Analysis::Analyzing`.
-3. `Reve::analyze` runs `GhidraAdapter::analyze`\
-   inside `cx.background_spawn`.
-4. `analyze` validates `GhidraConfig`, and `saved_export` computes the key.\
-   If a saved export exists, `read_export` decodes it, and step 8 follows.
-5. `JobDirectory::create` makes the temporary directory.
-6. `run_headless` spawns the launcher.\
-   It polls `try_wait` every 100 ms.\
-   Two more threads drain its stdout and stderr, so its pipes never fill.
-7. `read_export` decodes `result.pb`, and `save_export` keeps a copy.\
-   `JobDirectory` removes the directory when it drops.
-8. The task from `cx.spawn_in` receives the `Result` on the main thread.\
-   `Reve::analyzed` creates the four panes and sets `Analysis::Done`.
+<ReveSchemaDiagram />
+
+### Three Families of Types
+
+The schema generates two families of types, and rêve writes the third by hand.
+
+<ReveFamiliesDiagram />
+
+Gradle's protobuf plugin runs `protoc` 4.31.0.\
+It writes the outer class `Engine`, named after `engine.proto`.\
+Cargo's `build.rs` runs `prost-build`, which writes `reve.engine.v1.rs` into `OUT_DIR`.\
+`lib.rs` includes that file as the module `proto`, which the adapter calls `wire`.
+
+`prost-build` also needs `protoc`.\
+`build.rs` tries `PROTOC`, then `PATH`, then the binary from `protoc-bin-vendored`.
+
+### Presence
+
+**Presence.** Presence is whether a field records being set, apart from its value.
+
+An unset field writes nothing, and it decodes to a value that depends on its declaration:
+
+| Declared as | Presence | `prost` type | Unset reads as |
+|---|---|---|---|
+| `string`, `uint32`, `uint64`, `bytes` | implicit | `String`, `u32`, `u64`, `Vec<u8>` | the default |
+| enum | implicit | `i32` | 0 |
+| `optional string` | explicit | `Option<String>` | `None` |
+| message | explicit | `Option<Decompilation>` | `None` |
+| `repeated` | none | `Vec<T>` | empty |
+
+Only `error_message` and `decompilation` can tell unset from empty.\
+`Export` writes a `null` from `getExecutableFormat` as an empty `format`.
+
+### The Bytes
+
+**Tag.** A tag is one varint holding `field_number << 3 | wire_type`.
+
+The export uses two wire types.\
+Type 0 is a varint.\
+Type 2 is a varint length followed by that many bytes.
+
+**Example 1. One instruction.**
+
+This export comes from `int add(int a, int b)`, compiled for x86-64 at `-O0`.\
+Its `ADD` instruction is 45 bytes:
+
+| Bytes | Field | Type | Value |
+|---|---|---|---|
+| `08 8d 80 40` | 1, `address` | 0 | `0x10000d` |
+| `10 03` | 2, `size` | 0 | 3 |
+| `1a 03 41 44 44` | 3, `mnemonic` | 2 | `ADD` |
+| `22 1b 45 41 58 ...` | 4, `operands` | 2 | `EAX, dword ptr [RBP + -0x8]` |
+| `2a 03 03 45 f8` | 5, `bytes` | 2 | `03 45 f8` |
+
+The same export shows what the schema's rules do to the bytes:
+
+- `RET` has no operands, so its message omits field 4.
+- `return` carries `10 01` for `KEYWORD`.\
+  The token `+` is `PLAIN`, which is 0, so it carries no `kind` byte.
+- proto3 packs repeated numbers.\
+  `Line.addresses` writes one tag, as in `12 06 8d 80 40 91 80 40`.
+
+The bytes hold field numbers and no field names.\
+Renaming a field keeps an export readable, and renumbering one breaks it.\
+Editing `engine.proto` changes every cache key, so rêve never reads an export from an older schema.
+
+---
+
+## The Model
+
+**Model.** `reve-model` is the crate of plain Rust types that the interface reads.\
+It depends on nothing, so neither `prost` nor Ghidra reaches the panes.\
+Every struct derives `Clone`, `Debug`, `Eq` and `PartialEq`.
+
+**Address.** `Address(pub u64)` is a virtual address in the program, never a file offset.\
+It derives `Copy`, `Ord` and `Hash`, so panes can sort it and binary-search it.
+
+### Program
+
+| Attribute | Type | Holds |
+|---|---|---|
+| `name` | `String` | the input's file name, which Ghidra gives the program |
+| `format` | `String` | the format, as in `Executable and Linking Format (ELF)` |
+| `architecture` | `String` | the language ID, as in `x86:LE:64:default` |
+| `address_size_bits` | `u32` | the default pointer size in bits |
+| `functions` | `Vec<Function>` | the functions, ascending by entry |
+
+### Function
+
+| Attribute | Type | Holds |
+|---|---|---|
+| `name` | `String` | Ghidra's name for the function |
+| `entry` | `Address` | the entry point |
+| `size` | `u64` | the bytes in its body |
+| `instructions` | `Vec<Instruction>` | the body's instructions, ascending by address |
+| `decompilation` | `Option<Decompilation>` | the decompiler's result |
+
+A body can split into several ranges, so `entry + size` need not be its end.\
+`Export` always sets `decompilation`, so `None` appears only in an export it did not write.
+
+### Instruction
+
+| Attribute | Type | Holds |
+|---|---|---|
+| `address` | `Address` | the address of its first byte |
+| `size` | `u32` | its length in bytes |
+| `mnemonic` | `String` | the operation, as in `ADD` |
+| `operands` | `String` | Ghidra's text, joined with `, ` |
+| `bytes` | `Vec<u8>` | the machine code |
+
+`operands` is display text.\
+The model has no operand types and no references.
+
+### Decompilation
+
+| Attribute | Type | Holds |
+|---|---|---|
+| `status` | `DecompilationStatus` | the outcome |
+| `signature` | `String` | the prototype, as in `int add(int param_1,int param_2);` |
+| `c_code` | `String` | the whole C text |
+| `error_message` | `Option<String>` | Ghidra's diagnostic on failure or timeout |
+| `lines` | `Vec<Line>` | the same C as tokens, one entry per line |
+
+`DecompilationStatus` has five values:
+
+| Variant | Wire | Set when |
+|---|---|---|
+| `Unspecified` | 0 | the number is missing or unknown |
+| `Succeeded` | 1 | `decompileCompleted`, with a `DecompiledFunction` |
+| `Failed` | 2 | the decompiler fails or returns nothing |
+| `TimedOut` | 3 | `isTimedOut`, after 30 seconds |
+| `NotAttempted` | 4 | never, as `Export` does not write it |
+
+`Decompilation` is a struct, so its type allows `Failed` with `lines`.\
+`Export` never writes that, and `Decompile` still checks `status` first.
+
+### Line and Token
+
+| Attribute | Type | Holds |
+|---|---|---|
+| `Line.tokens` | `Vec<Token>` | the line's text in order, indentation first |
+| `Line.addresses` | `Vec<Address>` | its instructions, ascending, without repeats |
+| `Token.text` | `String` | a run of C |
+| `Token.kind` | `TokenKind` | its syntax class |
+
+`TokenKind` has eleven variants, numbered from 0 on the wire:
+
+```text
+Plain  Keyword  Comment  Type  Function  Variable
+Constant  Parameter  Global  Error  Special
+```
+
+`ClangLine` groups the decompiler's `ClangToken` values by line.\
+`collectLine` copies each token's text and class,\
+and it adds each token's minimum address to a sorted set.
+
+**Example 2. One line, two instructions.**
+
+<ReveLineAddressesDiagram />
+
+---
 
 ## Inside the Ghidra Process
 
@@ -142,78 +281,125 @@ Export.run
 Each schema field comes from one Ghidra call:
 
 ```text
-Program.name            Program.getName
-Program.format          Program.getExecutableFormat
-Program.architecture    Program.getLanguageID
-Function.name           Function.getName
-Function.entry          Function.getEntryPoint
-Function.size           AddressSetView.getNumAddresses
-Instruction.address     Instruction.getAddress
-Instruction.mnemonic    Instruction.getMnemonicString
-Instruction.operands    getDefaultOperandRepresentation
-Instruction.bytes       Instruction.getBytes
-Decompilation.signature DecompiledFunction.getSignature
-Decompilation.c_code    DecompiledFunction.getC
-Line.tokens             ClangLine.getAllTokens
-Line.addresses          ClangToken.getMinAddress
-Token.kind              ClangToken.getSyntaxType
+Program.name              Program.getName
+Program.format            Program.getExecutableFormat
+Program.architecture      Program.getLanguageID
+Program.address_size_bits getDefaultPointerSize * 8
+Function.name             Function.getName
+Function.entry            Function.getEntryPoint
+Function.size             AddressSetView.getNumAddresses
+Instruction.address       Instruction.getAddress
+Instruction.size          Instruction.getLength
+Instruction.mnemonic      Instruction.getMnemonicString
+Instruction.operands      getDefaultOperandRepresentation
+Instruction.bytes         Instruction.getBytes
+Decompilation.signature   DecompiledFunction.getSignature
+Decompilation.c_code      DecompiledFunction.getC
+Decompilation.lines       DecompileResults.getCCodeMarkup
+Line.tokens               ClangLine.getAllTokens
+Line.addresses            ClangToken.getMinAddress
+Token.text                ClangToken.getText
+Token.kind                ClangToken.getSyntaxType
 ```
 
-`decompileFunction` has a limit of 30 seconds per function,\
-and the whole analysis has a limit of 10 minutes.\
-The decompiler handles one function at a time.\
-The export is eager,\
+A Java `long` is signed, so `Export` reads addresses with `getUnsignedOffset`.\
+`collectLine` sorts them with `Long::compareUnsigned`.\
+Any syntax type outside the list becomes `PLAIN`.
+
+`collectProgram` builds the whole message in memory, and `writeTo` then writes it.\
+The decompiler handles one function at a time,\
 so the panes fill only after Ghidra has decompiled the whole binary.
-
-`DecompileResults` decides each function's status:
-
-| Result | Status |
-|---|---|
-| `isTimedOut` | `TIMED_OUT` with Ghidra's message |
-| not `decompileCompleted` | `FAILED` with Ghidra's message |
-| completed with C code | `SUCCEEDED` with C and markup |
 
 A failed function does not stop the export.\
 If `DecompInterface.openProgram` fails, every function records `FAILED`,\
 and the export still holds every instruction.
 
-## Three Families of Types
-
-`engine.proto` is the contract between the two processes.\
-Three families of types carry its data:
-
-| Family | Language | Made by | Lives in |
-|---|---|---|---|
-| `Engine.Program` | Java | Gradle, `protoc` | extension |
-| `wire::Program` | Rust | `prost-build` | adapter |
-| `reve_model::Program` | Rust | hand | `reve-model` |
-
-```text
-Program: name, format, architecture, address_size_bits
-  Function: name, entry, size
-    Instruction: address, size, mnemonic, operands, bytes
-    Decompilation: status, signature, c_code, error_message
-      Line: addresses
-        Token: text, kind
-```
-
-`into_model` converts `wire::Program` into `reve_model::Program`,\
-so the panes never see protobuf.\
-It wraps each `u64` address in the `Address` type.\
-It maps an unknown enum value to `Unspecified` or `Plain`.
+---
 
 ## The Adapter
 
-| Item | Kind | Job |
-|---|---|---|
-| `GhidraAdapter` | struct | runs one complete analysis |
-| `GhidraConfig` | struct | holds the paths, the timeout and the cache |
-| `JobDirectory` | struct | creates a unique directory, removed on `Drop` |
-| `run_headless` | function | spawns Ghidra and waits for it |
-| `read_export` | function | decodes a `.pb` file into the model |
-| `ParserError` | enum | names each way an analysis fails |
+**Adapter.** `reve-ghidra-adapter` is the crate that runs Ghidra and returns a `reve_model::Program`.
 
-`main.rs` is the only file in `reve-ui` that names the adapter.
+| Module | Items | Job |
+|---|---|---|
+| `orchestrator` | `GhidraAdapter` | runs one complete analysis |
+| `config` | `GhidraConfig`, `ConfigError` | holds and checks the settings |
+| `job` | `JobDirectory` | creates a unique directory, removed on `Drop` |
+| `headless` | `run_headless` | spawns Ghidra and waits for it |
+| `export` | `read_export`, `into_model`, `ExportError` | decodes and converts an export |
+| `proto` | `wire::*` | holds the generated types |
+| `error` | `ParserError` | names each way an analysis fails |
+
+### GhidraConfig
+
+| Attribute | Type | Default |
+|---|---|---|
+| `analyze_headless` | `PathBuf` | `$GHIDRA_HEADLESS`, or the launcher in `.tools/` |
+| `java_home` | `PathBuf` | Temurin 25 in `.tools/` |
+| `projects_dir` | `PathBuf` | `$REVE_GHIDRA_PROJECTS`, or `ghidra-projects` |
+| `timeout` | `Duration` | 10 minutes |
+| `cache_dir` | `Option<PathBuf>` | `rêve/analyses` in the user's cache directory |
+
+`None` in `cache_dir` makes every analysis run Ghidra.\
+`validate` checks the launcher, the `java` binary, `projects_dir` and a nonzero `timeout`.
+
+### One Analysis
+
+`GhidraAdapter::analyze` takes a path and returns `Result<Program, ParserError>`:
+
+1. `validate` checks the config, and `analyze` checks that the input is a file.
+2. `saved_export` computes the key.\
+   If that entry exists and decodes, `analyze` returns it.
+3. `JobDirectory::create` makes a unique `reve-job-*` directory in `projects_dir`.
+4. `run_headless` spawns the launcher with `JAVA_HOME` and `PATH` set.\
+   It polls `try_wait` every 100 ms.\
+   Two more threads drain its stdout and stderr, so its pipes never fill.
+5. `read_export` decodes `result.pb`.
+6. `save_export` keeps a copy, and `JobDirectory` removes the directory when it drops.
+
+### From Wire to Model
+
+`read_export` is three calls:
+
+```rust
+let bytes = fs::read(path)?;
+let message = wire::Program::decode(bytes.as_slice())?;
+Ok(into_model(message))
+```
+
+`into_model` takes the message by value,\
+so strings and byte vectors move across without a copy.\
+One function per message does the work,\
+and field names stay the same.\
+Only these fields change type:
+
+| Field | Wire | Model |
+|---|---|---|
+| `entry`, `address` | `u64` | `Address` |
+| `addresses` | `Vec<u64>` | `Vec<Address>` |
+| `status` | `i32` | `DecompilationStatus` |
+| `kind` | `i32` | `TokenKind` |
+
+proto3 enums are open, so `prost` stores an `i32` and decoding accepts any number.\
+`try_from` then names the value.\
+An unknown number becomes `Unspecified` or `Plain`.
+
+### Errors
+
+| `ParserError` | Cause |
+|---|---|
+| `InputNotFound(PathBuf)` | the binary is missing or unreadable |
+| `InputNotFile(PathBuf)` | the path is not a regular file |
+| `Configuration(ConfigError)` | `validate` rejected a setting |
+| `JobDirectory { path, source }` | the job directory could not be created |
+| `ProcessStart(io::Error)` | the launcher could not start |
+| `ProcessOutput(io::Error)` | a reader thread failed |
+| `GhidraFailed { status, stdout, stderr }` | Ghidra exited nonzero |
+| `TimedOut(Duration)` | the analysis passed `timeout` |
+| `ExportMissing(PathBuf)` | Ghidra exited cleanly without a `result.pb` |
+| `Export(ExportError)` | `result.pb` could not be read or decoded |
+
+`ExportError` is `Io` or `Protobuf`.
 
 ### Saved Analyses
 
@@ -226,10 +412,15 @@ key = sha256(file name, binary,
              extension jar, Ghidra version)
 ```
 
+The file name counts because Ghidra writes it into `Program.name`.\
 `include_bytes!` embeds `Export.java` and `engine.proto` in the binary.\
-`save_export` writes `<key>.pb` to a temporary file and renames it,\
+If any input cannot be read, `saved_export` returns `None`, and Ghidra runs.
+
+An entry is `<key>.pb`, a byte-for-byte copy of `result.pb`.\
+`save_export` writes a temporary file and renames it,\
 so a crash never leaves a partial entry.\
-If a saved entry fails to decode, rêve deletes it and runs Ghidra again.
+A failed save does not fail the analysis.\
+If an entry fails to decode, rêve deletes it and runs Ghidra again.
 
 ### Stopping Ghidra
 
@@ -243,106 +434,25 @@ On Windows, it calls `taskkill /T`.
 
 ## The Interface
 
-**Entity.** An `Entity<T>` is a handle to state that GPUI stores.\
-`cx.notify` marks the state changed.\
-`cx.observe` runs a callback on each change.
+`main.rs` is the only file in `reve-ui` that names the adapter.\
+`Reve::analyze` runs `GhidraAdapter::analyze` inside `cx.background_spawn`.\
+`Reve::analyzed` receives the `Result` on GPUI's main thread and creates the panes.
 
-**View.** A view is an entity whose type implements `Render`.
-
-| Type | Kind | Job |
+| Pane | Shows | Reads |
 |---|---|---|
-| `Reve` | root view | holds the screen and handles window actions |
-| `Header` | view | draws the top bar and holds the panel toggles |
-| `Logo` | view | animates the empty screen |
-| `Listing` | view | holds the program, the cursor and the history |
-| `Symbols` | view | shows `TreeState` in a `Tree` from `gpui-kit` |
-| `Decompile` | view | shows the cursor's function as lines of C |
-| `Functions` | view | shows every function in a `uniform_list` |
-| `Hud` | struct | measures frame times for the top bar |
-| `Palette` | struct | holds the interface's colors |
+| Symbol Tree | every function by name | `Function.name`, `entry` |
+| Listing | every instruction | `Function.name`, `entry`, every `Instruction` attribute except `size` |
+| Decompile | the cursor's function as C | `Function.name`, `entry`, `status`, `error_message`, `lines` |
+| Functions | every function by address | `Function.name`, `entry`, `size`, `signature` |
 
-The modules `go_to` and `commands` both open one dialog from `menu`.
+The status bar reads `Program.architecture` and counts `functions`.
 
-`Reve` models the window as two small state machines:
-
-```rust
-enum Screen { Empty(Entity<Logo>), Open(Workspace) }
-enum Analysis { Analyzing, Done(Panes), Failed(SharedString) }
-
-struct Panes {
-    symbols: Entity<Symbols>,
-    listing: Entity<Listing>,
-    decompile: Entity<Decompile>,
-    functions: Entity<Functions>,
-    _history: Subscription,
-}
-```
-
-`actions!` declares each command as a type.\
-`KeyBinding` maps a key to an action under a key context.\
-The contexts are `Empty`, `Workspace`, `Code` and `CommandMenu`,\
-so typing in a dialog never triggers a pane's single-letter shortcut.
-
-### One Cursor
-
-The Listing owns navigation.
+The Listing owns the cursor, and the other panes follow it.
 
 <ReveCursorDiagram />
 
-`Listing::jump` sets the cursor, scrolls to it and calls `cx.notify`.\
-Every observer then compares the cursor with what it shows:
-
-| Observer | On a change |
-|---|---|
-| `Decompile::sync` | swaps the function and scrolls to the marked line |
-| `Functions::sync` | marks the function and scrolls to it |
-| `Symbols` | marks the function after the cursor rests for 50 ms |
-| `Reve` | updates Back and Forward in `Header` |
-
-`go_to` records a jump, so `⌘[` can return to it.\
-`move_to` moves the cursor without recording one.\
-Decompile uses `move_to`, so pressing a line of C acts like a step.
-
-### The Listing's Data
-
-```rust
-enum Row {
-    Gap,
-    Label(usize, Option<SharedString>),
-    Code(usize, usize),
-}
-
-struct Listing {
-    program: Program,
-    rows: Vec<Row>,
-    instructions: Vec<usize>,
-    addresses: Vec<(Address, usize)>,
-    cursor: usize,
-    history: History,
-    // and the digits, scroll and focus handles
-}
-```
-
-`rows` flattens the program into one list of 18-pixel rows.\
-`Row::Code` holds a function index and an instruction index.\
-`instructions` lists each instruction's row in row order, for stepping.\
-`addresses` lists each instruction's address and row, sorted by address.\
-A function's body can split around another function,\
-so address order and row order can differ.
-
-`History` holds two stacks of rows, `back` and `forward`.\
-A new jump clears `forward`.
-
-Three choices keep the Listing fast on a large binary:
-
-- `uniform_list` lays out only the visible rows,\
-  because every row has the same height.
-- `Columns` joins an instruction's cells into one `StyledText`,\
-  so GPUI shapes a row once rather than once per column.
-- `AnyView::cached` wraps each pane,\
-  so a frame redraws only the panes that changed.
-
-### Calls and XREFs
+**Entity.** An `Entity<T>` is a handle to state that GPUI stores.\
+`cx.notify` marks the state changed, and `cx.observe` runs a callback on each change.
 
 The model carries no references, so the Listing derives them.\
 `callee` treats an operand as a call\
@@ -352,31 +462,15 @@ when it is exactly the `0x` address of a function entry.\
 *Read this rule as a text match, not as Ghidra's reference data.*\
 A tail jump to a function counts as a call, and an indirect call does not.
 
-### C Lines and Instructions
-
-`ClangLine` groups the decompiler's `ClangToken` values by line.\
-`collectLine` copies each token's text and syntax class,\
-and it adds each token's minimum address to a sorted set.
-
-**Example 1. One line, two instructions.**
-
-This export comes from `int add(int a, int b)`,\
-compiled for x86-64 at `-O0`.
-
-<ReveLineAddressesDiagram />
-
-`Line::holds` binary-searches the addresses for the cursor's address,\
-and Decompile marks every line that holds it.\
-`Line::target` gives the first address a pressed line moves to.\
-A line with no addresses, such as a declaration, takes no press.
-
 ---
 
 ## Limits
 
 - The model has no imports, strings, comments or namespaces,\
   and no program start address.
-- The Listing shows no function signatures.
+- No pane reads `Program.name`, `format`, `address_size_bits`, `Instruction.size` or `c_code`.
+- `c_code` repeats `lines`.\
+  It takes 21% of the 88 KB export of a 48-function binary.
 - A run of the application opens one binary.
 - The application runs from a checkout,\
   because `CARGO_MANIFEST_DIR` fixes its tool paths at compile time.
