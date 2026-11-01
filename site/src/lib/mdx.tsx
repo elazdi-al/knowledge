@@ -1,7 +1,6 @@
 import * as runtime from "react/jsx-runtime";
 import { evaluate } from "@mdx-js/mdx";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
-import rehypeKatex from "rehype-katex";
 import rehypePrettyCode from "rehype-pretty-code";
 import rehypeSlug from "rehype-slug";
 import remarkFrontmatter from "remark-frontmatter";
@@ -9,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { bundledThemes, createHighlighter, type LanguageRegistration } from "shiki";
 import { normalizeMathDelimiters } from "@/lib/math-delimiters";
+import { rehypeMath } from "@/lib/rehype-math";
 import { useMDXComponents } from "@/mdx-components";
 
 // Relational schema notation, `Students(sid: string, ...)`, colored with the
@@ -48,7 +48,11 @@ async function withPythonCalls(name: "github-light" | "github-dark-dimmed", colo
   return { ...theme, tokenColors: [...(theme.tokenColors ?? []), rule] };
 }
 
-export async function renderMDX(source: string) {
+// Loaded once: rehype-pretty-code keys its shared highlighter on the themes' JSON.
+const themes = Promise.all([withPythonCalls("github-light", "#6F42C1"), withPythonCalls("github-dark-dimmed", "#DCBDFB")]);
+
+async function compile(source: string) {
+  const [light, dark] = await themes;
   const { default: Content } = await evaluate(normalizeMathDelimiters(source), {
     ...runtime,
     baseUrl: import.meta.url,
@@ -62,22 +66,28 @@ export async function renderMDX(source: string) {
           properties: { className: ["heading-anchor"] },
         },
       ],
+      rehypeMath,
       [
         rehypePrettyCode,
         {
-          theme: {
-            light: await withPythonCalls("github-light", "#6F42C1"),
-            dark: await withPythonCalls("github-dark-dimmed", "#DCBDFB"),
-          },
+          theme: { light, dark },
           keepBackground: false,
           defaultLang: "plaintext",
           getHighlighter: (options: Parameters<typeof createHighlighter>[0]) =>
             createHighlighter({ ...options, langs: [...options.langs, schemaLang, gdbLang] }),
         },
       ],
-      rehypeKatex,
     ],
   });
+  return Content;
+}
 
+// Compiled output depends only on the source, so an unchanged note skips the pipeline.
+const compiled = new Map<string, ReturnType<typeof compile>>();
+
+export async function renderMDX(source: string) {
+  let content = compiled.get(source);
+  if (!content) compiled.set(source, (content = compile(source)));
+  const Content = await content;
   return <Content components={useMDXComponents({})} />;
 }
