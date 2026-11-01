@@ -732,6 +732,12 @@ html:has(.home-pane) main {
     max-width: 100%;
     height: auto;
     border-radius: 6px;
+    outline: 1px solid oklch(0 0 0 / 0.1);
+    outline-offset: -1px;
+  }
+
+  .dark .prose img {
+    outline-color: oklch(1 0 0 / 0.1);
   }
 }
 

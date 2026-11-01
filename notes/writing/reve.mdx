@@ -1,0 +1,392 @@
+---
+title: "rêve"
+created: 2026-11-01
+---
+
+**rêve.** rêve is an open-source desktop reverse engineering application.\
+Its name stands for Reverse Engineering Visual Environment.\
+It keeps Ghidra's analysis and replaces its interface with a native one.\
+The interface is Rust on GPUI, and the first target is Linux ELF x86-64.
+
+<figure>
+  <a href="/reve/screenshot.webp">
+    <img src="/reve/screenshot.webp" width="2160" height="1349" alt="rêve showing the Symbol Tree on the left, the Listing and Decompile side by side, and the Functions table below, with the cursor on main" />
+  </a>
+  <figcaption className="diagram__caption">Ghidra's own decompiler binary open in rêve, with the cursor on main.</figcaption>
+</figure>
+
+The window has four panes, and all four follow one cursor:
+
+| Pane | Shows |
+|---|---|
+| Symbol Tree | every function by name |
+| Listing | every instruction with its address, bytes and operands |
+| Decompile | the cursor's function as C, with its lines marked |
+| Functions | every function by address, with its signature and size |
+
+---
+
+## Ghidra as the Engine
+
+**Ghidra.** Ghidra is the NSA's open-source reverse engineering framework.\
+Its launcher `analyzeHeadless` imports and analyzes a binary\
+without opening Ghidra's interface.
+
+rêve runs this launcher as a child process,\
+and it reads one protobuf file back.
+
+<RevePipelineDiagram />
+
+The call always has this shape:
+
+```sh
+analyzeHeadless <job> ReveAnalysis \
+  -import <binary> \
+  -scriptPath <ghidra-extension>/ghidra_scripts \
+  -postScript Export.java <job>/result.pb
+```
+
+`<job>` is a temporary directory.\
+It holds the Ghidra project and the export.\
+rêve removes it when the analysis returns,\
+so the Ghidra project does not survive.\
+rêve therefore reads Ghidra's results and has no way to change them.
+
+## Units and Owners
+
+| Unit | Owner | Depends on |
+|---|---|---|
+| `reve-model` | rêve | nothing |
+| `reve-ghidra-adapter` | rêve | `reve-model`, `prost`, `sha2`, `dirs` |
+| `reve-ui` | rêve | adapter, model, `gpui-kit` |
+| `reve-ghidra-extension` | rêve | Ghidra API, `protobuf-java` |
+| `engine.proto` | rêve | nothing |
+| Ghidra 12.2 | Ghidra | Temurin JDK 25 |
+
+`scripts/bootstrap.py` installs Ghidra and the JDK in `.tools/`.\
+It then builds the extension and unpacks it into that Ghidra install.\
+Ghidra ships its native decompiler only for x64 Linux and Windows.\
+On any other platform, `bootstrap.py` builds it from source.
+
+---
+
+## Opening a Binary
+
+GPUI's main thread owns the interface.\
+A background thread runs the adapter.\
+Ghidra runs in its own process.
+
+1. `Reve::open_binary` asks for a path with `cx.prompt_for_paths`.
+2. `Reve::open` sets `Screen::Open` with `Analysis::Analyzing`.
+3. `Reve::analyze` runs `GhidraAdapter::analyze`\
+   inside `cx.background_spawn`.
+4. `analyze` validates `GhidraConfig`, and `saved_export` computes the key.\
+   If a saved export exists, `read_export` decodes it, and step 8 follows.
+5. `JobDirectory::create` makes the temporary directory.
+6. `run_headless` spawns the launcher.\
+   It polls `try_wait` every 100 ms.\
+   Two more threads drain its stdout and stderr, so its pipes never fill.
+7. `read_export` decodes `result.pb`, and `save_export` keeps a copy.\
+   `JobDirectory` removes the directory when it drops.
+8. The task from `cx.spawn_in` receives the `Result` on the main thread.\
+   `Reve::analyzed` creates the four panes and sets `Analysis::Done`.
+
+## Inside the Ghidra Process
+
+The launcher reaches Java through two shell scripts:
+
+```text
+analyzeHeadless              bash
+  launch.sh                  bash
+    java ghidra.Ghidra       JVM entry point
+      AnalyzeHeadless        parses the arguments
+        HeadlessAnalyzer     imports, analyzes, runs scripts
+```
+
+`HeadlessAnalyzer.processLocal` creates the project,\
+and it imports the file.\
+`analyzeProgram` then runs the analyzers, and the post-script runs last.
+
+| Ghidra class | Job |
+|---|---|
+| `ProgramLoader` | picks a loader and builds a `Program` |
+| `ElfLoader` | maps ELF segments and symbols into the `Program` |
+| `AutoAnalysisManager` | queues and runs the analyzers |
+| `EntryPointAnalyzer` | starts disassembly from entry points |
+| `SleighLanguage` | decodes machine code from a processor specification |
+| `Program` | holds the memory, listing and functions |
+| `GhidraScript` | gives a script `currentProgram` and `monitor` |
+| `DecompInterface` | is the Java client of the decompiler |
+| `DecompileProcess` | starts native `decompile` and talks to it over pipes |
+
+The decompiler is a third process, written in C++.\
+Ghidra starts it, and rêve never sees it.
+
+## The Exporter
+
+`Export` extends `GhidraScript`,\
+so `HeadlessAnalyzer` runs it inside the JVM.\
+Ghidra finds its source through `-scriptPath`,\
+so an edit to `Export.java` applies on the next analysis.
+
+```text
+Export.run
+  collectProgram            FunctionManager.getFunctions
+    collectFunction         Function.getBody
+      collectInstruction    Listing.getInstructions
+      collectDecompilation  DecompInterface.decompileFunction
+        collectLine         DecompilerUtils.toLines
+          tokenKind         ClangToken.getSyntaxType
+```
+
+Each schema field comes from one Ghidra call:
+
+```text
+Program.name            Program.getName
+Program.format          Program.getExecutableFormat
+Program.architecture    Program.getLanguageID
+Function.name           Function.getName
+Function.entry          Function.getEntryPoint
+Function.size           AddressSetView.getNumAddresses
+Instruction.address     Instruction.getAddress
+Instruction.mnemonic    Instruction.getMnemonicString
+Instruction.operands    getDefaultOperandRepresentation
+Instruction.bytes       Instruction.getBytes
+Decompilation.signature DecompiledFunction.getSignature
+Decompilation.c_code    DecompiledFunction.getC
+Line.tokens             ClangLine.getAllTokens
+Line.addresses          ClangToken.getMinAddress
+Token.kind              ClangToken.getSyntaxType
+```
+
+`decompileFunction` has a limit of 30 seconds per function,\
+and the whole analysis has a limit of 10 minutes.\
+The decompiler handles one function at a time.\
+The export is eager,\
+so the panes fill only after Ghidra has decompiled the whole binary.
+
+`DecompileResults` decides each function's status:
+
+| Result | Status |
+|---|---|
+| `isTimedOut` | `TIMED_OUT` with Ghidra's message |
+| not `decompileCompleted` | `FAILED` with Ghidra's message |
+| completed with C code | `SUCCEEDED` with C and markup |
+
+A failed function does not stop the export.\
+If `DecompInterface.openProgram` fails, every function records `FAILED`,\
+and the export still holds every instruction.
+
+## Three Families of Types
+
+`engine.proto` is the contract between the two processes.\
+Three families of types carry its data:
+
+| Family | Language | Made by | Lives in |
+|---|---|---|---|
+| `Engine.Program` | Java | Gradle, `protoc` | extension |
+| `wire::Program` | Rust | `prost-build` | adapter |
+| `reve_model::Program` | Rust | hand | `reve-model` |
+
+```text
+Program: name, format, architecture, address_size_bits
+  Function: name, entry, size
+    Instruction: address, size, mnemonic, operands, bytes
+    Decompilation: status, signature, c_code, error_message
+      Line: addresses
+        Token: text, kind
+```
+
+`into_model` converts `wire::Program` into `reve_model::Program`,\
+so the panes never see protobuf.\
+It wraps each `u64` address in the `Address` type.\
+It maps an unknown enum value to `Unspecified` or `Plain`.
+
+## The Adapter
+
+| Item | Kind | Job |
+|---|---|---|
+| `GhidraAdapter` | struct | runs one complete analysis |
+| `GhidraConfig` | struct | holds the paths, the timeout and the cache |
+| `JobDirectory` | struct | creates a unique directory, removed on `Drop` |
+| `run_headless` | function | spawns Ghidra and waits for it |
+| `read_export` | function | decodes a `.pb` file into the model |
+| `ParserError` | enum | names each way an analysis fails |
+
+`main.rs` is the only file in `reve-ui` that names the adapter.
+
+### Saved Analyses
+
+A binary analyzed before loads without Ghidra.\
+Its key hashes every input that can change the export:
+
+```text
+key = sha256(file name, binary,
+             Export.java, engine.proto,
+             extension jar, Ghidra version)
+```
+
+`include_bytes!` embeds `Export.java` and `engine.proto` in the binary.\
+`save_export` writes `<key>.pb` to a temporary file and renames it,\
+so a crash never leaves a partial entry.\
+If a saved entry fails to decode, rêve deletes it and runs Ghidra again.
+
+### Stopping Ghidra
+
+`analyzeHeadless` starts `launch.sh`, which starts Java.\
+Neither uses `exec`, so killing the launcher alone leaves Java running.\
+On Unix, `make_command` therefore calls `process_group(0)`,\
+and `terminate_process_tree` kills the whole group on timeout.\
+On Windows, it calls `taskkill /T`.
+
+---
+
+## The Interface
+
+**Entity.** An `Entity<T>` is a handle to state that GPUI stores.\
+`cx.notify` marks the state changed.\
+`cx.observe` runs a callback on each change.
+
+**View.** A view is an entity whose type implements `Render`.
+
+| Type | Kind | Job |
+|---|---|---|
+| `Reve` | root view | holds the screen and handles window actions |
+| `Header` | view | draws the top bar and holds the panel toggles |
+| `Logo` | view | animates the empty screen |
+| `Listing` | view | holds the program, the cursor and the history |
+| `Symbols` | view | shows `TreeState` in a `Tree` from `gpui-kit` |
+| `Decompile` | view | shows the cursor's function as lines of C |
+| `Functions` | view | shows every function in a `uniform_list` |
+| `Hud` | struct | measures frame times for the top bar |
+| `Palette` | struct | holds the interface's colors |
+
+The modules `go_to` and `commands` both open one dialog from `menu`.
+
+`Reve` models the window as two small state machines:
+
+```rust
+enum Screen { Empty(Entity<Logo>), Open(Workspace) }
+enum Analysis { Analyzing, Done(Panes), Failed(SharedString) }
+
+struct Panes {
+    symbols: Entity<Symbols>,
+    listing: Entity<Listing>,
+    decompile: Entity<Decompile>,
+    functions: Entity<Functions>,
+    _history: Subscription,
+}
+```
+
+`actions!` declares each command as a type.\
+`KeyBinding` maps a key to an action under a key context.\
+The contexts are `Empty`, `Workspace`, `Code` and `CommandMenu`,\
+so typing in a dialog never triggers a pane's single-letter shortcut.
+
+### One Cursor
+
+The Listing owns navigation.
+
+<ReveCursorDiagram />
+
+`Listing::jump` sets the cursor, scrolls to it and calls `cx.notify`.\
+Every observer then compares the cursor with what it shows:
+
+| Observer | On a change |
+|---|---|
+| `Decompile::sync` | swaps the function and scrolls to the marked line |
+| `Functions::sync` | marks the function and scrolls to it |
+| `Symbols` | marks the function after the cursor rests for 50 ms |
+| `Reve` | updates Back and Forward in `Header` |
+
+`go_to` records a jump, so `⌘[` can return to it.\
+`move_to` moves the cursor without recording one.\
+Decompile uses `move_to`, so pressing a line of C acts like a step.
+
+### The Listing's Data
+
+```rust
+enum Row {
+    Gap,
+    Label(usize, Option<SharedString>),
+    Code(usize, usize),
+}
+
+struct Listing {
+    program: Program,
+    rows: Vec<Row>,
+    instructions: Vec<usize>,
+    addresses: Vec<(Address, usize)>,
+    cursor: usize,
+    history: History,
+    // and the digits, scroll and focus handles
+}
+```
+
+`rows` flattens the program into one list of 18-pixel rows.\
+`Row::Code` holds a function index and an instruction index.\
+`instructions` lists each instruction's row in row order, for stepping.\
+`addresses` lists each instruction's address and row, sorted by address.\
+A function's body can split around another function,\
+so address order and row order can differ.
+
+`History` holds two stacks of rows, `back` and `forward`.\
+A new jump clears `forward`.
+
+Three choices keep the Listing fast on a large binary:
+
+- `uniform_list` lays out only the visible rows,\
+  because every row has the same height.
+- `Columns` joins an instruction's cells into one `StyledText`,\
+  so GPUI shapes a row once rather than once per column.
+- `AnyView::cached` wraps each pane,\
+  so a frame redraws only the panes that changed.
+
+### Calls and XREFs
+
+The model carries no references, so the Listing derives them.\
+`callee` treats an operand as a call\
+when it is exactly the `0x` address of a function entry.\
+`xrefs` walks every instruction and builds each callee's `XREF` label.
+
+*Read this rule as a text match, not as Ghidra's reference data.*\
+A tail jump to a function counts as a call, and an indirect call does not.
+
+### C Lines and Instructions
+
+`ClangLine` groups the decompiler's `ClangToken` values by line.\
+`collectLine` copies each token's text and syntax class,\
+and it adds each token's minimum address to a sorted set.
+
+**Example 1. One line, two instructions.**
+
+This export comes from `int add(int a, int b)`,\
+compiled for x86-64 at `-O0`.
+
+<ReveLineAddressesDiagram />
+
+`Line::holds` binary-searches the addresses for the cursor's address,\
+and Decompile marks every line that holds it.\
+`Line::target` gives the first address a pressed line moves to.\
+A line with no addresses, such as a declaration, takes no press.
+
+---
+
+## Limits
+
+- The model has no imports, strings, comments or namespaces,\
+  and no program start address.
+- The Listing shows no function signatures.
+- A run of the application opens one binary.
+- The application runs from a checkout,\
+  because `CARGO_MANIFEST_DIR` fixes its tool paths at compile time.
+- Continuous integration tests the adapter against a fake launcher,\
+  so it never runs real Ghidra.
+
+---
+
+## Architecture
+
+The full system runs from the root view to the native decompiler.
+
+<ReveArchitectureDiagram />
