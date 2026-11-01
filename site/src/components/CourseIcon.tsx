@@ -1,3 +1,4 @@
+import type { Tone } from "figure";
 import { ARCHIVE, COURSES } from "@/lib/courses";
 
 /** Duotone back layer: the glyph's own hue at low opacity under the full-strength strokes. */
@@ -63,9 +64,19 @@ const COURSE_GLYPHS: Record<string, React.ReactNode> = {
   ),
 };
 
+/** Per CTF category folder: a figure hue. There are more categories than hues, so misc shares teal. */
+const CATEGORY_TONES: Record<string, Tone> = {
+  cryptography: "purple",
+  pwn: "red",
+  web: "blue",
+  reversing: "teal",
+  forensics: "green",
+  misc: "teal",
+};
+
 /**
- * Per CTF category folder (notes/ctf/<category>/): Lucide-style duotone glyphs with no hue, so they take the
- * heading's grey. Other categories get the book.
+ * Per CTF category folder (notes/ctf/<category>/): a Lucide-style duotone glyph. Other categories get the book in the
+ * heading's grey.
  */
 const CATEGORIES: Record<string, React.ReactNode> = {
   cryptography: (
@@ -147,5 +158,10 @@ export function CourseIcon({ course, className }: { course: string; className?: 
 }
 
 export function CategoryIcon({ category, className }: { category: string; className?: string }) {
-  return <Glyph className={className}>{CATEGORIES[category] ?? BOOK}</Glyph>;
+  const tone = CATEGORY_TONES[category];
+  return (
+    <Glyph color={tone && `var(--dg-${tone}-solid)`} className={className}>
+      {CATEGORIES[category] ?? BOOK}
+    </Glyph>
+  );
 }
