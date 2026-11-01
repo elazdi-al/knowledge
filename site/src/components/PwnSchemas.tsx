@@ -1,4 +1,4 @@
-import { Diagram, Edge, FONT, Canvas, measure, Node, NODE, Row, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE, LINE_H } from "figure";
+import { Col, Diagram, Edge, FONT, Canvas, measure, Node, NODE, Path, Poly, Row, Space, Table, Text, nodeTitleW, type State, type TableRow, type Tone, TABLE, LINE_H } from "figure";
 
 /** Width of a `Text` drawn at `size`; mono text draws half a pixel smaller. */
 const textW = (text: string, size: "label" | "note", mono = false) => {
@@ -151,6 +151,355 @@ export function StackFrameDiagram({ overflow = false }: { overflow?: boolean }) 
           <Edge from="rsp" to={`slot${last}`} route="straight" />
         </>
       )}
+    </Diagram>
+  );
+}
+
+/** One band of a memory column, top to bottom. A band without a label is free address space, where `grows` draws the arrow. */
+interface Band {
+  label?: string;
+  perm?: string;
+  h: number;
+  tone?: Tone;
+  note?: string;
+  grows?: "down" | "up";
+}
+const BAND_PAD = 10;
+const middle = (y: number, h: number, inner: number) => y + (h - inner) / 2;
+
+/** Stacks `bands` at (`x`, `top`) in a column `w` wide: `elements` for a `Free`, each band's y in `ys`, and the column's `bottom`. */
+function placeBands(bands: Band[], x: number, top: number, w: number) {
+  let bottom = top;
+  const ys = bands.map((b) => {
+    const y = bottom;
+    bottom += b.h;
+    return y;
+  });
+  const elements = [
+    ...bands.map((b, i) =>
+      b.label ? (
+        <Poly key={i} points={[[x, ys[i]], [x + w, ys[i]], [x + w, ys[i] + b.h], [x, ys[i] + b.h]]} tone={b.tone} outline />
+      ) : (
+        [x, x + w].map((side) => <Path key={`${i}-${side}`} points={[[side, ys[i]], [side, ys[i] + b.h]]} dashed thin />)
+      ),
+    ),
+    ...bands.map((b, i) => [
+      b.label && <Text key={`label${i}`} text={b.label} mono tone={b.tone} at={[b.perm ? x + BAND_PAD : x + (w - textW(b.label, "label", true)) / 2, middle(ys[i], b.h, LABEL_H)]} anchor="nw" />,
+      b.perm && <Text key={`perm${i}`} text={b.perm} mono tone={b.tone} at={[x + w - BAND_PAD - textW(b.perm, "label", true), middle(ys[i], b.h, LABEL_H)]} anchor="nw" />,
+      b.note && <Text key={`note${i}`} text={b.note} size="note" muted at={[x + w + 16, middle(ys[i], b.h, NOTE_H)]} anchor="nw" />,
+    ]),
+  ];
+  return { elements, ys, bottom };
+}
+
+const MEMORY: Band[] = [
+  { label: "stack", h: 44, tone: "blue" },
+  { h: 56, tone: "blue", note: "grows toward lower addresses", grows: "down" },
+  { label: "mmap / shared libraries", h: 40, tone: "teal" },
+  { h: 56, tone: "green", note: "grows toward higher addresses", grows: "up" },
+  { label: "heap", h: 44, tone: "green" },
+  { label: ".bss", h: 30, tone: "purple", note: "zero/uninitialized global/static variables" },
+  { label: ".data", h: 30, tone: "purple", note: "initialized global/static variables" },
+  { label: ".rodata", h: 30, tone: "purple", note: "read-only constants and strings" },
+  { label: ".text", h: 30, tone: "purple", note: "executable program code" },
+];
+const GROWTH_ARROW = 36;
+
+/** A Linux x86-64 process as one column, high addresses on top: relative position only, no exact addresses. */
+export function ProcessMemoryLayoutDiagram() {
+  const w = textW("mmap / shared libraries", "label", true) + 48;
+  const { elements, ys, bottom } = placeBands(MEMORY, 0, NOTE_H + 6, w);
+  return (
+    <Diagram caption="Relative positions of the regions in a Linux x86-64 process. The heap and the stack grow toward each other.">
+      <Canvas>
+        <Text text="high addresses" size="note" mono muted at={[0, 0]} anchor="nw" />
+        {elements}
+        {MEMORY.map((b, i) => [
+          b.grows && <Space key={`from${i}`} id={`from${i}`} at={[w / 2, b.grows === "down" ? ys[i] : ys[i] + b.h]} />,
+          b.grows && <Space key={`to${i}`} id={`to${i}`} at={[w / 2, b.grows === "down" ? ys[i] + GROWTH_ARROW : ys[i] + b.h - GROWTH_ARROW]} />,
+        ])}
+        <Text text="low addresses" size="note" mono muted at={[0, bottom + 6]} anchor="nw" />
+      </Canvas>
+      {MEMORY.map((b, i) => b.grows && <Edge key={i} from={`from${i}`} to={`to${i}`} route="straight" tone={b.tone} />)}
+    </Diagram>
+  );
+}
+
+/** A `Text` centred over the span of `w` at `x`, measured at its own weight so bold titles centre too. */
+const centredText = (text: string, x: number, w: number, y: number, props: { size?: "note"; mono?: boolean; muted?: boolean; tone?: Tone; weight?: 600 } = {}) => {
+  const px = (props.size === "note" ? FONT.note : FONT.label) - (props.mono ? 0.5 : 0);
+  return <Text key={text} text={text} {...props} at={[x + (w - measure(text, px, { mono: props.mono, weight: props.weight })) / 2, y]} anchor="nw" />;
+};
+const columnTitle = (text: string, x: number, w: number) => centredText(text, x, w, 0, { weight: 600 });
+/** Column top under a title, and under a title plus a "high addresses" note. */
+const TITLED_TOP = LABEL_H + 8;
+const NOTED_TOP = TITLED_TOP + NOTE_H + 6;
+
+const NX_COLUMNS: { key: string; title: string; stackPerm: string; result: string; tone?: Tone }[] = [
+  { key: "off", title: "NX disabled", stackPerm: "rwx", result: "stack code runs" },
+  { key: "on", title: "NX enabled", stackPerm: "rw-", result: "fault: stack is not executable", tone: "red" },
+];
+
+/** `rip` reaches the stack in both columns; only the writable, non-executable stack faults. */
+export function NxDiagram() {
+  const w = textW("fault: stack is not executable", "note") + 12;
+  const ripW = textW("rip", "label", true);
+  const sx = ripW + POINTER_GAP;
+  const stackH = 40;
+  return (
+    <Diagram caption="NX removes execute permission from writable memory.">
+      <Row gap={24} align="start" wrap>
+        {NX_COLUMNS.map((c) => {
+          const { elements, ys, bottom } = placeBands(
+            [
+              { label: "stack", perm: c.stackPerm, h: stackH, tone: "blue" },
+              { h: 28 },
+              { label: ".data", perm: "rw-", h: 30, tone: "purple" },
+              { label: ".text", perm: "r-x", h: 30, tone: "purple" },
+            ],
+            sx,
+            TITLED_TOP,
+            w,
+          );
+          return (
+            <Canvas key={c.key}>
+              {columnTitle(c.title, sx, w)}
+              <Text text="rip" mono at={[0, middle(ys[0], stackH, LABEL_H)]} anchor="nw" />
+              <Space id={`${c.key}-rip`} at={[ripW + 4, ys[0] + stackH / 2]} />
+              <Space id={`${c.key}-stack`} at={[sx, ys[0] + stackH / 2]} />
+              {elements}
+              {centredText(c.result, sx, w, bottom + 8, { size: "note", muted: !c.tone, tone: c.tone })}
+            </Canvas>
+          );
+        })}
+      </Row>
+      {NX_COLUMNS.map((c) => (
+        <Edge key={c.key} from={`${c.key}-rip`} to={`${c.key}-stack`} route="straight" tone={c.tone} />
+      ))}
+    </Diagram>
+  );
+}
+
+const CANARY_SLOT_H = 32;
+const CANARY_COLUMNS: { key: string; title: string; slots: Band[]; result: string; overflow?: boolean }[] = [
+  {
+    key: "intact",
+    title: "No overflow",
+    slots: [
+      { label: "return address", h: CANARY_SLOT_H, tone: "blue" },
+      { label: "saved rbp", h: CANARY_SLOT_H, tone: "blue" },
+      { label: "canary", h: CANARY_SLOT_H, tone: "teal" },
+      { label: "local buffer", h: CANARY_SLOT_H, tone: "blue" },
+    ],
+    result: "canary matches: ret runs",
+  },
+  {
+    key: "overflow",
+    title: "Overflow",
+    slots: ["return address", "saved rbp", "canary", "local buffer"].map((label) => ({ label, h: CANARY_SLOT_H, tone: "red" })),
+    result: "canary changed: program terminates",
+    overflow: true,
+  },
+];
+
+/** A linear overflow runs upward from the buffer, so it changes the canary before it reaches the return address. */
+export function StackCanaryDiagram() {
+  const w = textW("canary changed: program terminates", "note") + 12;
+  return (
+    <Diagram caption="The canary sits between the local buffer and the saved control data, so a linear overflow overwrites it first.">
+      <Row gap={24} align="start" wrap>
+        {CANARY_COLUMNS.map((c) => {
+          const { elements, ys, bottom } = placeBands(c.slots, 0, NOTED_TOP, w);
+          return (
+            <Canvas key={c.key}>
+              {columnTitle(c.title, 0, w)}
+              <Text text="high addresses" size="note" mono muted at={[0, TITLED_TOP]} anchor="nw" />
+              {elements}
+              {c.overflow && <Space id="input-from" at={[w, ys[3] + CANARY_SLOT_H / 2]} />}
+              {c.overflow && <Space id="input-to" at={[w, ys[0] + CANARY_SLOT_H / 2]} />}
+              <Text text="low addresses" size="note" mono muted at={[0, bottom + 6]} anchor="nw" />
+              {centredText(c.result, 0, w, bottom + 6 + NOTE_H + 8, { size: "note", muted: !c.overflow, tone: c.overflow ? "red" : undefined })}
+            </Canvas>
+          );
+        })}
+      </Row>
+      <Edge from="input-from" to="input-to" label="input" route="ortho" fromSide="right" toSide="right" tone="red" />
+    </Diagram>
+  );
+}
+
+const PIE_BAND_H = 92;
+const PIE_FUNCTION_Y = 22;
+const PIE_COLUMNS: { key: string; title: string; above: number; below: number; base: string; func: string }[] = [
+  { key: "fixed", title: "No PIE", above: 130, below: 18, base: "base 0x400000", func: "func 0x4011d6" },
+  { key: "run1", title: "PIE, run 1", above: 74, below: 74, base: "base 0x555555554000", func: "func 0x5555555551d6" },
+  { key: "run2", title: "PIE, run 2", above: 18, below: 130, base: "base 0x55a431233000", func: "func 0x55a4312341d6" },
+];
+
+/** The executable moves as one block: the base changes per run, and the function keeps its offset above the base. */
+export function PieDiagram() {
+  const w = textW("base 0x555555554000", "note", true) + 16;
+  const arrowX = w - 16;
+  const offset = "+0x11d6";
+  return (
+    <Diagram caption="The base changes between PIE runs. The offset of the function from the base stays 0x11d6.">
+      <Row gap={16} align="start" wrap>
+        {PIE_COLUMNS.map((c) => {
+          const { elements, ys, bottom } = placeBands(
+            [{ h: c.above }, { label: "executable", h: PIE_BAND_H, tone: "purple" }, { h: c.below }],
+            0,
+            TITLED_TOP,
+            w,
+          );
+          const funcY = ys[1] + PIE_FUNCTION_Y;
+          return (
+            <Canvas key={c.key}>
+              {columnTitle(c.title, 0, w)}
+              {elements}
+              <Path points={[[0, funcY], [w, funcY]]} tone="purple" thin />
+              {centredText("function", 0, w, funcY - NOTE_H - 2, { size: "note", mono: true, tone: "purple" })}
+              <Text text={offset} size="note" mono tone="purple" at={[arrowX - 8 - textW(offset, "note", true), ys[1] + PIE_BAND_H - NOTE_H - 6]} anchor="nw" />
+              <Space id={`${c.key}-base`} at={[arrowX, ys[1] + PIE_BAND_H]} />
+              <Space id={`${c.key}-func`} at={[arrowX, funcY]} />
+              {centredText(c.base, 0, w, bottom + 8, { size: "note", mono: true })}
+              {centredText(c.func, 0, w, bottom + 8 + NOTE_H + 2, { size: "note", mono: true })}
+            </Canvas>
+          );
+        })}
+      </Row>
+      {PIE_COLUMNS.map((c) => (
+        <Edge key={c.key} from={`${c.key}-base`} to={`${c.key}-func`} route="straight" tone="purple" />
+      ))}
+    </Diagram>
+  );
+}
+
+const ASLR_BAND_H = 34;
+/** Free space above each region and below the last; both runs sum to 184 so the columns end level. */
+const ASLR_COLUMNS: { title: string; free: [number, number, number, number, number] }[] = [
+  { title: "Run 1", free: [14, 28, 62, 18, 62] },
+  { title: "Run 2", free: [46, 50, 36, 30, 22] },
+];
+const ASLR_REGIONS: Band[] = [
+  { label: "stack", h: ASLR_BAND_H, tone: "blue" },
+  { label: "shared libraries", h: ASLR_BAND_H, tone: "teal" },
+  { label: "heap", h: ASLR_BAND_H, tone: "green" },
+  { label: "PIE executable", h: ASLR_BAND_H, tone: "purple" },
+];
+
+/** Every region moves between runs, while their order stays fixed. */
+export function AslrDiagram() {
+  const w = textW("shared libraries", "label", true) + 48;
+  return (
+    <Diagram caption="Each run places every region at a new address. The order of the regions stays the same.">
+      <Row gap={32} align="start" wrap>
+        {ASLR_COLUMNS.map((c) => {
+          const bands = c.free.flatMap((h, i): Band[] => (ASLR_REGIONS[i] ? [{ h }, ASLR_REGIONS[i]] : [{ h }]));
+          const { elements, bottom } = placeBands(bands, 0, NOTED_TOP, w);
+          return (
+            <Canvas key={c.title}>
+              {columnTitle(c.title, 0, w)}
+              <Text text="high addresses" size="note" mono muted at={[0, TITLED_TOP]} anchor="nw" />
+              {elements}
+              <Text text="low addresses" size="note" mono muted at={[0, bottom + 6]} anchor="nw" />
+            </Canvas>
+          );
+        })}
+      </Row>
+    </Diagram>
+  );
+}
+
+const relroBand = (label: string, perm: "rw-" | "r--", h = 30): Band => ({ label, perm, h, tone: perm === "rw-" ? "red" : "purple" });
+const RELRO_COLUMNS: { title: string; bands: Band[] }[] = [
+  { title: "No RELRO", bands: [relroBand(".dynamic", "rw-"), relroBand(".got", "rw-"), relroBand(".got.plt", "rw-")] },
+  { title: "Partial RELRO", bands: [relroBand(".dynamic", "r--"), relroBand(".got", "r--"), relroBand(".got.plt", "rw-")] },
+  { title: "Full RELRO", bands: [relroBand(".dynamic", "r--"), relroBand(".got", "r--", 60)] },
+];
+
+/** Each RELRO level leaves fewer dynamic-linking structures writable. */
+export function RelroDiagram() {
+  const w = textW(".got.plt", "label", true) + textW("rw-", "label", true) + 2 * BAND_PAD + 24;
+  return (
+    <Diagram caption="Permissions after the loader finishes relocation. Full RELRO merges .got.plt into .got.">
+      <Row gap={24} align="start" wrap>
+        {RELRO_COLUMNS.map((c) => (
+          <Canvas key={c.title}>
+            {columnTitle(c.title, 0, w)}
+            {placeBands(c.bands, 0, TITLED_TOP, w).elements}
+          </Canvas>
+        ))}
+      </Row>
+    </Diagram>
+  );
+}
+
+const CALLER: Slot = { label: "caller data" };
+const UNUSED: Slot = { label: "unused", state: "placeholder" };
+const ALIGN_STATES: { key: string; title: string; slots: Slot[]; rsp: number; address: string; mod: string }[] = [
+  { key: "before", title: "Before call foo", slots: [CALLER, UNUSED, UNUSED], rsp: 0, address: "rsp = 0x1000", mod: "rsp % 16 = 0" },
+  { key: "call", title: "After call foo", slots: [CALLER, { label: "return address", state: "active" }, UNUSED], rsp: 1, address: "rsp = 0x0ff8", mod: "rsp % 16 = 8" },
+  { key: "push", title: "After push rbp in foo", slots: [CALLER, { label: "return address" }, { label: "saved rbp", state: "active" }], rsp: 2, address: "rsp = 0x0ff0", mod: "rsp % 16 = 0" },
+];
+
+/** Each 8-byte push moves rsp down one slot, so `rsp % 16` alternates between 0 and 8. */
+export function StackAlignmentDiagram() {
+  const titleW = Math.max(...ALIGN_STATES.map((s) => textW(s.title, "label")));
+  const w = Math.max(slotW(ALIGN_STATES.flatMap((s) => s.slots)), titleW);
+  const sx = textW("rsp", "label", true) + POINTER_GAP;
+  const top = LABEL_H + 8;
+  const notesY = top + slotY(3) + 6;
+  const height = notesY + NOTE_H + 2 + LABEL_H;
+  const pillW = textW("rsp % 16 = 0", "label", true) + 2 * NODE.padX;
+  const toggleGap = 216;
+  const states = ALIGN_STATES.map((s) => (
+    <Canvas key={s.key}>
+      <Text text={s.title} weight={600} at={[sx + (w - textW(s.title, "label")) / 2, 0]} anchor="nw" />
+      <Text id={`${s.key}-rsp`} text="rsp" mono at={[0, top + slotY(s.rsp) + (SLOT_H - LABEL_H) / 2]} anchor="nw" />
+      {s.slots.map((slot, i) => (
+        <Node key={i} id={`${s.key}-${i}`} title={slot.label} state={slot.state} at={[sx, top + slotY(i)]} anchor="nw" w={w} h={SLOT_H} />
+      ))}
+      <Text text={s.address} size="note" mono muted at={[sx + (w - textW(s.address, "note", true)) / 2, notesY]} anchor="nw" />
+      <Text text={s.mod} mono weight={600} at={[sx + (w - textW(s.mod, "label", true)) / 2, notesY + NOTE_H + 2]} anchor="nw" />
+    </Canvas>
+  ));
+  const pointers = ALIGN_STATES.map((s) => <Edge key={s.key} from={`${s.key}-rsp`} to={`${s.key}-${s.rsp}`} route="straight" />);
+  const toggle = (
+    <Canvas>
+      <Node id="mod0" title="rsp % 16 = 0" mono shape="pill" at={[0, 0]} anchor="nw" w={pillW} />
+      <Node id="mod8" title="rsp % 16 = 8" mono shape="pill" at={[pillW + toggleGap, 0]} anchor="nw" w={pillW} />
+    </Canvas>
+  );
+  const toggleEdge = <Edge from="mod0" to="mod8" label="every 8-byte push or ret" head="both" route="straight" />;
+  const axisW = textW("addresses", "note");
+  const axis = (
+    <Canvas>
+      <Text text="higher" size="note" muted at={[(axisW - textW("higher", "note")) / 2, 0]} anchor="nw" />
+      <Text id="axis-high" text="addresses" size="note" muted at={[0, NOTE_H]} anchor="nw" />
+      <Text id="axis-low" text="lower" size="note" muted at={[(axisW - textW("lower", "note")) / 2, height - 2 * NOTE_H]} anchor="nw" />
+      <Text text="addresses" size="note" muted at={[0, height - NOTE_H]} anchor="nw" />
+    </Canvas>
+  );
+  return (
+    <Diagram
+      caption="The stack grows downward. Each slot holds 8 bytes."
+      narrowChildren={
+        <>
+          <Col gap={16}>{states}</Col>
+          {toggle}
+          {pointers}
+          {toggleEdge}
+        </>
+      }
+    >
+      <Row gap={16} align="start">
+        {axis}
+        {states}
+      </Row>
+      {toggle}
+      {pointers}
+      {toggleEdge}
+      <Edge from="axis-high" to="axis-low" route="straight" fromSide="bottom" toSide="top" />
     </Diagram>
   );
 }

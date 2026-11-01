@@ -97,7 +97,7 @@ import { networkFigures } from "@/components/NetworkFigures";
 import { MomentumSchema, ProjectionSchema, SgdNoiseSchema, StepSizeSchema, SubgradientSchema } from "@/components/OptimizationSchemas";
 import { packetFigures } from "@/components/PacketFigures";
 import { PageLayout } from "@/components/PageLayout";
-import { AddressVsDereferenceDiagram, StackCallDiagram, StackFrameDiagram } from "@/components/PwnSchemas";
+import { AddressVsDereferenceDiagram, AslrDiagram, NxDiagram, PieDiagram, ProcessMemoryLayoutDiagram, RelroDiagram, StackAlignmentDiagram, StackCallDiagram, StackCanaryDiagram, StackFrameDiagram } from "@/components/PwnSchemas";
 import { QueryTree } from "@/components/QueryTree";
 import {
   ExecutionModelSchema,
@@ -223,7 +223,14 @@ export function useMDXComponents(
     ScheduleEquivalenceSchema,
     SolicitedNodeSchema,
     SortPasses,
+    AslrDiagram,
+    NxDiagram,
+    PieDiagram,
+    ProcessMemoryLayoutDiagram,
+    RelroDiagram,
+    StackAlignmentDiagram,
     StackCallDiagram,
+    StackCanaryDiagram,
     StackFrameDiagram,
     SpanningTreeSchema,
     Split,
