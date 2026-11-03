@@ -182,11 +182,15 @@
  "machine-learning/l2.mdx": [
   "3ee35617316b6cc8",
   "44346b3092fc17c3",
-  "27e6bf3280c29a41",
+  "a4c9ca243efd0072",
   "485670bbd0f911ca",
-  "583c0b0af3e1ffcd",
-  "7f7ac590fd71bec2",
-  "40aef62b379a4b02"
+  "830561794d5a5d20",
+  "d52b03a410663542",
+  "5e4a993c38d79914",
+  "bcfd9b8af7af255c",
+  "27e6bf3280c29a41",
+  "9abd7a69c117735c",
+  "dafd37f652668fee"
  ],
  "theory-of-computation/l1.mdx": [
   "dc5bb2d8c3d4c96a",
@@ -247,6 +251,14 @@
  ],
  "theory-of-computation/summary.mdx": [
   "2ea61d25ae842275"
+ ],
+ "writing/monster.mdx": [
+  "41242465ad3fe8eb",
+  "c81d5810b9798cbd",
+  "ebfc873821b0df6c",
+  "34a1862889d908de",
+  "ae88244a07a425b4",
+  "4d35d1193cfc635b"
  ],
  "writing/reve.mdx": [
   "6314a6ef533373c6",

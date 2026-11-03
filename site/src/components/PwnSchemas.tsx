@@ -474,3 +474,86 @@ export function StackAlignmentDiagram() {
     </Diagram>
   );
 }
+
+const OFFSET_BANDS: (Band & { bytes: string })[] = [
+  { bytes: "72–79", label: "saved return address", h: 36, tone: "red" },
+  { bytes: "64–71", label: "saved rbp", h: 36 },
+  { bytes: "0–63", label: "buffer, 64 bytes", h: 88, tone: "blue" },
+];
+
+/** Input offsets increase upward, opposite to stack growth. Bands are schematic, not to scale. */
+export function OverflowOffsetsDiagram() {
+  const w = textW("saved return address", "label", true) + 2 * BAND_PAD;
+  const leftW = textW("input bytes", "note");
+  const sx = leftW + 12;
+  const arrowX = sx + w + 24;
+  const top = NOTE_H + 8;
+  const { elements, ys, bottom } = placeBands(OFFSET_BANDS, sx, top, w);
+  const growY = bottom + 12;
+  return (
+    <Diagram caption="Byte ranges start at buffer[0]. The saved return address starts at offset 72. Sizes are schematic.">
+      <Canvas>
+        <Text text="input bytes" size="note" muted at={[0, 0]} anchor="nw" />
+        <Text text="high addresses" size="note" mono muted at={[sx, 0]} anchor="nw" />
+        {elements}
+        {OFFSET_BANDS.map((b, i) => (
+          <Text key={b.bytes} text={b.bytes} size="note" mono muted at={[leftW - textW(b.bytes, "note", true), middle(ys[i], b.h, NOTE_H)]} anchor="nw" />
+        ))}
+        <Space id="write-from" at={[arrowX, bottom]} />
+        <Space id="write-to" at={[arrowX, top]} />
+        <Text text={"input\nwrites"} size="note" tone="red" at={[arrowX + 10, top + 60]} anchor="nw" />
+        <Space id="grow-from" at={[sx + w / 2, growY]} />
+        <Space id="grow-to" at={[sx + w / 2, growY + GROWTH_ARROW]} />
+        <Text text="stack grows" size="note" tone="blue" at={[sx + w / 2 + 12, growY + 8]} anchor="nw" />
+        <Text text="low addresses" size="note" mono muted at={[sx, growY + GROWTH_ARROW + 6]} anchor="nw" />
+      </Canvas>
+      <Edge from="write-from" to="write-to" route="straight" tone="red" />
+      <Edge from="grow-from" to="grow-to" route="straight" tone="blue" />
+    </Diagram>
+  );
+}
+
+/** All stages keep high addresses on top, matching the other stack figures. */
+const RET_SLOTS: Slot[] = [
+  { label: "next slot", state: "placeholder" },
+  { label: "&win", mono: true, tone: "purple" },
+  { label: "&ret gadget", mono: true, tone: "purple" },
+];
+const RET_STAGES = [
+  { key: "before", title: "1. At vuln’s ret", rip: "vuln: ret", rsp: 2, mod: "8", advance: "+0 bytes" },
+  { key: "gadget", title: "2. At ret gadget", rip: "gadget: ret", rsp: 1, mod: "0", advance: "+8 bytes" },
+  { key: "win", title: "3. At win", rip: "win", rsp: 0, mod: "8", advance: "+16 bytes" },
+];
+
+/** Each ret reads a code address from the stack and advances rsp toward higher addresses. */
+export function RetChainDiagram() {
+  const w = slotW(RET_SLOTS);
+  const rspX = w + POINTER_GAP;
+  const ripY = TITLED_TOP;
+  const addressY = ripY + LABEL_H + 12;
+  const slotsY = addressY + NOTE_H + 6;
+  const bottom = slotsY + slotY(RET_SLOTS.length - 1) + SLOT_H;
+  return (
+    <Diagram caption="Each ret consumes one 8-byte address. Faded slots are consumed; their bytes remain in memory.">
+      <Row gap={24} align="start" wrap>
+        {RET_STAGES.map((s) => (
+          <Canvas key={s.key}>
+            {columnTitle(s.title, 0, w)}
+            <Text text={`rip = ${s.rip}`} size="note" mono tone="purple" at={[0, ripY]} anchor="nw" />
+            <Text text="high addresses" size="note" muted at={[0, addressY]} anchor="nw" />
+            {RET_SLOTS.map((slot, i) => (
+              <Node key={i} id={`${s.key}-${i}`} title={slot.label} mono={slot.mono} tone={slot.tone} state={i > s.rsp ? "ghost" : slot.state} at={[0, slotsY + slotY(i)]} anchor="nw" w={w} h={SLOT_H} />
+            ))}
+            <Text id={`${s.key}-rsp`} text="rsp" mono tone="blue" at={[rspX, slotsY + slotY(s.rsp) + (SLOT_H - LABEL_H) / 2]} anchor="nw" />
+            <Text text="low addresses" size="note" muted at={[0, bottom + 6]} anchor="nw" />
+            <Text text={`rsp: ${s.advance}`} size="note" mono at={[0, bottom + NOTE_H + 18]} anchor="nw" />
+            <Text text={`rsp % 16 = ${s.mod}`} size="note" mono weight={s.key === "win" ? 600 : undefined} at={[0, bottom + 2 * NOTE_H + 22]} anchor="nw" />
+          </Canvas>
+        ))}
+      </Row>
+      {RET_STAGES.map((s) => (
+        <Edge key={s.key} from={`${s.key}-rsp`} to={`${s.key}-${s.rsp}`} route="straight" tone="blue" />
+      ))}
+    </Diagram>
+  );
+}

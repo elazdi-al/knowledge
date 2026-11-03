@@ -1,0 +1,448 @@
+---
+title: "monster"
+created: 2026-11-03
+---
+
+**monster.** monster is one server that two EPFL students own and run in Lausanne.\
+It hosts websites, runs LLMs and boots CTF machines.\
+It also runs CI jobs, scrapers and agents around the clock.
+
+The plan fits in one sentence.\
+monster buys what is expensive to rent, and it rents what is cheap.
+
+<MonsterPlanDiagram />
+
+All prices come from Swiss and EU listings on 3 November 2026.\
+Euro and dollar prices use the ECB rates of 2 November 2026:\
+1 EUR is 0.92 CHF, and 1 USD is 0.82 CHF.
+
+---
+
+## What to Buy
+
+### Memory Decides the Platform
+
+Server memory is scarce in 2026.\
+New DDR5 server memory costs about seven times more per GB than used DDR4.
+
+| Used server memory on tutti.ch | CHF per GB | 512 GB costs |
+|---|---|---|
+| DDR4 RDIMM | about 4 | about CHF 2,000 |
+| DDR5 RDIMM | about 27 | about CHF 14,000 |
+
+monster therefore uses an older platform that takes DDR4.
+
+**SP3.** SP3 is the AMD socket of the EPYC 7002 and 7003 server CPUs.\
+Every SP3 CPU has eight memory channels and 128 PCIe 4.0 lanes.
+
+Eight channels let big models run fast from memory on the CPU.\
+128 lanes give four GPUs a full-speed slot each.\
+The CPUs are cheap too: a used 32-core EPYC 7532 costs about CHF 260–400.
+
+The newer SP5 socket needs DDR5, so it waits until DDR5 gets cheaper.\
+Desktop Ryzen boards have two memory channels and too few lanes for four GPUs.
+
+**Common mistake.** Many buyers assume that any cheap EPYC fits any SP3 board.\
+Many of the cheapest listings say "Dell Locked", and such a chip boots only in Dell boards.\
+An unlocked chip costs 1.5 to 2 times more, and it is the one to buy.
+
+### The GPU Is a Used RTX 3090
+
+**RTX 3090.** The RTX 3090 is an NVIDIA GPU from 2020 with 24 GB of fast memory.\
+It runs the full CUDA toolchain for training, including bf16 and FlashAttention-2.
+
+A used 3090 costs about CHF 1,250 on tutti.ch.\
+No other card that trains well costs less per GB.\
+A card from Germany costs the same after import, and nobody can test it first.\
+The price still rises, so the first card is cheapest now.
+
+| Other card | Price, CHF | Why not now |
+|---|---|---|
+| RTX 4090, used | 2,400–2,900 | twice the price for the same 24 GB |
+| RTX 5090, new | from 5,049 | the worst value per GB |
+| Radeon AI PRO R9700, new | from 1,596 | 32 GB with a warranty, but AMD's ROCm instead of CUDA |
+| RTX PRO 6000, new | from 13,305 | 96 GB, the upgrade once prices fall |
+
+Old datacenter cards are cheap, but they cannot train modern models.\
+The Tesla P40 and V100 lack bf16 and FlashAttention-2.\
+AMD's ROCm no longer supports the MI50.
+
+`nvidia-smi -pl 280` limits a 3090 to 280 W.\
+The card then loses under 1% of its speed and runs much cooler.
+
+### Three Tiers on One Board
+
+monster grows in three steps.\
+Every step keeps the same Gigabyte MZ32-AR0 motherboard, revision 3.0.
+
+<MonsterTiersDiagram />
+
+| Tier | What it runs |
+|---|---|
+| 1 | models up to 32B in 4-bit, light finetuning of 7B–14B models, dozens of CTF containers, CI and scrapers |
+| 2 | 70B models, light finetuning of a 70B model, and huge MoE models from RAM at 4–6 tokens per second |
+| 3 | fast serving for many users and training across four GPUs |
+
+**Recipe: buying Tier 1.**
+
+1. Buy the MZ32-AR0 board and an EPYC 7532 on eBay.de, for about CHF 1,060 with import.
+2. Buy four 32 GB DDR4 RDIMMs on tutti.ch, for about CHF 600.
+3. Buy one RTX 3090 on tutti.ch, for about CHF 1,250.\
+   Test it at pickup with a stress test such as `gpu-burn`.
+4. Buy a used 1600 W power supply for about CHF 140.\
+   It is sized for the final number of GPUs.
+5. Add a tower or open frame with large, slow fans, a CPU cooler and a boot SSD, for about CHF 250.
+
+Tier 2 adds 512 GB of RAM, a second 3090 and two enterprise NVMe drives.\
+Tier 3 adds a 64-core EPYC 7B13, two more 3090s, riser cables and a second power supply.\
+Four GPUs draw up to 1.9 kW, which is more than one desktop power supply delivers.
+
+### A Small ARM Box on the Side
+
+An ARM server costs too much.\
+The Ampere Altra board alone costs about CHF 950, and the system idles at 72 W.
+
+A used Raspberry Pi 5 with 8 GB costs CHF 150.\
+It runs native ARM virtual machines at full speed.\
+A used Mac mini M4 handles heavier ARM builds from CHF 525.
+
+### Where to Buy
+
+- **tutti.ch** sells RAM, GPUs and power supplies.\
+  There are no import fees, and the buyer tests each part before paying.
+- **eBay.de** sells the cheapest CPUs and boards.\
+  An import pays 8.1% VAT plus the Swiss Post fee, so it costs about 13% more.
+- **EPFL labs** sometimes retire whole servers.\
+  Asking them directly costs nothing.
+
+---
+
+## Where It Runs
+
+monster runs at home, in a private flat with an Init7 fibre line.\
+Every other place fails:
+
+| Place | Problem |
+|---|---|
+| A rented rack in a data centre | CHF 535–858 a month for a Tier 3 box, against CHF 207 at home |
+| The EPFL campus | the IT rules allow private use only at minimal cost |
+| FMEL student housing | the rent includes electricity, so a 24/7 server causes disputes |
+
+### Electricity
+
+Electricity in Lausanne costs 32.1 ct per kWh, with all fees and taxes.\
+At that price, one watt running all year costs CHF 2.81.
+
+| Average load | CHF per month |
+|---|---|
+| Tier 1, about 200 W | 47 |
+| Tier 2, about 400 W | 94 |
+| Tier 3, about 800 W | 187 |
+
+**Common mistake.** The tariff sheet of SIL, Lausanne's utility, shows 24.55 ct per kWh.\
+Many people read that number as the price.\
+It covers only energy and the grid, and federal and local levies add 7.6 ct to every kWh.
+
+Ecublens, Renens and Chavannes, next to EPFL, pay 29.7–31.3 ct per kWh.\
+Geneva and Zurich pay 24.5 ct.
+
+### Internet
+
+**CGNAT.** Carrier-grade NAT (CGNAT) is a NAT that the ISP runs, so many customers share one public IP address.\
+A server behind CGNAT cannot accept connections from the internet.
+
+Init7 Fiber7 is the right line.\
+It costs CHF 64.75 a month for 1 to 25 Gbit/s in both directions.\
+A fixed IPv4 address costs about CHF 20 a month more.\
+Some buildings near Lausanne still have only copper, so the address check comes first.
+
+Salt Fiber is cheaper, but it uses CGNAT unless the customer pays CHF 9.95 a month for a static IP.\
+Swisscom's terms require its consent before a customer hosts services for others.
+
+### House Rules
+
+- **Quiet at night.** Lausanne's quiet hours run from 22h to 6h.\
+  A tower with large, slow fans stays quiet, and a rack server does not.
+- **Own circuit.** A Swiss 10 A socket delivers about 2.3 kW.\
+  Tier 3 comes close, so it gets its own circuit.
+- **Fair bill.** A plug-in energy meter bills the server's power to its owners, not to the flatmates.
+
+---
+
+## How It Runs
+
+**Proxmox VE.** Proxmox VE is a free hypervisor that runs virtual machines and containers on one host.\
+Version 9.2 manages them from a web page and stores them on ZFS.
+
+**Zone.** A zone is one VM or container on its own network, so it cannot reach the other zones.
+
+monster gives each kind of work its own zone.\
+The internet reaches only three of them:
+
+<MonsterZonesDiagram />
+
+Websites go out through Cloudflare Tunnel, so the flat opens no web port.\
+CTF challenges use the fixed IPv4, because players connect over raw TCP.\
+Admins reach every zone through the Headscale VPN.
+
+Incus 7.0 is a good alternative to Proxmox for people who prefer scripts to a web page.
+
+### Any CPU Architecture
+
+**Common mistake.** Many people expect Proxmox to run ARM or MIPS virtual machines.\
+Neither Proxmox nor Incus can.\
+monster runs those machines with QEMU, inside a separate emulation VM.
+
+monster uses the cheapest tool that fits each challenge:
+
+1. qemu-user runs one foreign program directly.\
+   It starts in milliseconds and fits most pwn and reversing challenges.
+2. Firecracker boots a small x86 or ARM virtual machine from a snapshot in about 28 ms.\
+   Each CI job and each agent gets a fresh one.
+3. QEMU system emulation runs a whole foreign machine, such as a MIPS router.\
+   It runs 8 to 12 times slower than native, so only kernel and firmware challenges use it.
+4. The Raspberry Pi runs native ARM virtual machines at full speed.
+
+CTFd with chall-manager gives each team its own copy of a challenge.
+
+### LLMs
+
+| Job | Tool |
+|---|---|
+| Serving many users | vLLM |
+| Running GGUF models, also from RAM | llama.cpp |
+| Finetuning | Unsloth, axolotl |
+| Quantizing | llm-compressor, GGUF imatrix |
+| One API for every agent | LiteLLM |
+
+The 3090 has no FP8 hardware, so 4-bit integer formats work best on it.
+
+### Isolation Rules
+
+- **One GPU per tenant.** A tenant gets a whole GPU, passed through to its own VM.\
+  A consumer GPU shared between strangers gives no memory isolation.
+- **One VM per CI job.** A runner for public code starts fresh for each job and is then deleted.\
+  In 2024, researchers took over PyTorch's runners with one pull request.
+- **Scrapers apart.** Scrapers run in sandboxes and leave through a separate IP address.\
+  The home address stays clean.
+
+---
+
+## Own or Rent
+
+<MonsterHourCostDiagram />
+
+Running an owned 3090 costs about CHF 0.11 an hour in electricity.\
+Renting one on Vast.ai costs CHF 0.16.\
+Owning a GPU therefore saves almost nothing per hour.
+
+Owning wins for work that runs all the time.\
+monster pays for itself against a rented dedicated server of the same size:
+
+| monster | Same size rented at Hetzner | Payback |
+|---|---|---|
+| Tier 1 | GEX45 with a 24 GB GPU, CHF 197 a month | about 24 months |
+| Tier 2 | two GEX45, CHF 393 a month | about 23 months |
+| Tier 3 | GEX131 with a 96 GB GPU, CHF 1,378 a month | about 8 months |
+
+Big training runs go to rented H100s.\
+The price of one 3090 buys about 635 H100 hours, and an H100 does about 6.5 times more work.
+
+Rental prices rise too.\
+Vast.ai's 3090 price grew by a third since August, and Hetzner raised its prices twice in 2026.
+
+Websites alone never justify the box.\
+A small Hetzner ARM server costs CHF 6 a month, less than monster's idle power.
+
+### Free Compute
+
+| Program | Value | Who gets it |
+|---|---|---|
+| Azure for Students | USD 100 a year | each student |
+| GitHub Student Pack | Heroku credit, GPU hours, domains | each student |
+| Modal | USD 30 a month | any account |
+| Infomaniak | CHF 300 for three months | new customers |
+| Google TPU Research Cloud | free TPUs | research that gets published |
+| GitHub Actions | free runners, including ARM | public repos |
+| SCITAS and RCP | EPFL GPUs | through a supervisor or a lab |
+
+Together the student offers give about CHF 1,600 in the first year.\
+A company unlocks about CHF 12,000–16,000 more from AWS, Google, Cloudflare and NVIDIA.\
+These credits expire within a year, so they pay for burst training.
+
+---
+
+## Making It Pay
+
+### Renting GPUs Out Loses Money
+
+**Vast.ai.** Vast.ai is a marketplace where owners rent out GPUs by the hour.\
+The owner keeps about 80% of the price.
+
+At Lausanne's electricity price, a rented-out card earns very little:
+
+| Card | Net CHF a month, rented 55% of the time |
+|---|---|
+| RTX 3090 | −13 to −1 |
+| RTX 4090 | +41 |
+| RTX 5090 | +69 |
+
+These numbers come before depreciation and tax.\
+Vast.ai also needs a separate bare-metal Ubuntu machine, a public IPv4 and a 500 Mbps line.\
+A rented card serves nobody else, not even its owner.\
+RunPod no longer accepts small hosts, and Salad pays even less.\
+monster therefore rents nothing out on these marketplaces.
+
+### What to Sell
+
+monster earns more by selling work and trust than by selling raw GPU hours:
+
+1. **GPU time for EPFL students.** A whole 3090 in a private VM costs CHF 0.30 an hour, power included.\
+   SCITAS keeps master students off its Kuma cluster, and supervised accounts end each semester.
+2. **Hosting for student associations.** A managed VM or site costs CHF 25 a month.\
+   EPFL offers associations only a free WordPress site.
+3. **CTF infrastructure.** Clubs and events such as polygl0ts get challenge hosting.\
+   This work brings reputation and sponsors more than cash.
+4. **AI projects for Swiss SMEs.** A private RAG or LLM setup costs about CHF 3,000 per project.\
+   Half of Swiss firms call Swiss or EU data processing critical, and monster serves as the demo machine.
+
+Selling tokens fails.\
+Safe Swiss Cloud already sells the Swiss model Apertus 70B cheaply, with full compliance.\
+Selling CI minutes or scraping needs busy machines and brings legal risk.
+
+### When It Pays Back
+
+**Benefit.** The benefit is the monthly revenue plus the cloud bills that own use avoids.
+
+$$
+\text{payback in months} = \frac{\text{price of the tier}}{\text{benefit} - \text{running cost per month}}
+$$
+
+The running cost covers electricity, a fixed IPv4 for CHF 20 and off-site backup for about CHF 8.
+
+| | Tier 1 | Tier 2 | Tier 3 |
+|---|---|---|---|
+| Price | CHF 3,300 | CHF 6,770 | CHF 10,430 |
+| Running cost per month | CHF 75 | CHF 122 | CHF 215 |
+| Payback at a benefit of CHF 400 a month | 10 months | 24 months | 56 months |
+
+**Example 1. Tier 2 with real customers.**
+
+Tier 2 saves CHF 150 a month in cloud bills.\
+It sells 300 GPU hours for CHF 90 and hosts four sites for CHF 100.\
+The benefit is CHF 340 a month, so the payback takes about 31 months.\
+One CHF 3,000 project per semester adds CHF 500 a month and cuts the payback to 9 months.
+
+<MonsterBreakEvenPlot />
+
+Tier 1 pays for itself with own use and a few customers.\
+Tier 2 needs a real service.\
+Tier 3 waits until Tier 2 is busy.
+
+### Legal Setup
+
+**Simple partnership.** A simple partnership (société simple) is a written agreement between partners that needs no registration.\
+Both partners are personally liable for all its debts.
+
+monster starts as a simple partnership.\
+The contract says who owns each GPU, how the profit splits and how a partner leaves.\
+A GmbH (Sàrl) limits the liability later, but it needs CHF 20,000 of capital.
+
+- VAT and the commercial register start at CHF 100,000 of revenue.
+- Self-employed social insurance (AHV) takes 5.4% to 10% of income, and at least CHF 530 a year.
+- Hardware depreciates at 40% a year, and the depreciation lowers taxable income.
+- Swiss law gives hosts no safe harbour, so hosting for others needs terms of service and an abuse process.
+- Scraping public pages is legal, but personal data falls under the data protection act.
+
+### Permits
+
+Foreign students may work at most 15 hours a week during the semester.\
+Non-EU students must also wait six months before they work.\
+One Swiss university states that a student permit holder cannot register as self-employed.\
+A non-EU partner therefore asks the Vaud migration office (SPOP) in writing before the first invoice.
+
+### Funding
+
+Swiss grants fund science-based products, not servers.\
+Venture Kick (CHF 10,000 to start) and an EPFL Ignition grant (CHF 30,000) fit only a real product.\
+One such product is a private RAG appliance for Swiss fiduciaries, built on Apertus.
+
+### The Roadmap
+
+<MonsterRoadmapDiagram />
+
+1. **Clear the ground.** Get the permit answer, check the lease and the fibre, and claim the student credits.
+2. **Own use.** Build Tier 1 and use it for ML, CTFs, CI and scraping.\
+   Host CTFs for clubs for free, to build a name.
+3. **Paid services.** Sign the partnership contract and publish the terms.\
+   Sell GPU time and hosting, and run one RAG pilot.
+4. **A company.** Found a GmbH once business contracts need it.
+
+---
+
+## When to Re-plan
+
+- If DDR5 gets cheap again, the next upgrade moves to the SP5 platform.
+- If used 3090 prices keep rising, old cards resell well and every tier pays back sooner.
+- If monster moves to Geneva or Zurich power, renting out 4090-class cards deserves a new test.
+
+## Open Questions
+
+- The case, cooler and riser costs are estimates.
+- Init7's fixed IPv4 price comes from a search summary.
+- Nobody has tested demand for GPU time at CHF 0.30 an hour.
+- The students may already owe the CHF 530 AHV minimum as non-employed persons.
+
+## Sources
+
+- **Hardware.**
+  [tutti DDR4 RDIMM](https://www.tutti.ch/de/vi/83693933),
+  [tutti DDR5 RDIMM](https://www.tutti.ch/de/vi/83494807),
+  [tutti RTX 3090](https://www.tutti.ch/de/q/suche?query=rtx%203090),
+  [pcprice.watch 3090 prices](https://www.pcprice.watch/search/RTX3090/DE/GPU),
+  [toppreise RTX 5090](https://www.toppreise.ch/produktsuche?q=RTX+5090),
+  [toppreise R9700](https://www.toppreise.ch/produktsuche?q=Radeon+AI+PRO+R9700),
+  [toppreise RTX PRO 6000](https://www.toppreise.ch/produktsuche?q=RTX+PRO+6000+Blackwell),
+  [Gigabyte MZ32-AR0](https://gigabyte.com/bo/Enterprise/Server-Motherboard/MZ32-AR0-rev-3x),
+  [EPYC 7532](https://www.ebay.de/itm/117474932176),
+  [EPYC 7B13](https://www.ebay.de/itm/405878482266),
+  [3090 power limit](https://jeanfbrito.github.io/posts/rtx-3090-power-limit-sweet-spot/),
+  [Unsloth requirements](https://unsloth.ai/docs/get-started/fine-tuning-for-beginners/unsloth-requirements),
+  [Swiss Post import fees](https://www.post.ch/de/empfangen/importverzollung)
+- **Place.**
+  [SIL 2027 tariffs](https://www.lausanne.ch/dam/jcr:dd75382a-6c2c-4f4e-b827-4210ca5c782f/modification-tarifs-elec-2027.pdf),
+  [ElCom 2027 data](https://www.strompreis.elcom.admin.ch/api/data-export?period=2027&locale=de),
+  [Init7 Fiber7](https://www.init7.net/en/internet/fiber7/),
+  [Salt static IP](https://www.salt.ch/en/internet-tv/static-ip-addresses),
+  [Swisscom terms](https://documents.swisscom.com/product/filestore/lib/9c1cf478-4aa0-49fb-985c-13eadceabe79/bb_internet-en.pdf),
+  [Infomaniak housing](https://www.infomaniak.com/en/datacenter-housing),
+  [nine.ch colocation](https://docs.nine.ch/docs/colocation),
+  [EPFL LEX 6.1.4](https://www.epfl.ch/about/overview/wp-content/uploads/2020/01/LEX-6.1.4_EN.pdf)
+- **Software.**
+  [Proxmox roadmap](https://pve.proxmox.com/wiki/Roadmap),
+  [Incus architectures](https://linuxcontainers.org/incus/docs/main/_sources/architectures.md.txt),
+  [QEMU performance](https://www.linaro.org/blog/qemu-a-tale-of-performance-analysis/),
+  [Firecracker](https://github.com/firecracker-microvm/firecracker),
+  [chall-manager](https://github.com/ctfer-io/chall-manager),
+  [vLLM installation](https://docs.vllm.ai/en/stable/getting_started/installation/gpu/),
+  [PyTorch runner attack](https://devclass.com/2024/01/15/spotlight-on-github-self-hosted-runners-again-as-researcher-demonstrates-attack-on-pytorch-code)
+- **Renting.**
+  [Vast.ai pricing](https://vast.ai/pricing),
+  [RunPod pricing](https://www.runpod.io/pricing),
+  [Hetzner GPU servers](https://www.hetzner.com/dedicated-rootserver/matrix-gpu/),
+  [GitHub Education](https://education.github.com/pack),
+  [Modal pricing](https://modal.com/pricing),
+  [Google TRC](https://sites.research.google/trc/about/),
+  [SCITAS student accounts](https://scitas-doc.epfl.ch/accounts/student-account/)
+- **Business.**
+  [Vast.ai host setup](https://cloud.vast.ai/host/setup/),
+  [RunPod host update](https://www.runpod.io/blog/an-update-on-the-community-cloud-hosting-application-process),
+  [Safe Swiss Cloud pricing](https://safeswisscloud.com/en/private-ai/private-ai-pricing/),
+  [EY Swiss AI survey](https://www.ey.com/en_ch/newsroom/2026/05/artificial-intelligence-widely-established-in-swiss-companies-but-many-are-still-in-the-early-stages-of-scaling),
+  [SCITAS Kuma](https://scitas-doc.epfl.ch/supercomputers/kuma/),
+  [KMU simple partnership](https://www.kmu.admin.ch/de/einfache-gesellschaft-gruendung-auf-zeit),
+  [AHV leaflet 2.02](https://www.ahv-iv.ch/p/2.02.d),
+  [EPFL student work](https://www.epfl.ch/education/studies/en/financing-study/working/),
+  [Graduate Institute work rules](https://graduateinstitute.ch/career-services/work-regulations-and-other-faqs),
+  [Venture Kick](https://venturekick.ch/appform),
+  [EPFL Ignition](https://www.epfl.ch/innovation/startup/programs/ignition-grants/)

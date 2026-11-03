@@ -94,10 +94,11 @@ import {
   MinimaSchema,
 } from "@/components/MlFoundationsSchemas";
 import { networkFigures } from "@/components/NetworkFigures";
-import { MomentumSchema, ProjectionSchema, SgdNoiseSchema, StepSizeSchema, SubgradientSchema } from "@/components/OptimizationSchemas";
+import { ConvexSetsSchema, LinearizationSchema, LrScheduleSchema, MomentumSchema, ProjectionSchema, SGDSchema, SgdNoiseSchema, StepSizeSchema, SubgradientSchema } from "@/components/OptimizationSchemas";
 import { packetFigures } from "@/components/PacketFigures";
 import { PageLayout } from "@/components/PageLayout";
-import { AddressVsDereferenceDiagram, AslrDiagram, NxDiagram, PieDiagram, ProcessMemoryLayoutDiagram, RelroDiagram, StackAlignmentDiagram, StackCallDiagram, StackCanaryDiagram, StackFrameDiagram } from "@/components/PwnSchemas";
+import { AddressVsDereferenceDiagram, AslrDiagram, NxDiagram, OverflowOffsetsDiagram, PieDiagram, ProcessMemoryLayoutDiagram, RelroDiagram, RetChainDiagram, StackAlignmentDiagram, StackCallDiagram, StackCanaryDiagram, StackFrameDiagram } from "@/components/PwnSchemas";
+import { MonsterBreakEvenPlot, MonsterHourCostDiagram, MonsterPlanDiagram, MonsterRoadmapDiagram, MonsterTiersDiagram, MonsterZonesDiagram } from "@/components/MonsterSchemas";
 import { QueryTree } from "@/components/QueryTree";
 import { ReveArchitectureDiagram, ReveCursorDiagram, ReveFamiliesDiagram, ReveLineAddressesDiagram, RevePipelineDiagram, ReveSchemaDiagram } from "@/components/ReveSchemas";
 import {
@@ -162,6 +163,7 @@ export function useMDXComponents(
     DynamoSiblingsSchema,
     EncapsulationSchema,
     EpflForwardingSchema,
+    ConvexSetsSchema,
     FeatureScalingSchema,
     ERDiagram,
     ERInstanceMapping,
@@ -184,9 +186,18 @@ export function useMDXComponents(
     LinkFailureSchema,
     LongestPrefixMatchSchema,
     LoopTreeSchema,
+    LinearizationSchema,
     LossShapesSchema,
+    LrScheduleSchema,
     MomentumSchema,
+    MonsterBreakEvenPlot,
+    MonsterHourCostDiagram,
+    MonsterPlanDiagram,
+    MonsterRoadmapDiagram,
+    MonsterTiersDiagram,
+    MonsterZonesDiagram,
     ProjectionSchema,
+    SGDSchema,
     SgdNoiseSchema,
     StepSizeSchema,
     SubgradientSchema,
@@ -226,9 +237,11 @@ export function useMDXComponents(
     SortPasses,
     AslrDiagram,
     NxDiagram,
+    OverflowOffsetsDiagram,
     PieDiagram,
     ProcessMemoryLayoutDiagram,
     RelroDiagram,
+    RetChainDiagram,
     ReveArchitectureDiagram,
     ReveCursorDiagram,
     ReveFamiliesDiagram,
