@@ -6,7 +6,7 @@ import { renderMDX } from "@/lib/mdx";
 
 const NOTES = "../notes";
 // Only notes/ctf/ uses these, and git ignores that folder, so a clean checkout can't see their uses.
-const PRIVATE_FIGURES = ["AddressVsDereferenceDiagram", "AslrDiagram", "NxDiagram", "OverflowOffsetsDiagram", "PieDiagram", "ProcessMemoryLayoutDiagram", "RelroDiagram", "RetChainDiagram", "StackAlignmentDiagram", "StackCallDiagram", "StackCanaryDiagram", "StackFrameDiagram"];
+const PRIVATE_FIGURES = ["AesRoundSchema", "CbcSchema", "CfbSchema", "CtrSchema", "DiffusionSchema", "EcbPenguinSchema", "EcbSchema", "GcmSchema", "KeyExpansionSchema", "OfbSchema", "AddressVsDereferenceDiagram", "AslrDiagram", "NxDiagram", "OverflowOffsetsDiagram", "PieDiagram", "ProcessMemoryLayoutDiagram", "RelroDiagram", "RetChainDiagram", "StackAlignmentDiagram", "StackCallDiagram", "StackCanaryDiagram", "StackFrameDiagram"];
 
 const registered = [...readFileSync("src/mdx-components.tsx", "utf8").matchAll(/^ {4}([A-Z]\w+),$/gm)].map((m) => m[1]);
 if (registered.length === 0) throw new Error("no figures found in src/mdx-components.tsx");

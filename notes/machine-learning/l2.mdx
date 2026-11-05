@@ -5,665 +5,406 @@ created: 2026-10-15
 
 ## Optimization Problem
 
-Training a model is an **optimization problem**: find parameters $\theta^* \in \mathbb{R}^d$ that minimize the training loss,
+Training a model means finding parameters $w^\star\in\mathbb R^D$ that minimize the training loss: $L(w^\star)=\min_{w\in\mathbb R^D}L(w)$.
 
-$$
-L(\theta^*) = \min_{\theta \in \mathbb{R}^d} L(\theta).
-$$
+**Grid search.** A brute-force method that evaluates $L(w)$ on a predefined grid and selects the best point tested. With $D$ parameters and $K$ values per parameter, it requires $K^D$ evaluations.
 
-**Grid search.** A brute-force optimization method that evaluates the loss $L(\mathbf w)$ on a predefined grid of parameter values and returns the best point tested.
-
-If each of the $D$ parameters has $K$ possible values, grid search evaluates $K^D$ different parameter combinations.
-
-**Curse of dimensionality.** The number of grid points grows **exponentially with the number of parameters $D$**. 
-
-For example, with $10$ values per parameter: $10^D$ points must be evaluated, making grid search impractical in high dimensions.
+**Curse of dimensionality.** The number of grid points grows **exponentially** with $D$: even $10$ values per parameter require $10^D$ evaluations, making grid search impractical in high dimensions. Moreover, the true optimum may lie between grid points or outside the search range.
 
 <CurseOfDimensionalitySchema />
 
-Grid search only tests predefined points, so the true optimum may lie **between grid points or outside the chosen range**.
-
 ## Gradient Descent
 
-**Gradient.** For a function \(\mathcal L(\mathbf w)\) with parameters
+**Gradient.** For $w=(w_1,\ldots,w_D)^\top\in\mathbb R^D$, the gradient collects the partial derivatives of $L$:
 
-\[
-\mathbf w = [w_1,\ldots,w_D]^T \in \mathbb R^D,
-\]
-
-the **gradient** is the vector containing the partial derivative of the loss with respect to every parameter:
-
-\[
-\nabla \mathcal L(\mathbf w)
-=
+$$
+\nabla L(w)=
 \begin{bmatrix}
-\frac{\partial \mathcal L(\mathbf w)}{\partial w_1}\\
+\frac{\partial L}{\partial w_1}\\
 \vdots\\
-\frac{\partial \mathcal L(\mathbf w)}{\partial w_D}
-\end{bmatrix}
-\in \mathbb R^D.
-\]
-
-Each component tells how the loss changes when one parameter changes.
-
-The gradient points in the direction of **steepest increase** of \(\mathcal L\). 
-
-**Gradient descent.** An iterative method for minimizing a function by repeatedly moving the parameters in the opposite direction of the gradient:
-
-\[
-\boxed{
-\mathbf w^{(t+1)}
-=
-\mathbf w^{(t)}
--
-\gamma \nabla \mathcal L(\mathbf w^{(t)})
-}
-\]
-
-where:
-
-- \(\mathbf w^{(t)}\): parameters at iteration \(t\)
-- \(\nabla \mathcal L(\mathbf w^{(t)})\): gradient at the current parameters
-- \(\gamma>0\): **step size** or **learning rate**
-- \(\mathbf w^{(t+1)}\): updated parameters
-
-Intuitively:
-
-\[
-\text{current position}
--
-\text{step size}
-\times
-\text{direction uphill}
-=
-\text{new position downhill}.
-\]
-
-**Example 1. Gradient descent on the MSE**
-
-Consider the constant model $\hat y = w$ with MSE
-
-$$
-L(w)=\frac{1}{2m}\sum_{i=1}^{m}(y_i-w)^2.
+\frac{\partial L}{\partial w_D}
+\end{bmatrix}\in\mathbb R^D.
 $$
 
-Its derivative is $L'(w)=w-\bar y$, where $\bar y=\frac{1}{m}\sum_i y_i$ is the mean target. The minimum is therefore reached at $w^*=\bar y$.
+Each component measures how the loss changes with its parameter; together, they point in the direction of **steepest increase**.
 
-Gradient descent updates $w$ as
+**Gradient descent.** An iterative method that moves in the opposite direction:
+
+$$
+w^{(t+1)}=w^{(t)}-\eta\nabla L(w^{(t)}).
+$$
+
+Here $w^{(t)}$ and $w^{(t+1)}$ are the current and updated parameters, $\nabla L(w^{(t)})$ is the current gradient, and $\eta>0$ is the **learning rate** (or **step size**), which controls how far we move downhill.
+
+**Example 1. Gradient descent on the MSE.**
+
+Consider the constant model $\hat y=w$ with loss :
+$$
+L(w)=\frac1{2m}\sum_{i=1}^m(y_i-w)^2
+$$
+
+Its derivative is $L'(w)=w-\bar y$, where $\bar y=\frac1m\sum_i y_i$. Thus the minimum is $w^\star=\bar y$.
+
+Substituting the derivative into the update gives
 
 $$
 \begin{aligned}
-&w^{(t+1)}=w^{(t)}-\eta\left(w^{(t)}-\bar y\right)\\
-\iff\quad &w^{(t+1)}-\bar y=(1-\eta)\left(w^{(t)}-\bar y\right).
+w^{(t+1)}&=w^{(t)}-\eta(w^{(t)}-\bar y)\\
+\Longrightarrow\quad w^{(t+1)}-\bar y&=(1-\eta)(w^{(t)}-\bar y).
 \end{aligned}
 $$
 
-Each step therefore multiplies the distance to the optimum by $1-\eta$. Gradient descent converges exactly when $|1-\eta|<1$, that is, $0<\eta<2$.
+The **signed error** is multiplied by $1-\eta$ at each step, so the distance to the optimum shrinks exactly when $|1-\eta|<1$, or $0<\eta<2$:
 
-- With $0<\eta<1$, $w$ moves toward $\bar y$ without crossing it.
-- With $\eta=1$, one step lands exactly on $\bar y$.
-- With $1<\eta<2$, $w$ repeatedly crosses $\bar y$, but gets closer at each step.
-- With $\eta\ge2$, the distance no longer shrinks, so gradient descent does not converge.
+- $0<\eta<1$: approaches $\bar y$ without crossing it.
+- $\eta=1$: reaches $\bar y$ in one step.
+- $1<\eta<2$: crosses $\bar y$ repeatedly while getting closer.
+- $\eta\ge2$: the distance does not shrink, so the method does not converge.
 
 <StepSizeSchema />
 
-The learning rate controls the size of each step: too small makes convergence slow, while too large prevents convergence. 
-
-Here, because $L''(w)=1$, the convergence range is $0<\eta<2$.
+Thus, a small learning rate gives slow progress, while an excessively large one prevents convergence. This example has $L''(w)=1$ and convergence range $0<\eta<2$.
 
 ## The Gradient of the MSE
 
-**Linear MSE.** For linear regression, each input is a vector $x_n \in \mathbb{R}^D$ and the parameter vector is $w \in \mathbb{R}^D$.
-
-Stacking all $N$ samples gives
+**Linear MSE.** In linear regression, $x_n,w\in\mathbb R^D$. Stack the $N$ inputs into the **design matrix**
 
 $$
-X =
-\begin{bmatrix}
-x_1^T\\
-\vdots\\
-x_N^T
-\end{bmatrix}
-\in \mathbb{R}^{N\times D},
-\qquad
-y \in \mathbb{R}^N.
+X=\begin{bmatrix}x_1^\top\\\vdots\\x_N^\top\end{bmatrix}\in\mathbb R^{N\times D},
+\qquad y\in\mathbb R^N.
 $$
 
-The predictions for all samples are $\hat y = Xw$. Define the **error vector** $e = y-Xw \in \mathbb{R}^N$.
-
-The MSE loss can then be written as
+The predictions are $\hat y=Xw$. Define the **error vector** $e=y-Xw\in\mathbb R^N$. Then
 
 $$
-L(w)
-=
-\frac{1}{2N}\sum_{n=1}^N (y_n-x_n^Tw)^2
-=
-\frac{1}{2N}e^Te.
+\begin{aligned}
+L(w)&=\frac1{2N}\sum_{n=1}^N(y_n-x_n^\top w)^2=\frac1{2N}e^\top e,\\
+\nabla L(w)&=-\frac1N X^\top e=\frac1N X^\top(Xw-y).
+\end{aligned}
 $$
 
-Its gradient is
+Gradient descent therefore updates $w^{(t+1)}=w^{(t)}+\frac\eta N X^\top e$, with $e$ evaluated at $w^{(t)}$.
+
+Computing $e=y-Xw$ and then $X^\top e$ each costs $O(ND)$, so **one full-gradient computation costs $O(ND)$**.
+
+**Offset term.** To include a bias, use $\hat y_n=b+x_n^\top w$. Prepend $1$ to each input and absorb $b$ into the parameter vector:
 
 $$
-\boxed{
-\nabla L(w)
-=
--\frac{1}{N}X^Te
-=
-\frac{1}{N}X^T(Xw-y)
-}
+\tilde x_n=\begin{bmatrix}1\\x_n\end{bmatrix},\qquad
+\tilde w=\begin{bmatrix}b\\w\end{bmatrix},\qquad
+\tilde X=\begin{bmatrix}1&x_1^\top\\\vdots&\vdots\\1&x_N^\top\end{bmatrix}
+\in\mathbb R^{N\times(D+1)}.
 $$
 
-so gradient descent gives
+Predictions retain the form $\hat y=\tilde X\tilde w$, so the bias is learned like any other parameter.
+
+## Stochastic and Mini-batch Gradient Descent
+
+**Stochastic gradient descent (SGD).** Many losses are averages of per-example losses: $L(w)=\frac1N\sum_{n=1}^N L_n(w)$. For linear MSE, $L_n(w)=\frac12(y_n-x_n^\top w)^2$, with $\nabla L_n(w)=-x_n(y_n-x_n^\top w)$.
+
+Full gradient descent uses all $N$ examples. **SGD** instead samples one index $n$ uniformly and updates
 
 $$
-w^{(t+1)}
-=
-w^{(t)}
--
-\eta \nabla L(w^{(t)})
-=
-w^{(t)}
-+
-\frac{\eta}{N}X^Te.
-$$
-
-
-The computation has two main steps:
-
-$$
-e=y-Xw \quad\Rightarrow\quad O(ND) \qquad\text{and}\qquad X^Te \quad\Rightarrow\quad O(ND).
-$$
-
-Therefore, one full gradient computation costs
-
-$$
-\boxed{O(ND)}.
-$$
-
----
-
-**Offset term.** A linear model with an offset is $\hat y_n=b+x_n^Tw$.
-
-Instead of treating $b$ separately, prepend a constant $1$ to every input or, equivalently, augment the design matrix with a column of ones:
-
-$$
-\tilde x_n=\begin{bmatrix}1\\ x_n\end{bmatrix},
-\qquad
-\tilde w=\begin{bmatrix}b\\ w\end{bmatrix},
-\qquad
-\tilde X=\begin{bmatrix}1 & x_1^T\\ \vdots & \vdots\\ 1 & x_N^T\end{bmatrix}\in \mathbb{R}^{N\times(D+1)}.
-$$
-
-Then predictions keep the same matrix form:
-
-$$
-\boxed{\hat y=\tilde X\tilde w}.
-$$
-
-This lets the bias $b$ be learned exactly like any other parameter.
-
----
-
-**Stochastic gradient descent.** Many machine-learning losses are averages over the training examples:
-
-$$
-L(w)=\frac{1}{N}\sum_{n=1}^{N}L_n(w),
-$$
-
-where $L_n(w)$ is the loss contributed by training example $n$.
-
-For linear MSE, $L_n(w)=\frac12(y_n-x_n^Tw)^2$, so that $L(w)=\frac1N\sum_{n=1}^{N}L_n(w)$. Its per-example gradient is
-
-$$
-\nabla L_n(w)=-x_n(y_n-x_n^Tw).
-$$
-
-**Gradient descent** computes the gradient using all $N$ examples: $w^{(t+1)}=w^{(t)}-\eta\nabla L(w^{(t)})$.
-
-**Stochastic gradient descent** instead samples one example $n$ uniformly at random and uses only its gradient:
-
-$$
-\boxed{w^{(t+1)}=w^{(t)}-\eta\nabla L_n(w^{(t)})}
+w^{(t+1)}=w^{(t)}-\eta\nabla L_n(w^{(t)}).
 $$
 
 <SGDSchema />
 
-Because $n$ is random, $\nabla L_n(w)$ is a noisy approximation of the full gradient. Since $L(w)=\frac{1}{N}\sum_{n=1}^{N}L_n(w)$, we have $\nabla L(w)=\frac{1}{N}\sum_{n=1}^{N}\nabla L_n(w)$. If $n$ is sampled uniformly,
+The stochastic gradient is noisy but **unbiased**. By linearity of differentiation and uniform sampling,
 
 $$
-\mathbb E_n[\nabla L_n(w)]=\sum_{n=1}^{N}\frac{1}{N}\nabla L_n(w)=\nabla L(w).
+\mathbb E_n[\nabla L_n(w)]
+=\frac1N\sum_{n=1}^N\nabla L_n(w)
+=\nabla L(w).
 $$
 
-So on average, SGD moves in the same direction as gradient descent.
+Thus its expected direction matches the full gradient. Each SGD update costs $O(D)$ rather than $O(ND)$, trading cheaper steps for a noisier optimization path.
 
-A full gradient costs $O(ND)$, while one SGD update costs only $O(D)$. SGD therefore performs much cheaper updates, at the cost of a noisier optimization path.
-
-**Mini-batch SGD.** Mini-batch SGD computes each update using a randomly chosen subset $B \subseteq [N]$ of the training examples, with $1 < |B| < N$.
+**Mini-batch SGD.** Instead of one example, sample a subset $B\subseteq\{1,\ldots,N\}$ and average its gradients, all evaluated at the **same** $w$:
 
 $$
-\begin{aligned}
-g &= \frac{1}{|B|}\sum_{n\in B}\nabla L_n(w)\\
-w &\leftarrow w-\eta g
-\end{aligned}
+g=\frac1{|B|}\sum_{n\in B}\nabla L_n(w),\qquad w\leftarrow w-\eta g.
 $$
 
-The mini-batch gradient $g$ is the average of the individual gradients of all examples in the current mini-batch, evaluated at the same current $w$.
+**Batch size** $|B|$ is the number of examples per update: $|B|=1$ gives SGD, while $|B|=N$ gives full gradient descent ($g=\nabla L(w)$). For a proper mini-batch, $1<|B|<N$.
 
-**Batch size.** The batch size $|B|$ is the number of training examples used to compute one update. The two extreme cases are:
-
-$$
-\begin{aligned}
-|B|=1 &\quad\Longrightarrow\quad \text{SGD}\\
-|B|=N &\quad\Longrightarrow\quad g=\frac1N\sum_{n=1}^{N}\nabla L_n(w)=\nabla L(w)
-\end{aligned}
-$$
-
-so $|B|=N$ gives full gradient descent.
-
-The gradients $\nabla L_n(w)$ for different examples in a mini-batch are independent computations at the same $w$, so they can be computed in parallel. This makes mini-batches especially efficient on GPUs.
-
-Smaller batches give cheaper but noisier gradient estimates, while larger batches give more expensive but more stable estimates of $\nabla L(w)$.
-
-$$
-\begin{aligned}
-|B|\uparrow &\quad\Longrightarrow\quad \text{less noise, more computation per update}\\
-|B|\downarrow &\quad\Longrightarrow\quad \text{more noise, less computation per update}
-\end{aligned}
-$$
+The gradients of different examples can be computed independently and in parallel, making mini-batches efficient on GPUs. **Smaller batches** are cheaper but noisier; **larger batches** cost more per step but yield more stable gradient estimates.
 
 <SgdNoiseSchema />
 
 **Example 2. Mini-batch update.**
 
-Suppose $N=1000$ and we randomly choose a mini-batch $B=\{3,17,42,91\}$. Then $|B|=4$ and
+With $N=1000$ and $B=\{3,17,42,91\}$, the batch size is $4$ and
 
 $$
-g=\frac14\left(\nabla L_3(w)+\nabla L_{17}(w)+\nabla L_{42}(w)+\nabla L_{91}(w)\right).
+g=\tfrac14\big(\nabla L_3(w)+\nabla L_{17}(w)+\nabla L_{42}(w)+\nabla L_{91}(w)\big).
 $$
 
-The update is $w\leftarrow w-\eta g$. Only these four examples are used for this update.
+The update is $w\leftarrow w-\eta g$; only these four examples contribute to this step.
 
 ## Variants of SGD
 
-**Momentum.** Momentum replaces the current stochastic gradient by a moving average of recent gradients, so updates keep part of their previous direction.
+**Momentum.** Instead of using only the current stochastic gradient $g$, momentum smooths recent gradients and retains some of the previous direction:
 
 $$
 \begin{aligned}
-m^{(t+1)} &= \beta_1 m^{(t)} + (1-\beta_1)g \\
-w^{(t+1)} &= w^{(t)} - \eta m^{(t+1)}
+m^{(t+1)}&=\beta_1 m^{(t)}+(1-\beta_1)g,\\
+w^{(t+1)}&=w^{(t)}-\eta m^{(t+1)}.
 \end{aligned}
 $$
 
-Here $\beta_1\in[0,1)$ controls how much past gradients are remembered. The momentum term $m^{(t)}$ stores a smoothed history of previous gradients. Repeated gradients in the same direction reinforce each other, while rapidly changing directions tend to cancel out.
+The parameter $\beta_1\in[0,1)$ controls how much history is retained. Consistent gradient directions reinforce one another; rapidly changing directions tend to cancel out.
 
 **Example 3. Momentum accumulation.**
 
-Suppose two consecutive stochastic gradients point in the same direction: $g^{(1)}=(2,1)^\top$ and $g^{(2)}=(2,1)^\top$. With $m^{(0)}=0$ and $\beta_1=0.9$,
+Let $g^{(1)}=g^{(2)}=(2,1)^\top$, $m^{(0)}=0$, and $\beta_1=0.9$. Then
 
 $$
 \begin{aligned}
-m^{(1)} &= 0.9m^{(0)}+0.1g^{(1)} = (0.2,\,0.1)^\top, \\
-m^{(2)} &= 0.9m^{(1)}+0.1g^{(2)} = (0.38,\,0.19)^\top.
+m^{(1)}&=0.9(0)+0.1(2,1)^\top=(0.2,0.1)^\top,\\
+m^{(2)}&=0.9(0.2,0.1)^\top+0.1(2,1)^\top=(0.38,0.19)^\top.
 \end{aligned}
 $$
 
-The momentum grows because the gradients keep pointing in the same direction.
+The momentum grows because both gradients point in the same direction.
 
 <MomentumSchema />
 
----
+**Adagrad.** Adapts the learning rate per coordinate by accumulating squared gradients: $v_i^{(t+1)}=v_i^{(t)}+g_i^2$. Coordinates with large past gradients receive progressively smaller updates.
 
-**Adagrad.** Adagrad adapts the learning rate separately for each coordinate by accumulating past squared gradients.
-
-$$
-v_i^{(t+1)} = v_i^{(t)} + g_i^2
-$$
-
-Coordinates that have received large gradients in the past get progressively smaller updates.
-
-**Adam.** Adam combines momentum with a moving average of squared gradients, allowing each coordinate of $w$ to use a different effective learning rate. The update is
+**Adam.** Combines momentum with a moving average of squared gradients, using a different effective step size in each coordinate:
 
 $$
 \begin{aligned}
-m^{(t+1)} &= \beta_1 m^{(t)} + (1-\beta_1)g, \\
-v_i^{(t+1)} &= \beta_2 v_i^{(t)} + (1-\beta_2)g_i^2, \\
-w_i^{(t+1)} &= w_i^{(t)} - \eta\frac{m_i^{(t+1)}}{\sqrt{v_i^{(t+1)}}},
+m^{(t+1)}&=\beta_1m^{(t)}+(1-\beta_1)g,\\
+v_i^{(t+1)}&=\beta_2v_i^{(t)}+(1-\beta_2)g_i^2,\\
+w_i^{(t+1)}&=w_i^{(t)}-\eta\frac{m_i^{(t+1)}}{\sqrt{v_i^{(t+1)}}}.
 \end{aligned}
 $$
 
-where the last two rows hold for each coordinate $i$. The second-moment estimate $v_i$ is a moving average of squared gradients for coordinate $i$. Large past gradients make $v_i$ larger and therefore reduce the step size in that coordinate.
+Here $m$ tracks gradient direction, while $v_i$ tracks squared-gradient magnitude. Adam's effective rate is $\eta_i^{\mathrm{eff}}=\eta/\sqrt{v_i}$: larger past gradients reduce the update in that coordinate, and smaller ones receive relatively larger updates. Unlike Adagrad's cumulative sum, Adam's exponentially weighted average **forgets older gradients**, since $\beta_2<1$.
 
-Adam effectively uses a different step size $\eta_i^{\mathrm{eff}}=\eta/\sqrt{v_i}$ for each coordinate. Thus coordinates with consistently large gradients receive smaller updates, while coordinates with smaller gradients receive relatively larger updates.
+With no history, $m_i\propto g_i$ and $v_i\propto g_i^2$, giving $m_i/\sqrt{v_i}\propto g_i/|g_i|=\operatorname{sign}(g_i)$. Thus, initially, Adam depends mainly on gradient signs rather than magnitudes (up to common factors).
 
-Adam uses the same idea of scaling by squared gradients, but replaces Adagrad's cumulative sum with an exponentially weighted moving average $v_i^{(t+1)}=\beta_2 v_i^{(t)}+(1-\beta_2)g_i^2$. Because past values are multiplied repeatedly by $\beta_2<1$, older gradients are gradually forgotten. Adagrad instead keeps their squared contributions permanently.
-
-If there is no previous history, then $m_i$ is proportional to $g_i$ and $v_i$ is proportional to $g_i^2$. Ignoring the common constants,
-
-$$
-\frac{m_i}{\sqrt{v_i}} = \frac{g_i}{\sqrt{g_i^2}} = \frac{g_i}{|g_i|} = \operatorname{sign}(g_i).
-$$
-
-Thus, initially, Adam mainly uses the sign of each gradient coordinate rather than its magnitude.
-
-Adam keeps three vectors of the same dimension as $w$: the parameters $w$, the momentum estimate $m$, and the squared-gradient estimate $v$.
+Adam maintains three $D$-dimensional vectors: parameters $w$, momentum $m$, and squared-gradient estimates $v$.
 
 **Example 4. Adam scaling.**
 
-Suppose for one coordinate $m_i=2$ and $v_i=16$. Then
+For $m_i=2$ and $v_i=16$, the normalized direction is $m_i/\sqrt{v_i}=2/4=1/2$, so $w_i\leftarrow w_i-\eta/2$. Without normalization, the corresponding momentum update would scale with $m_i=2$.
+
+**SignSGD.** Uses only the sign of each stochastic-gradient coordinate:
 
 $$
-\frac{m_i}{\sqrt{v_i}} = \frac{2}{4} = \frac12,
+w_i^{(t+1)}=w_i^{(t)}-\eta\operatorname{sign}(g_i).
 $$
 
-so the update for that coordinate is $w_i\leftarrow w_i-\frac{\eta}{2}$. Without the normalization by $\sqrt{v_i}$, the corresponding momentum update would instead scale directly with $m_i=2$.
-
----
-
-**SignSGD.** SignSGD updates each coordinate using only the sign of the stochastic gradient, ignoring its magnitude.
-
-$$
-w_i^{(t+1)} = w_i^{(t)} - \eta \operatorname{sign}(g_i)
-$$
-
-Since $\operatorname{sign}(g_i)\in\{-1,+1\}$, every coordinate moves by the same step magnitude $\eta$. SignSGD needs only one bit per gradient coordinate, so it can reduce communication cost in distributed training. Because gradient magnitudes are discarded, SignSGD can lose useful information and may have worse convergence behavior than methods using the full gradient.
+For nonzero coordinates, $\operatorname{sign}(g_i)\in\{-1,+1\}$, so the step magnitude is always $\eta$. Encoding one bit per sign can reduce communication in distributed training, but discarding magnitudes can worsen convergence relative to full-gradient methods.
 
 **Example 5. SignSGD update.**
 
-Suppose $g=(3,-0.2,5)^\top$. Then $\operatorname{sign}(g)=(1,-1,1)^\top$, so
+For $g=(3,-0.2,5)^\top$, the signs are $(1,-1,1)^\top$, giving $w^{(t+1)}=w^{(t)}-\eta(1,-1,1)^\top$. Despite different magnitudes, the nonzero coordinates receive equal-sized steps.
 
-$$
-w^{(t+1)} = w^{(t)} - \eta\,(1,-1,1)^\top.
-$$
-
-The values $3$, $-0.2$, and $5$ have different magnitudes, but SignSGD uses only their signs.
-
----
-
-**Muon.** Muon applies a matrix analogue of SignSGD to 2D weight matrices. It first forms a momentum matrix and then replaces the entrywise sign by a matrix-sign operation.
+**Muon.** Extends the sign-based idea to 2D weight matrices: form a momentum matrix, then replace entrywise signs with a **matrix-sign** operation. For weight matrix $W$ and stochastic gradient $G$,
 
 $$
 \begin{aligned}
-M^{(t+1)} &= \beta_1 M^{(t)} + (1-\beta_1)G \\
-W^{(t+1)} &= W^{(t)} - \eta\,\operatorname{msign}\left(M^{(t+1)}\right)
+M^{(t+1)}&=\beta_1M^{(t)}+(1-\beta_1)G,\\
+W^{(t+1)}&=W^{(t)}-\eta\,\operatorname{msign}(M^{(t+1)}).
 \end{aligned}
 $$
 
-Here $G$ is the stochastic gradient matrix associated with the weight matrix $W$.
+**Matrix sign.** Given the singular value decomposition $M=U\Sigma V^\top$, define $\operatorname{msign}(M)=UV^\top$. This keeps the singular-vector directions and normalizes nonzero singular values to $1$. Its operator norm is $1$ (for nonzero $M$), controlling update magnitude across matrix directions rather than individual coordinates.
 
-**Matrix sign.** If $M=U\Sigma V^\top$ is the singular value decomposition of $M$, then
-
-$$
-\operatorname{msign}(M) = UV^\top.
-$$
-
-Equivalently, matrix sign keeps the singular vectors of $M$ but replaces every nonzero singular value by $1$.
-
-Since all singular values of $\operatorname{msign}(M)$ are $1$, its operator norm is $1$. The update therefore has controlled magnitude across matrix directions and pushes with the same strength along every singular direction.
-
-Muon approximates the matrix sign with 5 Newton–Schulz iterations, avoiding an explicit SVD and using only matrix multiplications. Muon is typically applied only to 2D weight matrices. Other parameters such as embeddings, biases, gains, and router parameters are usually optimized with AdamW instead. In practice, Muon commonly uses a relatively large step size of about $\eta\approx 0.02$.
+Muon approximates matrix sign with **5 Newton–Schulz iterations**, using matrix multiplications instead of an explicit SVD. It is mainly applied to 2D weight matrices; embeddings, biases, gains, and router parameters are usually handled by AdamW. A commonly used Muon step size is around $\eta\approx0.02$.
 
 **Example 6. Matrix-sign normalization.**
 
-Suppose
+If $M=U\begin{bmatrix}5&0\\0&0.2\end{bmatrix}V^\top$, then
 
 $$
-M = U\begin{bmatrix} 5 & 0 \\ 0 & 0.2 \end{bmatrix}V^\top
-\quad\text{so}\quad
-\operatorname{msign}(M) = U\begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix}V^\top = UV^\top.
+\operatorname{msign}(M)=U\begin{bmatrix}1&0\\0&1\end{bmatrix}V^\top=UV^\top.
 $$
 
-The singular values $5$ and $0.2$ are both replaced by $1$.
+Both singular values, $5$ and $0.2$, become $1$.
 
-**AdamW.** AdamW is Adam with decoupled weight decay. Instead of mixing regularization into the gradient, it shrinks the parameters separately from the Adam update.
+**AdamW.** Adam with **decoupled weight decay**: it shrinks parameters separately from the Adam update rather than mixing regularization into the gradient.
 
 ## Non-smooth Optimization
 
-**First-order characterization of convexity.** For a differentiable convex function $L$, the function always lies above its first-order Taylor approximation at any point $w$.
+Gradient descent assumes differentiability. Convexity gives a way to define useful descent directions even when derivatives do not exist.
+
+**First-order characterization of convexity.** A differentiable convex function lies above its linearization (first-order Taylor approximation) at every point:
 
 $$
-L(u) \ge L(w) + \nabla L(w)^\top (u-w) \qquad \forall u,w.
+L(u)\ge L(w)+\nabla L(w)^\top(u-w)\qquad\forall u,w.
 $$
-
-The right-hand side is the linearization of $L$ around $w$.
 
 <LinearizationSchema />
 
 **Example 7. Convex function and tangent line.**
 
-For $L(w)=w^2$, we have $\nabla L(w)=2w$. At $w=1$, the linearization is
+For $L(w)=w^2$, the derivative is $L'(w)=2w$. At $w=1$, the tangent is $L(1)+L'(1)(u-1)=1+2(u-1)=2u-1$. Indeed, $u^2\ge2u-1$ is equivalent to $(u-1)^2\ge0$.
+
+The same lower-bound idea leads to the notion of a subgradient.
+
+**Subgradient.** A vector $g$ is a subgradient of $L$ at $w$ if the affine function with slope $g$ stays below $L$ everywhere:
 
 $$
-L(1)+\nabla L(1)(u-1) = 1+2(u-1) = 2u-1.
+L(u)\ge L(w)+g^\top(u-w)\qquad\forall u.
 $$
 
-Convexity gives
+Unlike a gradient, a subgradient may exist even where $L$ is not differentiable.
 
-$$
-u^2 \ge 2u-1 \quad\text{equivalently}\quad (u-1)^2 \ge 0.
-$$
-
----
-
-**Subgradient.** A vector $g$ is a subgradient of $L$ at $w$ if the affine function with slope $g$ lies below $L$ everywhere.
-
-$$
-L(u) \ge L(w) + g^\top(u-w) \qquad \forall u.
-$$
-
-A subgradient can exist even when $L$ is not differentiable at $w$.
-
-**Subdifferential.** The subdifferential $\partial L(w)$ is the set of all subgradients of $L$ at $w$. If $L$ is convex and differentiable at $w$, then $\partial L(w)=\{\nabla L(w)\}$.
+**Subdifferential.** The set $\partial L(w)$ of all subgradients at $w$. For a convex function differentiable at $w$, $\partial L(w)=\{\nabla L(w)\}$.
 
 **Example 8. Subgradients of the absolute value.**
 
-Consider $L(w)=|w|$. For $w\neq 0$, $\partial L(w)=\{\operatorname{sign}(w)\}$. At $w=0$, the function is not differentiable, but every $g\in[-1,1]$ is a valid subgradient because
-
-$$
-|u| \ge gu \quad \forall u, \quad\text{therefore}\quad \partial L(0)=[-1,1].
-$$
+For $L(w)=|w|$ and $w\ne0$, $\partial L(w)=\{\operatorname{sign}(w)\}$. At $w=0$, any $g\in[-1,1]$ satisfies $|u|\ge gu$ for all $u$, so $\partial L(0)=[-1,1]$.
 
 <SubgradientSchema />
 
-**Subgradient descent.** Subgradient descent extends gradient descent to objectives that may not be differentiable by replacing the gradient with any valid subgradient.
+**Subgradient descent.** Extends gradient descent by choosing any $g\in\partial L(w^{(t)})$ and updating
 
 $$
-w^{(t+1)} = w^{(t)} - \eta g,
+w^{(t+1)}=w^{(t)}-\eta g.
 $$
-
-where $g\in\partial L\left(w^{(t)}\right)$.
 
 **Example 9. Subgradient descent on $|w|$.**
 
-Suppose $L(w)=|w|$ and $w^{(t)}>0$. A valid subgradient is $g=1$. Then $w^{(t+1)}=w^{(t)}-\eta$. If instead $w^{(t)}<0$, a valid subgradient is $g=-1$, so $w^{(t+1)}=w^{(t)}+\eta$.
+If $w^{(t)}>0$, choose $g=1$ and obtain $w^{(t+1)}=w^{(t)}-\eta$. If $w^{(t)}<0$, choose $g=-1$ and obtain $w^{(t+1)}=w^{(t)}+\eta$. Both steps move toward zero.
 
----
-
-**Subgradient chain rule.** If $L(w)=h(q(w))$, where $h$ may be non-differentiable and $q$ is differentiable, then a subgradient can be obtained by combining a subgradient of $h$ with the gradient of $q$.
-
-$$
-g \in \partial h(q(w))\,\nabla q(w).
-$$
+**Subgradient chain rule.** For a composition $L(w)=h(q(w))$, with differentiable $q$ and possibly non-differentiable $h$, a subgradient can be formed by combining a subgradient of $h$ with $\nabla q(w)$: $g\in\partial h(q(w))\,\nabla q(w)$ (as in the linear composition below).
 
 **Example 10. Subgradient of linear MAE.**
 
-For linear regression, $f_w(x_n)=w^\top x_n$. The MAE objective is
+With prediction $f_w(x_n)=w^\top x_n$, the mean absolute error is
 
 $$
-L(w) = \frac1N \sum_{n=1}^{N} |y_n-w^\top x_n|.
+L(w)=\frac1N\sum_{n=1}^N|y_n-w^\top x_n|.
 $$
 
-For one example, define $e_n=y_n-w^\top x_n$. Then $L_n(w)=|e_n|$. Since $\nabla e_n=-x_n$, a subgradient of $L_n$ is $g_n=-s_nx_n$, where $s_n\in\partial |e_n|$. Thus
+For one example, let $e_n=y_n-w^\top x_n$ and $L_n(w)=|e_n|$. Since $\nabla e_n=-x_n$, a subgradient is $g_n=-s_nx_n$, where
 
 $$
-s_n = \begin{cases} -1, & e_n<0,\\ [-1,1], & e_n=0,\\ 1, & e_n>0. \end{cases}
+s_n\in\partial|e_n|=\begin{cases}
+\{-1\},&e_n<0,\\
+[-1,1],&e_n=0,\\
+\{1\},&e_n>0.
+\end{cases}
 $$
 
-A subgradient of the full MAE objective is therefore
+A subgradient of the full MAE is therefore $g=-\frac1N\sum_{n=1}^N s_nx_n$.
 
-$$
-g = -\frac1N \sum_{n=1}^{N} s_nx_n.
-$$
+**Stochastic subgradient descent.** Selects a random example $n$, chooses $g\in\partial L_n(w^{(t)})$, and updates $w^{(t+1)}=w^{(t)}-\eta g$. This is also commonly called **SGD**.
 
-**Stochastic subgradient descent.** Stochastic subgradient descent uses a subgradient of one randomly selected loss $L_n$ instead of a subgradient of the full objective.
-
-$$
-g \in \partial L_n\left(w^{(t)}\right), \qquad w^{(t+1)} = w^{(t)} - \eta g.
-$$
-
-It is commonly still abbreviated SGD.
-
-|  | MSE (differentiable) | MAE (non-differentiable) |
+| Method | MSE (differentiable) | MAE (non-differentiable) |
 |---|---|---|
-| **GD** | $\nabla L(w)$, cost $O(ND)$ | $g\in\partial L(w)$, cost $O(ND)$ |
-| **SGD** | $\nabla L_n(w)$, cost $O(D)$ | $g\in\partial L_n(w)$, cost $O(D)$ |
+| **GD** | $\nabla L(w)$, $O(ND)$ | $g\in\partial L(w)$, $O(ND)$ |
+| **SGD** | $\nabla L_n(w)$, $O(D)$ | $g\in\partial L_n(w)$, $O(D)$ |
 
 **Example 11. SGD update for linear MAE.**
 
-For a randomly selected example $n$, $e_n=y_n-w^\top x_n$. Choose $s_n\in\partial |e_n|$. Then $g_n=-s_nx_n$. The stochastic update is
-
-$$
-w^{(t+1)} = w^{(t)} + \eta s_nx_n.
-$$
-
-If $e_n>0$, then $s_n=1$, so $w^{(t+1)}=w^{(t)}+\eta x_n$. If $e_n<0$, then $s_n=-1$, so $w^{(t+1)}=w^{(t)}-\eta x_n$.
+For a sampled example $n$, $g_n=-s_nx_n$, so $w^{(t+1)}=w^{(t)}+\eta s_nx_n$. If $e_n>0$, choose $s_n=1$ and **add** $\eta x_n$; if $e_n<0$, choose $s_n=-1$ and **subtract** $\eta x_n$.
 
 ## Step Size and Stopping
 
-**Learning-rate schedule.** A learning-rate schedule changes $\eta$ over time, usually decreasing it as optimization progresses. Common examples include $\eta_t=\frac{\eta_0}{\sqrt{t}}$ and linear decay toward a small final value.
+**Learning-rate schedule.** Changes $\eta$ over time, usually decreasing it as training progresses. Examples include $\eta_t=\eta_0/\sqrt t$ and linear decay to a small final value.
 
-**Warmup-stable-decay schedule.** Warmup-stable-decay (WSD) first increases the learning rate, then keeps it roughly constant, and finally decays it toward zero. This schedule is used in large-scale LLM training, for example Apertus.
+**Warmup-stable-decay (WSD).** First increases the learning rate, then holds it roughly constant, and finally decays it toward zero. It is used in large-scale LLM training, including Apertus.
 
 <LrScheduleSchema />
 
-Convergence to a local minimum is guaranteed only when the step-size schedule eventually becomes sufficiently small. What counts as sufficiently small depends on the geometry of the optimization landscape.
+Convergence guarantees depend on sufficiently well-chosen step sizes and the geometry of the loss landscape; decreasing the learning rate is often necessary for stable convergence.
 
 **Example 12. Effect of the step size.**
 
-Consider $L(w)=w^2$, so $\nabla L(w)=2w$. Starting from $w^{(0)}=1$, gradient descent gives $w^{(1)}=1-2\eta$.
+For $L(w)=w^2$, $L'(w)=2w$. Starting at $w^{(0)}=1$ gives $w^{(1)}=1-2\eta$. With $\eta=0.1$, $w^{(1)}=0.8$, closer to $w^\star=0$. With $\eta=1.1$, $w^{(1)}=-1.2$, farther away; repeating the update diverges.
 
-If $\eta=0.1$, then $w^{(1)}=0.8$, so the iterate moves toward the minimum $w^\star=0$. If $\eta=1.1$, then $w^{(1)}=-1.2$, whose magnitude is larger than before. Repeating the update makes the iterates diverge.
-
----
-
-**Stopping criterion.** A stopping criterion decides when optimization should terminate. A common criterion is to stop when the gradient norm becomes sufficiently small: $\|\nabla L(w)\|\le\varepsilon$. A small gradient often indicates that $w$ is close to a stationary point.
+**Stopping criterion.** A rule for ending optimization. One common choice is $\|\nabla L(w)\|\le\varepsilon$, indicating that the iterate is near a **stationary point** (not necessarily a minimum).
 
 ## Ill-conditioning and Preconditioning
 
-**Ill-conditioning.** An optimization problem is ill-conditioned when the objective changes at very different rates in different directions. Gradient descent can then make fast progress in one direction but oscillate or move slowly in another.
+**Ill-conditioning.** The loss changes at very different rates across directions, making gradient descent oscillate along steep directions while progressing slowly along others.
 
-**Feature normalization.** Feature normalization rescales input features so that their numerical scales are comparable. This often makes the optimization landscape better conditioned and makes step-size selection easier.
+**Feature normalization.** Rescales input features to comparable numerical ranges, often improving conditioning and simplifying learning-rate selection.
 
-**Layer normalization.** In neural networks, normalization is also applied inside the network so that the scale of activations remains controlled across layers. This improves conditioning and usually makes optimization easier.
+**Layer normalization.** Controls the scale of intermediate activations inside a neural network, typically improving conditioning and optimization.
 
-**Pre-conditioning.** Pre-conditioning rescales the optimization space so that different directions have more similar curvature or change rates.
-
-Conceptually, instead of $w^{(t+1)}=w^{(t)}-\eta\nabla L(w^{(t)})$, a pre-conditioned update has the form
+**Preconditioning.** Rescales optimization directions so their curvature or rates of change are more comparable. Rather than using a plain gradient step, use
 
 $$
-w^{(t+1)} = w^{(t)} - \eta P\nabla L(w^{(t)}),
+w^{(t+1)}=w^{(t)}-\eta P\nabla L(w^{(t)}),
 $$
 
-where $P$ rescales different directions differently. A well-conditioned objective has similar curvature across directions, so gradient descent can move efficiently toward the optimum without strong zig-zagging.
+where $P$ scales directions differently. Better conditioning reduces zig-zagging and allows more efficient progress toward the optimum.
 
 <FeatureScalingSchema />
 
 **Example 13. Effect of feature scaling.**
 
-Suppose one feature typically has values around $1$ while another has values around $1000$.
-
-Without normalization, the objective can be much steeper in one parameter direction than the other, producing an elongated loss landscape.
-
-After rescaling the second feature, $x_2'=\frac{x_2}{1000}$, the two directions have more comparable scales. Gradient descent can then use a single learning rate more effectively.
+Suppose one feature is around $1$ and another around $1000$. Without normalization, the loss can be much steeper along one parameter direction, producing an elongated landscape. Rescaling the second feature as $x_2'=x_2/1000$ makes the scales more comparable, allowing one learning rate to work more effectively in both directions.
 
 ## Optimality Conditions
 
-**First-order necessary condition.** For a differentiable objective, any unconstrained local optimum $w^\star$ must satisfy
+**First-order necessary condition.** At any unconstrained local optimum $w^\star$ of a differentiable loss, $\nabla L(w^\star)=0$. This is **necessary, not sufficient**, for a minimum.
 
-$$
-\nabla L(w^\star)=0.
-$$
+**Critical point.** A point with $\nabla L(w)=0$. It may be a local minimum, maximum, or saddle point.
 
-This condition is necessary, but by itself it does not guarantee that $w^\star$ is a minimum.
-
-**Critical point.** A critical point is a point where the gradient is zero, $\nabla L(w)=0$. A critical point may be a local minimum, local maximum, or saddle point.
-
-**Convex optimality condition.** If $L$ is convex and $w^\star$ is a critical point, then $w^\star$ is a global minimum.
-
-$$
-\nabla L(w^\star)=0\quad\Longrightarrow\quad w^\star\text{ is globally optimal}.
-$$
+**Convex optimality condition.** If $L$ is convex, every critical point is a **global minimum**: $\nabla L(w^\star)=0\implies w^\star$ is globally optimal.
 
 **Example 14. Critical point of a convex function.**
 
-Consider $L(w)=(w-3)^2$. Its gradient is $\nabla L(w)=2(w-3)$. Setting it to zero gives $2(w-3)=0$, so $w^\star=3$. Since $L$ is convex, this critical point is the global minimum.
+For $L(w)=(w-3)^2$, the derivative is $L'(w)=2(w-3)$. Setting it to zero gives $w^\star=3$; convexity makes this the global minimum.
 
----
+**Hessian.** The $D\times D$ matrix of second-order partial derivatives, $\nabla^2L(w)=\frac{\partial^2L}{\partial w\,\partial w^\top}(w)$, describing local curvature.
 
-**Hessian.** The Hessian is the matrix of second-order partial derivatives of $L$.
+**Positive definite matrix.** A symmetric $H$ is positive definite ($H\succ0$) if $v^\top Hv>0$ for every $v\ne0$; it is positive semidefinite ($H\succeq0$) if $v^\top Hv\ge0$ for all $v$. A positive definite Hessian curves upward in every direction.
 
-$$
-\nabla^2L(w)=\frac{\partial^2L}{\partial w\,\partial w^\top}(w)\in\mathbb R^{D\times D}.
-$$
-
-It describes the local curvature of the objective around $w$.
-
-**Positive definite matrix.** A symmetric matrix $H$ is positive definite if
-
-$$
-v^\top Hv>0\qquad\forall v\neq0.
-$$
-
-For a Hessian, this means the objective curves upward in every direction. It is positive semi-definite if $v^\top Hv\ge0$ for all $v$.
-
-**Second-order sufficient condition.** If $\nabla L(w)=0$ and $\nabla^2L(w)\succ0$, then $w$ is a strict local minimum.
-
-If $L$ is twice differentiable, then $L$ is convex if and only if $\nabla^2L(w)\succeq0$ for all $w$.
+**Second-order sufficient condition.** If $\nabla L(w)=0$ and $\nabla^2L(w)\succ0$, then $w$ is a **strict local minimum**. For twice-differentiable $L$, convexity is equivalent to $\nabla^2L(w)\succeq0$ everywhere.
 
 **Example 15. Hessian test.**
 
-Consider $L(w_1,w_2)=w_1^2+3w_2^2$. The gradient is $\nabla L(w)=(2w_1,6w_2)^\top$, so the only critical point is $w^\star=(0,0)^\top$. The Hessian is
+For $L(w_1,w_2)=w_1^2+3w_2^2$, the gradient is $(2w_1,6w_2)^\top$, so $w^\star=(0,0)^\top$ is the only critical point. Its Hessian is
 
 $$
 \nabla^2L(w)=\begin{bmatrix}2&0\\0&6\end{bmatrix}.
 $$
 
-For any nonzero $v$, $v^\top\nabla^2L(w)v=2v_1^2+6v_2^2>0$. Therefore $\nabla^2L(w)\succ0$, so $w^\star$ is a strict local minimum.
+For every $v\ne0$, $v^\top\nabla^2L(w)v=2v_1^2+6v_2^2>0$. Hence the Hessian is positive definite and $w^\star$ is a strict local minimum.
 
 ## Non-convex Optimization
 
-**Non-convex optimization.** A non-convex objective does not satisfy the convexity condition globally and may contain multiple local minima, maxima, and saddle points. For such objectives, $\nabla L(w)=0$ does not imply that $w$ is a global minimum.
+**Non-convex optimization.** Without global convexity, an objective may have several local minima, maxima, and saddle points. A zero gradient therefore does **not** guarantee a global minimum. Nevertheless, ideas from convex optimization, including step-size choice, conditioning, momentum, and convergence analysis, remain useful.
 
-Real-world optimization problems are often non-convex, but the ideas developed for convex optimization, such as step-size selection, conditioning, momentum and convergence analysis, still provide useful guidance in practice.
-
-**Saddle point.** A saddle point is a critical point that curves upward in some directions and downward in others, so it is neither a local minimum nor a local maximum.
+**Saddle point.** A critical point whose objective curves upward in some directions and downward in others; it is neither a local minimum nor a local maximum.
 
 **Example 16. Saddle point.**
 
-Consider $L(w_1,w_2)=w_1^2-w_2^2$. At $w^\star=(0,0)^\top$, we have $\nabla L(w^\star)=0$. But the Hessian is
+For $L(w_1,w_2)=w_1^2-w_2^2$, the gradient vanishes at $(0,0)^\top$, but
 
 $$
 \nabla^2L(w)=\begin{bmatrix}2&0\\0&-2\end{bmatrix}.
 $$
 
-The objective curves upward along $w_1$ and downward along $w_2$, so $w^\star$ is a saddle point rather than a minimum.
+The loss curves upward along $w_1$ and downward along $w_2$, making the origin a saddle point.
 
 ## Constrained Optimization
 
-**Constrained optimization.** Constrained optimization minimizes an objective while requiring the parameters to belong to a feasible set.
+So far, parameters could take any value in $\mathbb R^D$. Constraints restrict the search to an allowed region.
+
+**Constrained optimization.** Minimizes $L$ over a **feasible set** $C\subseteq\mathbb R^D$:
 
 $$
 \min_w L(w)\qquad\text{subject to }w\in C.
 $$
 
-The constraint set $C\subseteq\mathbb R^D$ contains all feasible parameter values. A solution must minimize $L(w)$ among points inside $C$, not over all of $\mathbb R^D$. A point $w$ is feasible if $w\in C$. Points outside $C$ are not allowed even if they have a lower objective value.
+Only points in $C$ are feasible; a point outside $C$ cannot be a solution even if its loss is lower.
 
 **Example 17. Constrained minimum.**
 
-Consider $L(w)=(w-3)^2$ with the constraint $w\le1$. Without the constraint, the minimum is $w=3$. But $3\notin C$, so it is infeasible. The constrained optimum is therefore $w^\star=1$.
+Minimize $L(w)=(w-3)^2$ subject to $w\le1$. The unconstrained solution $w=3$ is infeasible, so the constrained minimum occurs at $w^\star=1$.
 
----
-
-**Projection.** The projection $P_C(z)$ is the feasible point in $C$ closest to $z$.
+**Projection.** The projection $P_C(z)$ is the point in $C$ nearest to $z$:
 
 $$
 P_C(z)=\arg\min_{u\in C}\|u-z\|^2.
@@ -671,121 +412,81 @@ $$
 
 **Example 18. Projection onto an interval.**
 
-Let $C=[0,1]$. If a gradient step produces $\tilde w=1.4$, then $P_C(1.4)=1$. If instead $\tilde w=0.6$, then it is already feasible, so $P_C(0.6)=0.6$.
+For $C=[0,1]$, projecting $1.4$ gives $P_C(1.4)=1$; a point already inside, such as $0.6$, stays unchanged: $P_C(0.6)=0.6$.
 
-**Projected gradient descent.** Projected gradient descent first takes a normal gradient step and then projects the result back onto the constraint set.
-
-First compute $\tilde w^{(t+1)}$, then project. The second row also gives the equivalent one-step update:
+**Projected gradient descent.** Takes an ordinary gradient step, then projects it back into $C$:
 
 $$
-\begin{aligned}
-\tilde w^{(t+1)}&=w^{(t)}-\eta\nabla L(w^{(t)}),\\
-w^{(t+1)}&=P_C\left(\tilde w^{(t+1)}\right)=P_C\left(w^{(t)}-\eta\nabla L(w^{(t)})\right).
-\end{aligned}
+\tilde w^{(t+1)}=w^{(t)}-\eta\nabla L(w^{(t)}),\qquad
+w^{(t+1)}=P_C(\tilde w^{(t+1)}).
 $$
+
+Equivalently, $w^{(t+1)}=P_C(w^{(t)}-\eta\nabla L(w^{(t)}))$.
 
 <ProjectionSchema />
 
----
-
-**Convex set.** A set $C$ is convex if the line segment between any two points in $C$ stays entirely inside $C$. For any $u,v\in C$ and any $\theta\in[0,1]$,
+**Convex set.** A set $C$ is convex if the segment joining any two points in $C$ remains inside it. Equivalently, for $u,v\in C$ and $\theta\in[0,1]$,
 
 $$
 \theta u+(1-\theta)v\in C.
 $$
 
-A point of the form $\theta u+(1-\theta)v$ with $\theta\in[0,1]$ is a convex combination of $u$ and $v$. As $\theta$ varies from $0$ to $1$, it traces the line segment between them.
-
-The intersection of any collection of convex sets is also convex. If $C_1$ and $C_2$ are convex, then $C_1\cap C_2$ is convex.
-
-If $C$ is convex, the Euclidean projection of a point onto $C$ is unique. Thus $P_C(w')=\arg\min_{v\in C}\|v-w'\|$ contains exactly one point.
+The expression $\theta u+(1-\theta)v$ is a **convex combination** tracing that segment as $\theta$ varies. Intersections of convex sets are convex (including $C_1\cap C_2$). For a convex set, Euclidean projection onto $C$ is **unique**.
 
 **Example 19. Convex and non-convex sets.**
 
-A disk, rectangle, or convex polygon is convex because every segment joining two points in the set stays inside it.
-
-A set with an inward dent is non-convex because some segment between two points in the set leaves the set.
+Disks, rectangles, and convex polygons contain every segment between their points. A shape with an inward dent is non-convex because some such segments leave the set.
 
 <ConvexSetsSchema />
 
----
-
-**Projected SGD.** Projected SGD performs a stochastic gradient step and then projects the result back onto the constraint set.
+**Projected SGD.** Applies the same projection after each stochastic step:
 
 $$
-w^{(t+1)}=P_C\left(w^{(t)}-\eta \nabla L_n(w^{(t)})\right).
+w^{(t+1)}=P_C\big(w^{(t)}-\eta\nabla L_n(w^{(t)})\big).
 $$
 
-For non-differentiable losses, use a stochastic subgradient instead:
-
-$$
-w^{(t+1)}=P_C\left(w^{(t)}-\eta g_n\right),\qquad g_n\in\partial L_n(w^{(t)}).
-$$
-
-Projected SGD has the same convergence properties as SGD, provided the projection is onto the feasible set after each stochastic step. The computational cost of projected methods depends strongly on how expensive $P_C$ is to compute. For some constraint sets projection is cheap, while for others it can dominate the cost of each optimization step.
+For non-differentiable losses, replace the gradient with $g_n\in\partial L_n(w^{(t)})$: $w^{(t+1)}=P_C(w^{(t)}-\eta g_n)$. Projected SGD retains SGD's convergence properties under the corresponding assumptions, but the cost of computing $P_C$ may dominate each update.
 
 **Example 20. Cheap and costly projections.**
 
-For an Euclidean ball $C=\{w:\|w\|_2\le R\}$, the projection has a closed form:
+For the Euclidean ball $C=\{w:\|w\|_2\le R\}$, projection has a closed form:
 
 $$
 P_C(w)=\begin{cases}
-w, & \|w\|_2\le R,\\[4pt]
-R\dfrac{w}{\|w\|_2}, & \|w\|_2>R.
+w,&\|w\|_2\le R,\\[3pt]
+R\dfrac{w}{\|w\|_2},&\|w\|_2>R.
 \end{cases}
 $$
 
-So projection onto an $L_2$ ball is cheap. For an $L_1$ ball $C=\{w:\|w\|_1\le R\}$, whose shape is a diamond in two dimensions, projection is more costly because there is no equally simple coordinate-wise closed form.
+This makes projection onto an $L_2$ ball cheap. By contrast, projecting onto the $L_1$ ball $C=\{w:\|w\|_1\le R\}$ (a diamond in two dimensions) is costlier because it has no equally simple coordinate-wise closed form.
 
----
+**Unconstrained reformulation.** Instead of projecting, incorporate constraint violations into the objective, for instance by minimizing $L(w)+\lambda R_C(w)$ over all $w$, where $R_C$ penalizes infeasible points.
 
-**Unconstrained reformulation.** Another approach is to transform the constrained problem into an unconstrained one, for example by adding terms that penalize constraint violations.
-
-Instead of $\min_w L(w)$ subject to $w\in C$, one optimizes a modified objective of the form
+**Indicator penalty.** The **brick-wall penalty** assigns zero to feasible points and infinite cost to infeasible ones:
 
 $$
-\min_w\left[L(w)+\lambda R_C(w)\right],
+I_C(w)=\begin{cases}0,&w\in C,\\+\infty,&w\notin C.\end{cases}
 $$
 
-where $R_C(w)$ becomes large when $w$ violates the constraint.
+Thus the constrained problem is exactly $\min_{w\in\mathbb R^D}[L(w)+I_C(w)]$. Its infinite jump at the boundary makes ordinary smooth optimization unsuitable.
 
-**Indicator penalty.** The indicator of the constraint set assigns zero cost to feasible points and infinite cost to infeasible points.
+**Finite penalty.** Replaces the infinite barrier with a cost that grows with constraint violation. For $Aw=b$, one choice is $L(w)+\lambda\|Aw-b\|^2$.
 
-$$
-I_C(w)=\begin{cases}
-0, & w\in C,\\
-+\infty, & w\notin C.
-\end{cases}
-$$
-
-The constrained problem can therefore be written as $\min_{w\in\mathbb R^D} L(w)+I_C(w)$. The indicator penalty is called a brick-wall penalty because crossing the constraint boundary immediately gives infinite cost. The objective $L(w)+I_C(w)$ is discontinuous at the boundary of $C$, which makes ordinary smooth optimization methods unsuitable.
-
-**Finite penalty.** Instead of assigning infinite cost outside the constraint set, one can add a finite penalty that increases with the amount of constraint violation.
-
-For the linear constraint $Aw=b$, one possible objective is
-
-$$
-L(w)+\lambda\|Aw-b\|^2.
-$$
-
-Here $\lambda>0$ controls the trade-off between minimizing the original objective and satisfying the constraint.
-
-A finite penalty can be interpreted as balancing two objectives in $L(w)+\lambda R_C(w)$: minimizing the loss and staying close to the constraint set. The parameter $\lambda$ controls the trade-off: larger $\lambda$ puts more emphasis on satisfying the constraint, while smaller $\lambda$ puts more emphasis on minimizing the original loss.
+This is a **multi-objective trade-off**: $\lambda>0$ balances loss minimization against constraint satisfaction. Larger $\lambda$ enforces the constraint more strongly; smaller $\lambda$ prioritizes the original loss.
 
 **Example 21. Quadratic constraint penalty.**
 
-Suppose the constraint is $w_1+w_2=1$. Then $A=\begin{bmatrix}1&1\end{bmatrix}$ and $b=1$. A penalized objective is $L(w)+\lambda(w_1+w_2-1)^2$. The farther $w$ is from satisfying the constraint, the larger the penalty becomes.
+For $w_1+w_2=1$, take $A=\begin{bmatrix}1&1\end{bmatrix}$ and $b=1$. The penalized objective is $L(w)+\lambda(w_1+w_2-1)^2$; the penalty increases as the equality is violated.
 
-**Linearized penalty.** A linearized penalty introduces Lagrange multipliers and adds the constraint violation linearly to the objective.
-
-For an equality constraint $c(w)=0$, define the Lagrangian
+**Linearized penalty.** Instead of a quadratic violation term, introduce **Lagrange multipliers** and add the constraint linearly. For an equality constraint $c(w)=0$, the **Lagrangian** is
 
 $$
 \Lambda(w,\lambda)=L(w)+\lambda^\top c(w).
 $$
 
-**Lagrange multiplier.** The vector $\lambda$ weights the constraint violation in $\Lambda(w,\lambda)$. At a constrained optimum, suitable multipliers balance the objective gradient against the constraint gradients. For one equality constraint,
+**Lagrange multiplier.** The vector $\lambda$ weights constraint violations. At a constrained optimum, appropriate multipliers balance the objective gradient against the constraint gradients; for a single equality constraint,
 
 $$
 \nabla L(w^\star)+\lambda^\star\nabla c(w^\star)=0.
 $$
+

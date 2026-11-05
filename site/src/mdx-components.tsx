@@ -1,4 +1,5 @@
 import type { MDXComponents } from "mdx/types";
+import { AesRoundSchema, CbcSchema, CfbSchema, CtrSchema, DiffusionSchema, EcbPenguinSchema, EcbSchema, GcmSchema, KeyExpansionSchema, OfbSchema } from "@/components/AesSchemas";
 import { BPlusTree } from "@/components/BPlusTree";
 import { BufferQueue } from "@/components/BufferQueue";
 import { ClockPolicy } from "@/components/ClockPolicy";
@@ -74,6 +75,7 @@ import {
   VlanTrunkSchema,
 } from "@/components/LanSchemas";
 import { LanguageClasses } from "@/components/LanguageClasses";
+import { MarkdownPreviewPipelineSchema } from "@/components/MarkdownPreviewSchemas";
 import { PerceptronBoundarySchema, RegressionPlaneSchema } from "@/components/LinearModelSchemas";
 import {
   CsmaCdSchema,
@@ -140,6 +142,16 @@ export function useMDXComponents(
     ...packetFigures,
     AddressPrefixSchema,
     AddressVsDereferenceDiagram,
+    AesRoundSchema,
+    CbcSchema,
+    CfbSchema,
+    CtrSchema,
+    DiffusionSchema,
+    EcbPenguinSchema,
+    EcbSchema,
+    GcmSchema,
+    KeyExpansionSchema,
+    OfbSchema,
     BartLisaSchema,
     BridgedPathSchema,
     Dot1xSchema,
@@ -180,6 +192,7 @@ export function useMDXComponents(
     Ipv6AddressSchema,
     Ipv6HeaderSchema,
     LanguageClasses,
+    MarkdownPreviewPipelineSchema,
     LockGranularitySchema,
     LockPhaseSchema,
     LanCaptureSchema,
